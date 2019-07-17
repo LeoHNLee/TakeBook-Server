@@ -20,7 +20,6 @@ def main(args):
         return ret
     except Exception as e:
         return 'Error: '+str(e)
-
 if __name__ == "__main__":
     try:
         import sys, os, warnings
@@ -28,6 +27,6 @@ if __name__ == "__main__":
         import book_classification as bclf
     except Exception as e:
         print('Error: '+"During Import Libraries"+str(e))
-    else:
+    else:  
         ret = main(sys.argv)
         print(ret)
