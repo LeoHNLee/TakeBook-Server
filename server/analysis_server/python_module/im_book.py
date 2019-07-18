@@ -94,7 +94,7 @@ class ImageHandler(object):
         ret += is_overflow * 255
         return ret.astype(np.uint8)
 
-    def im_resize(self, img=None, x=None, y=None, option=INTER_LINEAR):
+    def im_resize(self, img=None, x=None, y=None, option=cv2.INTER_LINEAR):
         if img is None:
             img = self.image
         if x is None:
