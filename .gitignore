@@ -1,0 +1,10 @@
+# file extentions
+*.ipynb
+*_test.py
+*.pdf
+
+# directories
+__pycache__
+.pytest_cache
+.ipynb_checkpoints
+tests

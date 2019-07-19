@@ -1,4 +1,4 @@
-import sys, os, warnings, random, copy
+import sys, os, warnings, random, copy, math
 warnings.filterwarnings('ignore')
 import numpy as np
 import urllib, requests
@@ -77,6 +77,12 @@ class ImageHandler(object):
         '''
         cv2.imwrite(save_path, self.image)
 
+    def im_change_type(self, img=None, img_type=cv2.COLOR_BGR2GRAY):
+        if img is None:
+            img = self.image
+        ret = cv2.cvtColor(img, img_type)
+        return ret
+
     def im_minus(self, other, origin=None):
         if origin is None:
             origin = self.image
@@ -142,17 +148,24 @@ class ImageHandler(object):
         ret = cv2.copyMakeBorder(small_size_img, top, bottom, left, right, borderType=borderType, value=value)
         return ret
 
-    def im_augmentation(self, img=None, background=None, background_option=0, rotation_degree=None, rotation_size_contraint=False):
+    def im_augmentation(self, img=None, background=None, background_option=0, rotation_degree=None, flip_option=None, size_constraint=False):
         if img is None:
             img = self.image
-        cols, rows, *_ = img.shape
+        cols, rows, *channels = img.shape
         ret = copy.deepcopy(img)
         if rotation_degree is not None:
-            ret = self.im_rotate(ret, rotation_degree)
+            if len(channels)==0:
+                plus_one = np.ones((cols, rows), np.uint8)
+            else:
+                plus_one = np.ones((cols, rows, channels[0]), np.uint8)
+            ret = self.im_plus(origin=ret, other=plus_one)
+            ret = self.im_rotate(img=ret, degree=rotation_degree)
+        if flip_option is not None:
+            ret = self.im_flip(img=ret, option=flip_option)
         if background is not None:
-            ret = self.im_background(background=background, img=ret)
+            ret = self.im_background(background=background, img=ret, option=background_option)
         if size_constraint:
-            ret = self.im_resize(ret, rows, cols)
+            ret = self.im_resize(img=ret, x=rows, y=cols)
         return ret
 
     def im_rotate(self, img=None, degree=90):
@@ -161,9 +174,12 @@ class ImageHandler(object):
         '''
         if img is None:
             img = self.image
-        cols, rows, *_ = img.shape
+        cols, rows, *channels = img.shape
         new_row = math.ceil(np.sqrt(rows**2+cols**2))
-        background = np.zeros((new_row, new_row), np.uint8)
+        if len(channels) == 0:
+            background = np.zeros((new_row, new_row), np.uint8)
+        else:
+            background = np.zeros((new_row, new_row, channels[0]), np.uint8)
         padded_img = self.im_padding(background, img)
         rotated_img = imutils.rotate(padded_img, degree)
         return rotated_img
@@ -195,20 +211,21 @@ class ImageHandler(object):
     def im_background(self, background, img=None, padding=None, option=0):
         if img is None:
             img = self.image
-        cols, rows, *_ = img.shape
-        hole = np.zeros((cols,rows))
-        if option == 1:
-            option = 2
-            adding_height = background.shape[0] - cols
-            adding_width = background.shape[1] - rows
-            top = random.randint(1, adding_height)
-            bottom = adding_height-top
-            left = random.randint(1, adding_width)
-            right = adding_width-left
-            padding = (top, bottom, left, right)
-        padded_hole = self.im_padding(background, hole, value=1, padding=padding, option=option)
-        background_hole = background*padded_hole
+        cols, rows, *channels = img.shape
+        # hole = np.zeros((cols,rows))
+        # if option == 1:
+        #     option = 2
+        #     adding_height = background.shape[0] - cols
+        #     adding_width = background.shape[1] - rows
+        #     top = random.randint(1, adding_height)
+        #     bottom = adding_height-top
+        #     left = random.randint(1, adding_width)
+        #     right = adding_width-left
+        #     padding = (top, bottom, left, right)
         padded_img = self.im_padding(background, img, padding=padding, option=option)
+        is_it_background = padded_img==0
+        # padded_hole = self.im_padding(background, hole, value=1, padding=padding, option=option)
+        background_hole = background*is_it_background
         ret = self.im_plus(background_hole, padded_img)
         return ret
 
