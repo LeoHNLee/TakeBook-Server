@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Miscellaneous
 *.class
 *.log
@@ -70,3 +71,20 @@
 !**/ios/**/default.pbxuser
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
+
+# file extentions
+*.ipynb
+*_test.py
+*.pdf
+
+# directories
+__pycache__
+.pytest_cache
+.ipynb_checkpoints
+tests
+venv
+
+# node diresctories
+node_modules
+package-lock.json
+package.json

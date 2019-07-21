@@ -23,12 +23,12 @@ def get_book(start_date, end_date):
     docs = bs_obj.find_all("e")
 
     for doc in docs:
-        title = doc.select_one("TITLE").text
         isbn = doc.select_one("EA_ISBN").text
+        published = doc.select_one("PUBLISH_PREDATE").text
         book = get_aladin(isbn)
         #if book != None:
         #    insert_data(db_cursor,book)
-        print(title + " | " + isbn)
+        # print(title + " | " + isbn)
         time.sleep(1)
 
     print(f"{start_date}, {end_date} ::: success")
@@ -43,7 +43,9 @@ def get_aladin(isbn_no):
         for l in link:
             print(l.text)
 
+        # 알라딘 상품정보 - (책이름)
         title = bs_obj.select_one("title").text
+        title = str(title)[11:]
         sub_title = bs_obj.select_one("subTitle").text
         pub_date = bs_obj.select_one("pubDate").text
         author = bs_obj.select_one("author").text
