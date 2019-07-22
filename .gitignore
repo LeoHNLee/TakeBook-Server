@@ -72,6 +72,7 @@
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 
+<<<<<<< Updated upstream
 # file extentions
 *.ipynb
 *_test.py
@@ -88,3 +89,10 @@ venv
 node_modules
 package-lock.json
 package.json
+=======
+# python: jupyter notebook and test codes
+.ipynb_checkpoints
+__pycache__
+tests
+*.ipynb
+>>>>>>> Stashed changes
