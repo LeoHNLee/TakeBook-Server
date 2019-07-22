@@ -18,15 +18,8 @@ else:
     def main(args):
         # get node query
         try:
-            try:
-                _, img_path, path_type, *is_proper_args = args
-            except ValueError as e:
-                return 'Error: '+'too_less_input'
-            try:
-                if len(is_proper_args)>0:
-                    raise NotProperQuery('too_many_input')
-            except NotProperQuery as e:
-                return 'Error: '+str(e)
+            img_path = args["path"]
+            path_type = args["type"]
 
             img = im_book.ImageHandler(img_path=img_path, path_type=path_type)
             model = im_book.BookClassification()

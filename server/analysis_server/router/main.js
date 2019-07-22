@@ -20,7 +20,7 @@ function pytojs(url, res){
         pythonPath: './venv/bin/python3', // python 설치 경로
         pythonOptions: ['-u'],
         scriptPath: './python_module', // 실행할 python 파일 경로
-        args: [url, "url"]
+        args: ['-p', url, '-t','url']
     };
     PythonShell.run('node_book_predict.py', options, function (err, results) {
 
