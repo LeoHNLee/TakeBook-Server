@@ -34,10 +34,10 @@ def check_item_count(published_date):
     return int(item_count)
 
 def get_book(published_date,page_no,page_size):
-    # 국립중앙도서관 도서정보 가져오기
+    # 도서정보 긁어오기
     # 
-    # @ param   start_data 출판 날짜
-    # @ return 반환하는 것 설명
+    # @ param   published_date 출판 날짜, page_no: api 크롤링 페이지 넘버 ,page_size: api 크롤링 한 페이지당 표시할 책 갯수
+    # @ return ##
     # @ exception 예외사항
 
     url = f"http://seoji.nl.go.kr/landingPage/SearchApi.do?cert_key=9feaa6583980cb950aa17f9b33b30b67&ebook_yn=N&result_style=xml&page_no={page_no}&page_size={page_size}&start_publish_date={published_date}&end_publish_date={published_date}"
@@ -49,7 +49,7 @@ def get_book(published_date,page_no,page_size):
         isbn = doc.select_one('EA_ISBN').text
         if isbn == '':
             isbn = doc.select_one('SET_ISBN').text
-        book = get_aladin(isbn)
+        book = get_aladin_book_info(isbn)
         if book != None:
             title = doc.select_one("TITLE").text
             published = doc.select_one("PUBLISH_PREDATE").text
@@ -66,7 +66,12 @@ def get_book(published_date,page_no,page_size):
         # print(title + " | " + isbn)
         time.sleep(1)
 
-def get_aladin(isbn_no):
+def get_aladin_book_info(isbn_no):
+    # isbn을 통하여 알라딘에 api를 검색하여 정보를 추출
+    # 
+    # param     isbn: 검색할 isbn
+    # return    book: 검색한 정보들의 딕셔너리
+    # book:  link, author, translator, publisher, category_id, category_name, toc, image_url
     url = f"http://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?ttbkey=ttbguide942248001&itemIdType=ISBN13&ItemId={isbn_no}&output=xml"
     html_source = requests.get(url = url)
     bs_obj = BS(html_source.content, "xml")
@@ -179,30 +184,53 @@ def processing_text(text):
 
     return text
 
+# 메인함수
 def main():
+    state_file_path = '/Users/bsh/Documents/git_directory/p1039_red/crawler/save_state'
 
+    # 이전 상태 불러오기
+    statefile = open(state_file_path, 'r')
+    state = statefile.readline()
+
+    # 실행횟수
+    count = 0
+    maxcount =20
     # 한번에 불러올 책 수 
-    page_size = 10
-    page_no = 14
+    page_size = 10  # 이건 최대한 안건드는 걸루
+    page_no =  int(state[8:])
     # 초기 날짜
-    year =2018
-    month = 1
-    day = 1
+    year = int(state[:4])
+    month = int(state[4:6])
+    day = int(state[6:8])
+    print(f'load published_date: {year} {month} {day}  page_no: {page_no}')
     published_date = datetime.date(year, month, day)
-    current_date = datetime.date.today()
     #현제 기준 내일 시간
-    tomorrow = current_date + datetime.timedelta(days=1)
+    tomorrow = datetime.date.today() + datetime.timedelta(days=1)
 
+    statefile.close()
+
+    
     while(published_date != tomorrow):
         date = str(published_date).replace('-','')
-        item_count = check_item_count(date)
+        item_count = check_item_count(date) 
 
         while page_no*(page_size-1) < item_count:
+            logfile = open(state_file_path,'w')
+            logfile.write(f'{date}{page_no}')
+            logfile.close()
+
             get_book(date,page_no, page_size)
             page_no+=1
 
+            if count == maxcount:
+                break
+
         page_no =1
         published_date+=datetime.timedelta(days=1)
+        if count == maxcount:
+            break
+
+    logfile.close()
         
 
 main()
