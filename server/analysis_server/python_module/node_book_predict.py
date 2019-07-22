@@ -6,7 +6,7 @@
 -output: str predicted_img
 '''
 try:
-    import sys, os, warnings
+    import sys, os, warnings, argparse
     warnings.filterwarnings('ignore')
     import im_book
 except ImportError as e:
@@ -18,15 +18,8 @@ else:
     def main(args):
         # get node query
         try:
-            try:
-                _, img_path, path_type, *is_proper_args = args
-            except ValueError as e:
-                return 'Error: '+'too_less_input'
-            try:
-                if len(is_proper_args)>0:
-                    raise NotProperQuery('too_many_input')
-            except NotProperQuery as e:
-                return 'Error: '+str(e)
+            img_path = args["path"]
+            path_type = args["type"]
 
             img = im_book.ImageHandler(img_path=img_path, path_type=path_type)
             model = im_book.BookClassification()
@@ -35,5 +28,10 @@ else:
         except Exception as e:
             return 'Error: '+str(e)
 
-    ret = main(sys.argv)
+    # construct the argument parser and parse the arguments
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-p", "--path", type=str, help="path to input image")
+    ap.add_argument("-t", "--type", type=str, help="type of input image")
+    args = vars(ap.parse_args())
+    ret = main(args)
     print(ret)
