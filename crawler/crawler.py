@@ -11,8 +11,8 @@ warnings.filterwarnings('ignore')
 file_data = OrderedDict()
 
 # MySQL Connection 연결
-conn = pymysql.connect(host='1.201.136.108', port=3306, user='root', password='92064aaB!!',
-                       db='web_scrap_db', charset='utf8mb4')
+conn = pymysql.connect(host='127.0.0.1', port=3306, user='root', password='92064aaB!!',
+                       db='read_db', charset='utf8mb4')
 # cursor 설정
 db_cursor = conn.cursor()
 
@@ -57,13 +57,11 @@ def get_book(published_date,page_no,page_size):
             book['isbn'] = isbn
             book['published'] = published
             book['content'] = get_kyobo_book_information(isbn)
-            print_book_info(book)
+            # print_book_info(book)
+            insert_into_database(db_cursor,book)
         else:
             print(f'{isbn}: is failed')
         
-        #if book != None:
-        #    insert_data(db_cursor,book)
-        # print(title + " | " + isbn)
         time.sleep(1)
 
 def get_aladin_book_info(isbn_no):
@@ -150,23 +148,22 @@ def get_kyobo_book_information(item_id):
         return ''
 
 # db에 data저장
-def insert_data(curs, book):
+def insert_into_database(curs, book):
 
     sql = """insert into book
-         values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+         values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
     
     try:    
-        curs.execute(sql, (book['title'], book['author'], " ",
-                       " ", " ", " ",
-                       " ", " ",book['category_name'],
-                        book['sub_title'], 
-                           book['toc'], 
-                           book['isbn13']))
+        curs.execute(sql, (book['isbn'], book['title'], book['published'],
+                       book['author'], book['translator'], book['published'],
+                       book['link'],book['image_url'],book['toc'],
+                        book['content']))
         conn.commit()
+        print(f'{book["isbn"]}: is success!')
     except pymysql.err.IntegrityError:
-        print("Already exists")
+        print(f'{book["isbn"]}: Already exists')
     except TypeError:
-        print("Data is not complete")
+        print(f'{book["isbn"]}: Data is not complete')
 
 def processing_text(text):
     # 텍스트에 불필요한 부분을 삭제
@@ -194,7 +191,7 @@ def main():
 
     # 실행횟수
     count = 0
-    maxcount =20
+    maxcount =2000
     # 한번에 불러올 책 수 
     page_size = 10  # 이건 최대한 안건드는 걸루
     page_no =  int(state[8:])
@@ -221,6 +218,7 @@ def main():
 
             get_book(date,page_no, page_size)
             page_no+=1
+            count+=1
 
             if count == maxcount:
                 break
