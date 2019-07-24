@@ -51,14 +51,15 @@ def get_book(published_date,page_no,page_size):
             isbn = doc.select_one('SET_ISBN').text
         book = get_aladin_book_info(isbn)
         if book != None:
-            title = doc.select_one("TITLE").text
-            published = doc.select_one("PUBLISH_PREDATE").text
-            book['title'] = title
+            book['title'] = doc.select_one("TITLE").text
             book['isbn'] = isbn
-            book['published'] = published
-            book['content'] = get_kyobo_book_information(isbn)
+            book['author'] = doc.select_one("AUTHOR").text
+            book['publisher'] = doc.select_one("PUBLISHER").text
+            book['published_date'] = published = doc.select_one("PUBLISH_PREDATE").text
+            book['discriptions'] = get_kyobo_book_information(isbn)
             # print_book_info(book)
             insert_into_database(db_cursor,book)
+
         else:
             print(f'{isbn}: is failed')
         
@@ -79,18 +80,14 @@ def get_aladin_book_info(isbn_no):
         link = bs_obj.find_all("link")
         item_link = link[0].text
 
-        # 저자, 옮긴이 가져오기
+        # 옮긴이 가져오기
         authors = bs_obj.select_one("authors")
         authors = authors.find_all('author')
-        author = ''
         translator = ''
         for data in authors:
-            if data['authorType'] == 'author':
-                author = data.text
-            elif data['authorType'] == 'translator':
+            if data['authorType'] == 'translator':
                 translator = data.text
 
-        publisher = bs_obj.select_one("publisher").text
         # price_standard = bs_obj.select_one("priceStandard").text
         # price_sales = bs_obj.select_one("priceSales").text
         category_id = bs_obj.select_one("categoryId").text
@@ -106,13 +103,11 @@ def get_aladin_book_info(isbn_no):
         image_url = bs_obj.find("img",{"id":"CoverMainImage"})['src']
 
         book={}
-        book["link"] = item_link                
-        book["author"] = author                 
+        book["url_alladin"] = item_link                     
         book["translator"] = translator         
-        book["publisher"] = publisher           
         book["category_id"] = category_id
         book["category_name"] = category_name
-        book["toc"] = toc
+        book["contents"] = toc
         book["image_url"] = image_url
 
         return book
@@ -154,10 +149,10 @@ def insert_into_database(curs, book):
          values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
     
     try:    
-        curs.execute(sql, (book['isbn'], book['title'], book['published'],
-                       book['author'], book['translator'], book['published'],
-                       book['link'],book['image_url'],book['toc'],
-                        book['content']))
+        curs.execute(sql, (book['isbn'], book['title'], book['published_date'],
+                       book['author'], book['translator'], book['publisher'],
+                       book['url_alladin'],book['image_url'],book['contents'],
+                        book['discriptions']))
         conn.commit()
         print(f'{book["isbn"]}: is success!')
     except pymysql.err.IntegrityError:
@@ -177,6 +172,8 @@ def processing_text(text):
     text = text.replace('</p>','')
     text = text.replace('&lt;','')
     text = text.replace('&gt;','')
+    text = text.replace('<br />','')
+    text = text.replace('<b>','')
     text = text.strip()
 
     return text
