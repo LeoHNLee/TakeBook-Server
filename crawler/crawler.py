@@ -141,6 +141,8 @@ def get_kyobo_book_information(item_id):
         return book_content
     except IndexError:
         return ''
+    except Exception:
+        return ''
 
 # db에 data저장
 def insert_into_database(curs, book):
