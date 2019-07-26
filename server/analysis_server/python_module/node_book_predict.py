@@ -18,12 +18,9 @@ else:
     def main(args):
         # get node query
         try:
-            img_path = args["path"]
-            path_type = args["type"]
-
-            img = im_book.ImageHandler(img_path=img_path, path_type=path_type)
+            img = im_book.ImageHandler(img_path=args["path"], path_type=args["type"])
             model = im_book.BookClassification()
-            ret = model.predict(img.image)
+            ret = model.predict(img.image, lang=args["language"])
             return ret
         except Exception as e:
             return 'Error: '+str(e)
@@ -32,6 +29,7 @@ else:
     ap = argparse.ArgumentParser()
     ap.add_argument("-p", "--path", type=str, help="path to input image")
     ap.add_argument("-t", "--type", type=str, help="type of input image")
+    ap.add_argument("-l", "--language", type=str, default="kor", help="select languge of book cover")
     args = vars(ap.parse_args())
     ret = main(args)
     print(ret)

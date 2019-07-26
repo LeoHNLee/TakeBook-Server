@@ -76,6 +76,8 @@
 *.ipynb
 *_test.py
 *.pdf
+*.jpg
+*.png
 
 # directories
 __pycache__
@@ -83,6 +85,7 @@ __pycache__
 .ipynb_checkpoints
 tests
 venv
+logdir
 
 # node diresctories
 node_modules
@@ -90,3 +93,7 @@ package-lock.json
 package.json
 uploads
 .vscode
+
+# python specific files
+server/analysis_server/python_module/text_detection.py
+server/analysis_server/python_module/models/import_pb_to_tensorboard.py
