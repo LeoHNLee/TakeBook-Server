@@ -11,8 +11,8 @@ warnings.filterwarnings('ignore')
 file_data = OrderedDict()
 
 # MySQL Connection 연결
-conn = pymysql.connect(host='127.0.0.1', port=3306, user='root', password='92064aaB!!',
-                       db='read_db', charset='utf8mb4')
+conn = pymysql.connect(host='1.201.136.108', port=3306, user='root', password='92064aaB!!',
+                       db='web_scrap_db', charset='utf8mb4')
 # cursor 설정
 db_cursor = conn.cursor()
 
@@ -50,7 +50,11 @@ def get_book(published_date,page_no,page_size):
         if isbn == '':
             isbn = doc.select_one('SET_ISBN').text
         book = get_aladin_book_info(isbn)
-        if book != None:
+        if book == None or book == "none_data":
+            print(f'{isbn}: is failed')
+        elif book == "daily_limt":
+            return book
+        else:
             book['title'] = doc.select_one("TITLE").text
             book['isbn'] = isbn
             book['author'] = doc.select_one("AUTHOR").text
@@ -59,9 +63,8 @@ def get_book(published_date,page_no,page_size):
             book['discriptions'] = get_kyobo_book_information(isbn)
             # print_book_info(book)
             insert_into_database(db_cursor,book)
-
-        else:
-            print(f'{isbn}: is failed')
+            
+        
         
         time.sleep(1)
 
@@ -74,6 +77,14 @@ def get_aladin_book_info(isbn_no):
     url = f"http://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?ttbkey=ttbguide942248001&itemIdType=ISBN13&ItemId={isbn_no}&output=xml"
     html_source = requests.get(url = url)
     bs_obj = BS(html_source.content, "xml")
+
+    errorcode = bs_obj.select_one("errorCode")
+    if errorcode != None:
+        errorcode = int(errorcode.text)
+        if errorcode == 8:
+            return "none_data"
+        elif errorcode == 10:
+            return "daily_limt"
 
     try:
         # 해당 아이템 링크
@@ -161,6 +172,8 @@ def insert_into_database(curs, book):
         print(f'{book["isbn"]}: Already exists')
     except TypeError:
         print(f'{book["isbn"]}: Data is not complete')
+    except Exception:
+        print("!!")
 
 def processing_text(text):
     # 텍스트에 불필요한 부분을 삭제
@@ -215,7 +228,10 @@ def main():
             logfile.write(f'{date}{page_no}')
             logfile.close()
 
-            get_book(date,page_no, page_size)
+            if get_book(date,page_no, page_size) == "daily_limt":
+                print("Exceed daily limit!!")
+                return ""
+
             page_no+=1
             count+=1
 
@@ -226,8 +242,6 @@ def main():
         published_date+=datetime.timedelta(days=1)
         if count == maxcount:
             break
-
-    logfile.close()
         
 
 main()
