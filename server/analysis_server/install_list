@@ -9,3 +9,4 @@ npm install express;
 npm install body-parser;
 npm install request;
 npm install multer;
+npm install aws-sdk;

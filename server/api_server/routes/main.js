@@ -27,27 +27,22 @@ router.get('/result', (req, res) => {
     res.send('success!')
 });
 
-
-router.post('/result', upload.single('book_image'), (req, res) => {
-    let imagepath = `./${req.file.path}`
-
+router.post('/result', (req, res) => {
+    filename = req.body.filename
 
     const form = {
-        book_image : fs.createReadStream(imagepath),
-    };
-    // post 요청
-    // @parms    url: 요청을 보낼 주소
-    // @parms    formdata: 요청을 보낼 form데이터
-    postrequest.post({ url: `${ouheraddress}/result`, formData: form },
+        filename: filename,
+    }
+
+    postrequest.post(`${ouheraddress}/result`, {form},
         function optionalCallback(err, httpResponse, body) {
             if (err) {
-                return console.error('upload failed:', err);
+                return console.error('response failed:', err);
             }
-            console.log('Upload successful!  Server responded with:', body);
+            console.log('response successful!  Server responded with:', body);
             res.send(body)
-        });
-
-});
+        })
+})
 
 
 module.exports = router;
