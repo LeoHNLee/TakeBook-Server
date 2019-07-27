@@ -49,7 +49,7 @@ class ImageHandler(object):
         return cv2.imread(img_path)
 
     def get_image_from_s3(self, img_path):
-        pass
+        raise NotProperImage("S3 is not yet Defined")
 
     def save_image(self, save_path):
         '''
@@ -254,9 +254,9 @@ class BookClassification(object):
     def train(self):
         pass
 
-    def predict(self, img, lang='kor'):
+    def predict(self, img, east="models/east.pb", lang='kor'):
         ocr_results = {}
-        text_areas = self.find_text_area(img=img)
+        text_areas = self.find_text_area(img=img, east_path=east)
         for area in text_areas:
             x1, x2, y1, y2 = area
             ocr_results[area] = self.ocr(img=img[y1:y2, x1:x2], lang=lang)
@@ -354,7 +354,4 @@ class BookClassification(object):
             point = origin.im_get_area(points=point, ratio=2.0)
             points.append(point)
 
-        ret = []
-        for (startX, endX, startY, endY) in points:
-            ret.append(origin.image[startY:endY, startX:endX])
-        return ret
+        return points
