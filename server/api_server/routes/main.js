@@ -1,23 +1,10 @@
 const express = require('express');
-const multer = require('multer');
 const fs = require('fs');
 const postrequest = require('request')
 
 const router = express.Router();
 const address = `http://127.0.0.1:5900`;
 const ouheraddress = `http://127.0.0.1:5901`;
-
-var upload = multer({
-    storage: multer.diskStorage({
-        destination(req, file, cb) {
-            cb(null, 'uploads/');
-        },
-        filename(req, file, cb) {
-            cb(null, file.originalname);
-        }
-    }),
-    limits: { fileSize: 5 * 1024 * 1024 }
-});
 
 router.get('/', (req, res) => {
     res.render('fileinput.html');
@@ -42,7 +29,28 @@ router.post('/result', (req, res) => {
             console.log('response successful!  Server responded with:', body);
             res.send(body)
         })
+        
+});
+
+router.post('/test', (req,res)=>{
+    let is_error = req.body.is_error;
+    let file_name = req.body.file_name;
+    let user_id = req.body.user_id;
+
+    const form = {
+        'is_error': is_error,
+        'error_code': 0,
+        'filename': 'test_title',
+        'isbn':'1234567890123'
+    }
+
+    res.json(form)
+
 })
+
+
+
+
 
 
 module.exports = router;
