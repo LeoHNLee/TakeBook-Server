@@ -1,46 +1,36 @@
-from bs4 import BeautifulSoup as BS
-from collections import OrderedDict
-import datetime
-import requests
-import random
-import warnings, os, sys
-import time
-import json
 import pymysql
+from bs4 import BeautifulSoup as BS
+import requests
+from collections import OrderedDict
+import json
+import datetime
+import warnings, os, sys, time, random
 warnings.filterwarnings('ignore')
-file_data = OrderedDict()
-
-# MySQL Connection 연결
-conn = pymysql.connect(host='1.201.136.108', port=3306, user='root', password='92064aaB!!',
-                       db='web_scrap_db', charset='utf8mb4')
-# cursor 설정
-db_cursor = conn.cursor()
-
 
 def print_book_info(book):
     for i in book:
         print(f'{i}: {book[i]}')
 
-def check_item_count(published_date):
+def check_item_count(published_date, cert_key, page_size=10, is_ebook="N", result_type="xml", page_no=1):
     # 출판 날짜에 해당하는 국립중앙도서관 책 권수를 구해주는 함수
     # 
     # @ param   published_date: 출판 날짜
     # @ return  page_no: 출판 날짜에 해당하는 책 수
 
-    url = f"http://seoji.nl.go.kr/landingPage/SearchApi.do?cert_key=9feaa6583980cb950aa17f9b33b30b67&ebook_yn=N&result_style=xml&page_no=1&page_size=10&start_publish_date={published_date}&end_publish_date={published_date}"
+    url = f"http://seoji.nl.go.kr/landingPage/SearchApi.do?cert_key={cert_key}&ebook_yn={is_ebook}&result_style={result_type}&page_no={page_no}&page_size={page_size}&start_publish_date={published_date}&end_publish_date={published_date}"
     html_source = requests.get(url = url)
     bs_obj = BS(html_source.content, "xml")
     item_count = bs_obj.select_one("TOTAL_COUNT").text
     return int(item_count)
 
-def get_book(published_date,page_no,page_size):
+def get_book(published_date, page_no, cert_key, page_size=10, is_ebook="N", result_type="xml"):
     # 도서정보 긁어오기
     # 
     # @ param   published_date 출판 날짜, page_no: api 크롤링 페이지 넘버 ,page_size: api 크롤링 한 페이지당 표시할 책 갯수
     # @ return ##
     # @ exception 예외사항
 
-    url = f"http://seoji.nl.go.kr/landingPage/SearchApi.do?cert_key=9feaa6583980cb950aa17f9b33b30b67&ebook_yn=N&result_style=xml&page_no={page_no}&page_size={page_size}&start_publish_date={published_date}&end_publish_date={published_date}"
+    url = f"http://seoji.nl.go.kr/landingPage/SearchApi.do?cert_key={cert_key}&ebook_yn={is_ebook}&result_style={result_type}&page_no={page_no}&page_size={page_size}&start_publish_date={published_date}&end_publish_date={published_date}"
     html_source = requests.get(url = url)
     bs_obj = BS(html_source.content, "xml")
     docs = bs_obj.find_all("e")
@@ -63,9 +53,6 @@ def get_book(published_date,page_no,page_size):
             book['discriptions'] = get_kyobo_book_information(isbn)
             # print_book_info(book)
             insert_into_database(db_cursor,book)
-            
-        
-        
         time.sleep(1)
 
 def get_aladin_book_info(isbn_no):
@@ -175,60 +162,48 @@ def insert_into_database(curs, book):
     except Exception:
         print("!!")
 
-def processing_text(text):
+def processing_text(text, trash_text=('<BR>', '<B>', '</B>', '<p>', '</p>', '&lt;', '&gt;', '<br />', '<b>')):
     # 텍스트에 불필요한 부분을 삭제
     # 
     # @param text 가공이 필요한 텍스트
     # @return text 가공된 텍스트
-    text = text.replace('<BR>','')
-    text = text.replace('<B>','')
-    text = text.replace('</B>','')
-    text = text.replace('<p>','')
-    text = text.replace('</p>','')
-    text = text.replace('&lt;','')
-    text = text.replace('&gt;','')
-    text = text.replace('<br />','')
-    text = text.replace('<b>','')
+    for trash in trash_text:
+        text = text.replace(trash,'')
     text = text.strip()
-
     return text
 
 # 메인함수
-def main():
-    state_file_path = '/Users/bsh/Documents/git_directory/p1039_red/crawler/save_state'
-
+def main(system_parameters, maxcount=2000, page_size=10):
     # 이전 상태 불러오기
-    statefile = open(state_file_path, 'r')
+    statefile = open(system_parameters["state_file_path"], 'r')
     state = statefile.readline()
 
     # 실행횟수
     count = 0
-    maxcount =2000
-    # 한번에 불러올 책 수 
-    page_size = 10  # 이건 최대한 안건드는 걸루
-    page_no =  int(state[8:])
+
     # 초기 날짜
     year = int(state[:4])
     month = int(state[4:6])
     day = int(state[6:8])
-    print(f'load published_date: {year} {month} {day}  page_no: {page_no}')
+    page_no =  int(state[8:])
     published_date = datetime.date(year, month, day)
-    #현제 기준 내일 시간
+    print(f'load published_date: {year} {month} {day}  page_no: {page_no}')
+    
+    #현재 기준 내일 시간
     tomorrow = datetime.date.today() + datetime.timedelta(days=1)
 
     statefile.close()
 
-    
     while(published_date != tomorrow):
         date = str(published_date).replace('-','')
-        item_count = check_item_count(date) 
+        item_count = check_item_count(date, cert_key = system_parameters["cert_key"]) 
 
         while page_no*(page_size-1) < item_count:
-            logfile = open(state_file_path,'w')
+            logfile = open(system_parameters["state_file_path"],'w')
             logfile.write(f'{date}{page_no}')
             logfile.close()
 
-            if get_book(date,page_no, page_size) == "daily_limt":
+            if get_book(date,page_no, page_size, cert_key = system_parameters["cert_key"]) == "daily_limt":
                 print("Exceed daily limit!!")
                 return ""
 
@@ -242,8 +217,23 @@ def main():
         published_date+=datetime.timedelta(days=1)
         if count == maxcount:
             break
-        
 
-main()
+if __name__ == "__main__":
+    file_data = OrderedDict()
+    system_parameters = {}
+    system_parameters["state_file_path"] = "/Users/bsh/Documents/git_directory/p1039_red/crawler/save_state"
+    system_parameters["cert_key"] = "9feaa6583980cb950aa17f9b33b30b67"
+    system_parameters["db_pw"] = "92064aaB!!"
+    system_parameters['db_user'] = "root"
+    system_parameters["db_port"] = 3306
+    system_parameters["db_host"] = '1.201.136.108'
 
-
+    # MySQL Connection 연결
+    conn = pymysql.connect(host=system_parameters["db_host"], 
+                            port=system_parameters["db_port"], 
+                            user=system_parameters['db_user'], 
+                            password=system_parameters["db_pw"],
+                        db='web_scrap_db', charset='utf8mb4')
+    # cursor 설정
+    db_cursor = conn.cursor()
+    main(system_parameters=system_parameters)
