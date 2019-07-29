@@ -12,7 +12,7 @@ file_data = OrderedDict()
 
 # MySQL Connection 연결
 conn = pymysql.connect(host='127.0.0.1', port=3306, user='root', password='92064aaB!!',
-                       db='read_db', charset='utf8mb4')
+                       db='web_scrap_db', charset='utf8mb4')
 # cursor 설정
 db_cursor = conn.cursor()
 

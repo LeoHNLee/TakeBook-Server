@@ -7,7 +7,7 @@ const fs = require('fs')
 const address = `http://127.0.0.1:5901`;
 
 const AWS = require('aws-sdk');
-AWS.config.region = 'us-east-1'
+AWS.config.region = 'ap-northeast-2'
 
 
 // 업로드 설정
@@ -23,7 +23,7 @@ var upload = multer({
 });
 
 // python 모듈 불러오기
-function pytojs(img_path,path_type,res) {
+function pytojs(img_path,path_type,response,response_body) {
     let { PythonShell } = require('python-shell')
     var options = {
         mode: 'text',
@@ -41,9 +41,12 @@ function pytojs(img_path,path_type,res) {
         // results is an array consisting of messages collected during execution
         var data = ``;
         for (var i in results) {
-            data += "<p>" + results[i] + "</p>";
+            data += results[i] + ' ';
         }
-        res.send(data);
+        response_body.is_error = false;
+        response_body.error_code = 0;
+        response_body.result = data;
+        response.json(response_body);
     });
 };
 
@@ -53,16 +56,18 @@ router.get('/result', (req, res) => {
 });
 
 router.post('/result', (req, res) => {
-    var s3 = new AWS.S3();
-    var filename = req.body.filename;
+    let s3 = new AWS.S3();
+    let file_name = req.body.file_name;
+
+    let response_body = {}
 
     //s3로부터 파일 가져오기
-    var get_file_from_s3 = ()=>{
-        const myBucket = 'my-bsh-bucket';    
+    let get_file_from_s3 = ()=>{
+        const myBucket = 'red-bucket';    
 
-        var params = {
+        let params = {
             Bucket: myBucket,
-            Key: filename
+            Key: file_name
         };
 
         domain.run(() => {
@@ -71,18 +76,21 @@ router.post('/result', (req, res) => {
 
             //가져온 파일을 분석
             stream.on('finish', () => {
-                pytojs(`uploads/${filename}`,'local',res)
+                pytojs(`uploads/${file_name}`,'local',res, response_body);
             })
         })
     
         //s3에 해당파일이 존재하지 않을때
         domain.on('error', (err) => {
-            res.send(err);
+            console.log(err);
+            response_body.is_error = true;
+            response_body.error_code = 1;
+
         })    
     }
 
     //빈 파일 생성
-    var file = fs.createWriteStream(`./uploads/${filename}`);
+    let file = fs.createWriteStream(`./uploads/${file_name}`);
     get_file_from_s3();
 
     //디렉토리가 없을시
@@ -91,7 +99,7 @@ router.post('/result', (req, res) => {
         fs.mkdir('./uploads', { recursive: true }, (err) => {
             if (err) {res.send(err);}
             else {
-                file = require('fs').createWriteStream(`uploads/${filename}`);
+                file = require('fs').createWriteStream(`uploads/${file_name}`);
                 get_file_from_s3()
             }
         });

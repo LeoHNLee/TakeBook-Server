@@ -86,6 +86,9 @@ venv
 
 # node diresctories
 node_modules
-package-lock.json
-uploads/
 .vscode
+
+# node file
+config/
+uploads/
+package-lock.json
