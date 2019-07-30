@@ -8,7 +8,7 @@ const mainRouter = require('./routes/main')
 
 
 app.use(logger('dev'));
-app.use('/uploads', express.static('uploads'));
+// app.use('/uploads', express.static('uploads'));
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded())
 
