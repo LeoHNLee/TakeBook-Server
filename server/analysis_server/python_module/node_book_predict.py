@@ -18,7 +18,7 @@ def main(args):
         img = im_book.ImageHandler(img_path=args["path"], path_type=args["type"])
         model = im_book.BookClassification()
         ret = model.predict(img.image, lang=args["language"], east=args["east"])
-        return ret
+        return str(ret)
     except Exception as e:
         return 'Error: '+str(e)
 
