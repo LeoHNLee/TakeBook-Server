@@ -89,11 +89,15 @@ logdir
 
 # node diresctories
 node_modules
-package-lock.json
-package.json
-uploads
 .vscode
+uploads
+
+# node file
+config/
+package-lock.json
+
 
 # python specific files
 server/analysis_server/python_module/text_detection.py
 server/analysis_server/python_module/models/import_pb_to_tensorboard.py
+
