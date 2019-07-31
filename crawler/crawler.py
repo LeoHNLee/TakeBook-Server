@@ -1,11 +1,6 @@
-import pymysql
-from bs4 import BeautifulSoup as BS
 import requests
-from collections import OrderedDict
-import json
-import datetime
-import warnings, os, sys, time, random
-warnings.filterwarnings('ignore')
+
+from bs4 import BeautifulSoup
 
 def print_book_info(book):
     for i in book:
@@ -13,111 +8,111 @@ def print_book_info(book):
 
 def check_item_count(published_date, cert_key, page_size=10, is_ebook="N", result_type="xml", page_no=1):
     # 출판 날짜에 해당하는 국립중앙도서관 책 권수를 구해주는 함수
-    # 
-    # @ param   published_date: 출판 날짜
-    # @ return  page_no: 출판 날짜에 해당하는 책 수
 
     url = f"http://seoji.nl.go.kr/landingPage/SearchApi.do?cert_key={cert_key}&ebook_yn={is_ebook}&result_style={result_type}&page_no={page_no}&page_size={page_size}&start_publish_date={published_date}&end_publish_date={published_date}"
     html_source = requests.get(url = url)
-    bs_obj = BS(html_source.content, "xml")
+    bs_obj = BeautifulSoup(html_source.content, "xml")
     item_count = bs_obj.select_one("TOTAL_COUNT").text
     return int(item_count)
 
-def get_book(published_date, page_no, cert_key, page_size=10, is_ebook="N", result_type="xml"):
+def get_library_book_info(published_date, page_no, cert_key, page_size=10, is_ebook="N", result_type="xml"):
     # 도서정보 긁어오기
-    # 
-    # @ param   published_date 출판 날짜, page_no: api 크롤링 페이지 넘버 ,page_size: api 크롤링 한 페이지당 표시할 책 갯수
-    # @ return ##
-    # @ exception 예외사항
-
+    books =[]
     url = f"http://seoji.nl.go.kr/landingPage/SearchApi.do?cert_key={cert_key}&ebook_yn={is_ebook}&result_style={result_type}&page_no={page_no}&page_size={page_size}&start_publish_date={published_date}&end_publish_date={published_date}"
     html_source = requests.get(url = url)
-    bs_obj = BS(html_source.content, "xml")
+    bs_obj = BeautifulSoup(html_source.content, "xml")
     docs = bs_obj.find_all("e")
 
+    book = {}
     for doc in docs:
         isbn = doc.select_one('EA_ISBN').text
         if isbn == '':
             isbn = doc.select_one('SET_ISBN').text
-        book = get_aladin_book_info(isbn)
-        if book == None or book == "none_data":
-            print(f'{isbn}: is failed')
-        elif book == "daily_limt":
-            return book
-        else:
-            book['title'] = doc.select_one("TITLE").text
-            book['isbn'] = isbn
-            book['author'] = doc.select_one("AUTHOR").text
-            book['publisher'] = doc.select_one("PUBLISHER").text
-            book['published_date'] = published = doc.select_one("PUBLISH_PREDATE").text
-            book['discriptions'] = get_kyobo_book_information(isbn)
-            # print_book_info(book)
-            insert_into_database(db_cursor,book)
-        time.sleep(1)
 
-def get_aladin_book_info(isbn_no):
+        # book = get_aladin_book_info(isbn)
+        # if book == None or book == "none_data":
+        #     print(f'{isbn}: is failed')
+        # elif book == "daily_limt":
+        #     return book
+
+        book['isbn'] = isbn
+        book['title'] = doc.select_one("TITLE").text
+        book['author'] = doc.select_one("AUTHOR").text
+        book['publisher'] = doc.select_one("PUBLISHER").text
+        book['published_date'] = doc.select_one("PUBLISH_PREDATE").text
+
+        books.append(book)
+    
+    return books
+
+        # book['discriptions'] = get_kyobo_book_information(isbn)
+        # print_book_info(book)
+        # insert_into_database(db_cursor,book)
+        
+
+def get_aladin_book_info(isbn_no, ttbkey, output = "xml"):
     # isbn을 통하여 알라딘에 api를 검색하여 정보를 추출
-    # 
-    # param     isbn: 검색할 isbn
-    # return    book: 검색한 정보들의 딕셔너리
-    # book:  link, author, translator, publisher, category_id, category_name, toc, image_url
-    url = f"http://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?ttbkey=ttbguide942248001&itemIdType=ISBN13&ItemId={isbn_no}&output=xml"
+
+    url = f"http://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?ttbkey={ttbkey}&itemIdType=ISBN13&ItemId={isbn_no}&output={output}"
     html_source = requests.get(url = url)
-    bs_obj = BS(html_source.content, "xml")
+    bs_obj = BeautifulSoup(html_source.content, "xml")
 
     errorcode = bs_obj.select_one("errorCode")
-    if errorcode != None:
-        errorcode = int(errorcode.text)
-        if errorcode == 8:
-            return "none_data"
-        elif errorcode == 10:
+    if errorcode is not None:
+        errorcode = errorcode.text
+        if errorcode == '8':
+            return None
+        elif errorcode == '10':
             return "daily_limt"
 
-    try:
-        # 해당 아이템 링크
-        link = bs_obj.find_all("link")
-        item_link = link[0].text
+    
+    # 해당 아이템 링크
+    link = bs_obj.find_all("link")
+    item_link = link[0].text
 
-        # 옮긴이 가져오기
-        authors = bs_obj.select_one("authors")
-        authors = authors.find_all('author')
-        translator = ''
-        for data in authors:
-            if data['authorType'] == 'translator':
-                translator = data.text
+    author = bs_obj.select_one("author").text
 
-        # price_standard = bs_obj.select_one("priceStandard").text
-        # price_sales = bs_obj.select_one("priceSales").text
-        category_id = bs_obj.select_one("categoryId").text
-        category_name = bs_obj.select_one("categoryName").text
-        # 목차
-        toc = bs_obj.select_one("toc").text
-        toc = processing_text(str(toc))
+    # 옮긴이 가져오기
+    authors = bs_obj.select_one("authors")
+    authors = authors.find_all('author')
 
-        get_html_source = requests.get(url = item_link)
-        # BeautifulSoup Object: html parsing
-        bs_obj = BS(get_html_source.content, "html.parser")
+    translator = ""
+    # authorType    author: 지은이, illustrator: 그림, storywriter: 글, authorphoto: 사진
+    #               editor: 편집부, translator: 옮긴이
+    for data in authors:
+        if data['authorType'] == 'translator':
+            translator = data.text
 
-        image_url = bs_obj.find("img",{"id":"CoverMainImage"})['src']
+    # 카테고리
+    # category_id = bs_obj.select_one("categoryId").text
+    # category_name = bs_obj.select_one("categoryName").text
 
-        book={}
-        book["url_alladin"] = item_link                     
-        book["translator"] = translator         
-        book["category_id"] = category_id
-        book["category_name"] = category_name
-        book["contents"] = toc
-        book["image_url"] = image_url
+    # 목차
+    toc = bs_obj.select_one("toc").text
+    toc = processing_text(str(toc))
 
-        return book
+    get_html_source = requests.get(url = item_link)
+    # BeautifulSoup Object: html parsing
+    bs_obj = BeautifulSoup(get_html_source.content, "html.parser")
 
-    except Exception:
-        return None
+    image_url = bs_obj.find("img",{"id":"CoverMainImage"})['src']
 
-def get_kyobo_book_information(item_id):
+    book={}
+    book["url_alladin"] = item_link                     
+    book["author"] = author
+    book["translator"] = translator         
+    # book["category_id"] = category_id
+    # book["category_name"] = category_name
+    book["contents"] = toc
+    book["image_url"] = image_url
+
+    return book
+
+def get_kyobo_book_descriptions(item_id):
     url = f"http://www.kyobobook.co.kr/product/detailViewKor.laf?barcode={item_id}"
 
     result = requests.get(url=url)
-    bs_obj = BS(result.content, "html.parser")
+    bs_obj = BeautifulSoup(result.content, "html.parser")
 
     # 도서 내용을 가지고 있는 container
     content_middle = bs_obj.findAll("div", {"class": "content_middle"})
@@ -132,7 +127,7 @@ def get_kyobo_book_information(item_id):
         book_intro = book_intro[book_intro_start+len("<!-- *** s:책소개 *** -->") :book_intro_end]
 
         # 필요없는 부분 잘라내기
-        bs_obj = BS(book_intro, "html.parser")
+        bs_obj = BeautifulSoup(book_intro, "html.parser")
         book_content = bs_obj.find("div", {"class": "box_detail_article"})
         book_content = str(book_content.text).strip()
 
@@ -141,26 +136,6 @@ def get_kyobo_book_information(item_id):
         return ''
     except Exception:
         return ''
-
-# db에 data저장
-def insert_into_database(curs, book):
-
-    sql = """insert into book
-         values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
-    
-    try:    
-        curs.execute(sql, (book['isbn'], book['title'], book['published_date'],
-                       book['author'], book['translator'], book['publisher'],
-                       book['url_alladin'],book['image_url'],book['contents'],
-                        book['discriptions']))
-        conn.commit()
-        print(f'{book["isbn"]}: is success!')
-    except pymysql.err.IntegrityError:
-        print(f'{book["isbn"]}: Already exists')
-    except TypeError:
-        print(f'{book["isbn"]}: Data is not complete')
-    except Exception:
-        print("!!")
 
 def processing_text(text, trash_text=('<BR>', '<B>', '</B>', '<p>', '</p>', '&lt;', '&gt;', '<br />', '<b>')):
     # 텍스트에 불필요한 부분을 삭제
@@ -171,69 +146,3 @@ def processing_text(text, trash_text=('<BR>', '<B>', '</B>', '<p>', '</p>', '&lt
         text = text.replace(trash,'')
     text = text.strip()
     return text
-
-# 메인함수
-def main(system_parameters, maxcount=2000, page_size=10):
-    # 이전 상태 불러오기
-    statefile = open(system_parameters["state_file_path"], 'r')
-    state = statefile.readline()
-
-    # 실행횟수
-    count = 0
-
-    # 초기 날짜
-    year = int(state[:4])
-    month = int(state[4:6])
-    day = int(state[6:8])
-    page_no =  int(state[8:])
-    published_date = datetime.date(year, month, day)
-    print(f'load published_date: {year} {month} {day}  page_no: {page_no}')
-    
-    #현재 기준 내일 시간
-    tomorrow = datetime.date.today() + datetime.timedelta(days=1)
-
-    statefile.close()
-
-    while(published_date != tomorrow):
-        date = str(published_date).replace('-','')
-        item_count = check_item_count(date, cert_key = system_parameters["cert_key"]) 
-
-        while page_no*(page_size-1) < item_count:
-            logfile = open(system_parameters["state_file_path"],'w')
-            logfile.write(f'{date}{page_no}')
-            logfile.close()
-
-            if get_book(date,page_no, page_size, cert_key = system_parameters["cert_key"]) == "daily_limt":
-                print("Exceed daily limit!!")
-                return ""
-
-            page_no+=1
-            count+=1
-
-            if count == maxcount:
-                break
-
-        page_no =1
-        published_date+=datetime.timedelta(days=1)
-        if count == maxcount:
-            break
-
-if __name__ == "__main__":
-    file_data = OrderedDict()
-    system_parameters = {}
-    system_parameters["state_file_path"] = "/Users/bsh/Documents/git_directory/p1039_red/crawler/save_state"
-    system_parameters["cert_key"] = "9feaa6583980cb950aa17f9b33b30b67"
-    system_parameters["db_pw"] = "92064aaB!!"
-    system_parameters['db_user'] = "root"
-    system_parameters["db_port"] = 3306
-    system_parameters["db_host"] = '1.201.136.108'
-
-    # MySQL Connection 연결
-    conn = pymysql.connect(host=system_parameters["db_host"], 
-                            port=system_parameters["db_port"], 
-                            user=system_parameters['db_user'], 
-                            password=system_parameters["db_pw"],
-                        db='web_scrap_db', charset='utf8mb4')
-    # cursor 설정
-    db_cursor = conn.cursor()
-    main(system_parameters=system_parameters)
