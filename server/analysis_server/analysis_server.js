@@ -27,6 +27,8 @@ server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
 
+create_upload_dir('./uploads');
+
 /**
  * Normalize a port into a number, string, or false.
  */
@@ -85,4 +87,13 @@ function onListening() {
     ? 'pipe ' + addr
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
+}
+
+
+//디렉토리 존제 확인, 없으면 생성
+function create_upload_dir(path){
+  let fs = require('fs');
+  if (!fs.existsSync('uploads')){
+    fs.mkdirSync(path);
+  }
 }

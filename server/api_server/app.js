@@ -8,14 +8,9 @@ const mainRouter = require('./routes/main')
 
 
 app.use(logger('dev'));
-// app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static('uploads'));
 app.use(bodyParser.json())
-app.use(bodyParser.urlencoded())
-
-app.set('views', __dirname + '/Template/views');
-app.set('view engine', 'ejs');
-//html을 render하기위한 설정
-app.engine('html', require('ejs').renderFile);
+// app.use(bodyParser.urlencoded())
 
 //router 경로추가
 app.use('/', mainRouter);
