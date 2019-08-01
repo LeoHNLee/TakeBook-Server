@@ -254,19 +254,13 @@ class BookClassification(object):
     def train(self):
         pass
 
-    __east_dict__ = {
-        "east_path": "models/east.pb",
-        "width": 320,
-        "height":320,
-        "min_confidence": 0.5,
-    }
-    def predict(self, img, east=__east_dict__, lang='kor'):
+    def predict(self, img, east="models/east.pb", lang='kor'):
         ocr_results = {}
-        text_areas = self.find_text_area(img=img, east_path=east["east_path"], min_confidence=east["min_confidence"], new_width=east["width"], new_height=east["height"])
+        text_areas = self.find_text_area(img=img, east_path=east)
         for area in text_areas:
             x1, x2, y1, y2 = area
             ocr_results[area] = self.ocr(img=img[y1:y2, x1:x2], lang=lang)
-        return ocr_results
+        return str(ocr_results)
 
     def ocr(self, img, lang="kor"):
         return pytesseract.image_to_string(img, lang=lang)
