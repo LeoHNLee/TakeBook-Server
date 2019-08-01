@@ -65,6 +65,114 @@ class ImageHandler(object):
             img = self.image
         return ImageHandler(img=img.copy())
 
+    def augmentate(self, img=None, background=None, background_option=0, rotation_degree=None, flip_option=None, size_constraint=False):
+        if img is None:
+            img = self.image
+        cols, rows, *channels = img.shape
+        ret = copy.deepcopy(img)
+        if rotation_degree is not None:
+            if len(channels)==0:
+                plus_one = np.ones((cols, rows), np.uint8)
+            else:
+                plus_one = np.ones((cols, rows, channels[0]), np.uint8)
+            ret = self.im_plus(origin=ret, other=plus_one)
+            ret = self.im_rotate(img=ret, degree=rotation_degree)
+        if flip_option is not None:
+            ret = self.im_flip(img=ret, option=flip_option)
+        if background is not None:
+            ret = self.im_background(background=background, img=ret, option=background_option)
+        if size_constraint:
+            ret = self.im_resize(img=ret, x=rows, y=cols)
+        return ret
+
+    def find_rectangle(self, img=None, args=None):
+        if img is None:
+            img = self.image
+        if args is None:
+            args = {}
+        if "size" not in args:
+            args["size"] = {}
+            args["size"]["width"] = 480
+            args["size"]["height"] = 720
+        if "median" not in args:
+            args["median"] = {}
+            args["median"]["KSize"] = 5
+        if "gauss" not in args:
+            args["gauss"] = {}
+            args["gauss"]["KRate"] = 0.1
+            args["gauss"]["sigmaXH"] = 0
+            args["gauss"]["sigmaYH"] = 0
+            args["gauss"]["sigmaXW"] = 0
+            args["gauss"]["sigmaYW"] = 0
+        if "unsharp" not in args:
+            args["unsharp"] = {}
+            args["unsharp"]["KSize"] = (11,15)
+            args["unsharp"]["alpha"] = 1
+            args["unsharp"]["sigmaX"] = 0
+            args["unsharp"]["sigmaY"] = 0
+        if "adaBin" not in args:
+            args["adaBin"] = {}
+            args["adaBin"]["method"] = cv2.ADAPTIVE_THRESH_GAUSSIAN_C
+            args["adaBin"]["type"] = cv2.THRESH_BINARY_INV
+            args["adaBin"]["BSize"] = 31
+            args["adaBin"]["C"] = 5
+        if "morphology" not in args:
+            args["morphology"] = {}
+            args["morphology"]["KSize"] = (3,4)
+            args["morphology"]["shape"] = cv2.MORPH_RECT
+            args["morphology"]["it_opening"] = 2
+            args["morphology"]["it_closing"] = 8
+        if "contour" not in args:
+            args["contour"] = {}
+            args["contour"]["mode"] = cv2.RETR_EXTERNAL
+            args["contour"]["method"] = cv2.CHAIN_APPROX_NONE
+
+        args["size"]["height_origin"], args["size"]["width_origin"] = img.shape[:2]
+        args["size"]["height_rate"] = args["size"]["height_origin"]/args["size"]["height"]
+        args["size"]["width_rate"] = args["size"]["width_origin"]/args["size"]["width"]
+        resized = self.im_resize(img=img, x=args["size"]["width"], y=args["size"]["height"])
+
+        median = cv2.medianBlur(resized, ksize=args["median"]["KSize"])
+
+        ga_args = args["gauss"]
+        gauss_width = round(args["size"]["width"]*ga_args["KRate"])
+        gauss_height = round(args["size"]["height"]*ga_args["KRate"])
+        if gauss_width%2==0: gauss_width-=1
+        if gauss_height%2==0: gauss_height-=1
+
+        gaussed_h = cv2.GaussianBlur(median, ksize=(1,gauss_height), sigmaX=ga_args["sigmaXH"])
+        gaussed_w = cv2.GaussianBlur(gaussed_h, ksize=(gauss_width,1), sigmaX=ga_args["sigmaXW"])
+
+        un_args = args["unsharp"]
+        gaussed = cv2.GaussianBlur(median, ksize=un_args["KSize"], sigmaX=0)
+        unsharp = ImageHandler(img=(1+un_args["alpha"])*gaussed_w.astype(np.int16))
+        unsharp = unsharp.im_minus(un_args["alpha"]*gaussed.astype(np.int16))
+
+        gray = ImageHandler(unsharp).im_change_type()
+
+        bin_args = args["adaBin"]
+        binary = cv2.adaptiveThreshold(src=gray, maxValue=1, 
+                                    adaptiveMethod=bin_args["method"], 
+                                    thresholdType=bin_args["type"], 
+                                    blockSize=bin_args["BSize"], C=bin_args["C"])
+
+        mor_args = args["morphology"]
+        kernel=cv2.getStructuringElement(shape=mor_args["shape"], ksize=mor_args["KSize"])
+        morphology = cv2.erode(src=binary, kernel=kernel, iterations=mor_args["it_opening"])
+        morphology = cv2.dilate(src=morphology, kernel=kernel, iterations=mor_args["it_opening"]+mor_args["it_closing"])
+        morphology = cv2.erode(src=morphology, kernel=kernel, iterations=mor_args["it_closing"])
+
+        cont_args = args["contour"]
+        contours, hierarchy = cv2.findContours(morphology, mode=cont_args["mode"], method=cont_args["method"])
+
+        len_contours = [contour.shape[0] for contour in contours]
+        main_contour = len_contours.index(max(len_contours))
+        contour = contours[main_contour][:,0]
+
+        ret=cv2.boundingRect(contour)
+
+        return ret
+
     def im_change_type(self, img=None, img_type=cv2.COLOR_BGR2GRAY):
         if img is None:
             img = self.image
@@ -156,26 +264,6 @@ class ImageHandler(object):
         else:
             raise ValueError("undefiend option")
         ret = cv2.copyMakeBorder(small_size_img, top, bottom, left, right, borderType=borderType, value=value)
-        return ret
-
-    def im_augmentation(self, img=None, background=None, background_option=0, rotation_degree=None, flip_option=None, size_constraint=False):
-        if img is None:
-            img = self.image
-        cols, rows, *channels = img.shape
-        ret = copy.deepcopy(img)
-        if rotation_degree is not None:
-            if len(channels)==0:
-                plus_one = np.ones((cols, rows), np.uint8)
-            else:
-                plus_one = np.ones((cols, rows, channels[0]), np.uint8)
-            ret = self.im_plus(origin=ret, other=plus_one)
-            ret = self.im_rotate(img=ret, degree=rotation_degree)
-        if flip_option is not None:
-            ret = self.im_flip(img=ret, option=flip_option)
-        if background is not None:
-            ret = self.im_background(background=background, img=ret, option=background_option)
-        if size_constraint:
-            ret = self.im_resize(img=ret, x=rows, y=cols)
         return ret
 
     def im_rotate(self, img=None, degree=90):
