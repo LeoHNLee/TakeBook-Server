@@ -2,4 +2,5 @@ pip3 install Pillow;
 pip3 install pytesseract;
 pip3 install opencv-python;
 pip3 install imutils;
-pip3 insatll numpy;
+pip3 install numpy;
+pip3 install requests;

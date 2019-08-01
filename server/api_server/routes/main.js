@@ -129,17 +129,36 @@ router.post('/test', testupload.single('image_file'), (req, res) => {
     let user_id = req.body.user_id;
 
     if (file && user_id) {
-        // fs.unlinkSync(`./uploads/${file.filename}`);
+        fs.unlinkSync(`./uploads/${file.filename}`);
 
-        form.is_error = false;
-        form.filename = 'test_title';
-        form.isbn = '1234567890123';
+        mysql_connetion.query(`SELECT * FROM book WHERE isbn=${9788928055760}`, (err, results, fields) => {
+            if (err) {
+                form.is_error = true;
+                form.error_code = 1;
+                res.json(form)
+            }
+
+            if (results.length) {
+                for (let key in results[0]) {
+                    let upperkey = key.toLowerCase();
+                    form[upperkey] = results[0][key];
+                }
+                form.is_error = false;
+                form.result = "오늘멘토링 취소됨 개꿀"
+            }
+            res.json(form)
+        })
+
+        
+        // form.filename = 'test_title';
+        // form.isbn = '1234567890123';
     } else {
         form.is_error = true;
         form.error_code = 1;
+        res.json(form)
     }
 
-    res.json(form)
+    
 
 })
 

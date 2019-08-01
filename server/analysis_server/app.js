@@ -7,7 +7,7 @@ const mainRouter = require('./routes/main')
 
 app.use('/uploads',express.static('uploads'));
 app.use(bodyParser.json())
-app.use(bodyParser.urlencoded())
+// app.use(bodyParser.urlencoded())
 
 //router 경로추가
 app.use('/', mainRouter);
