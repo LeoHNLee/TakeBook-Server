@@ -27,9 +27,9 @@ if __name__ == "__main__":
     # construct the argument parser and parse the arguments
         ap = argparse.ArgumentParser()
         ap.add_argument("-p", "--path", type=str, help="path to input image")
-        ap.add_argument("-t", "--type", type=str, help="type of input image")
+        ap.add_argument("-t", "--type", type=str, default="local", help="type of input image")
         ap.add_argument("-l", "--language", type=str, default="kor", help="select languge of book cover")
-        ap.add_argument("-e", "--east", type=str, default="models/east.pb", help="east algorithm path")
+        ap.add_argument("-e", "--east", type=str, help="east algorithm path")
         args = vars(ap.parse_args())
     except Exception as e:
         ret = "Error: "+str(e)
