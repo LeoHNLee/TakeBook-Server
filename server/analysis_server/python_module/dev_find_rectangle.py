@@ -11,11 +11,17 @@ warnings.filterwarnings('ignore')
 import cv2, imutils
 
 argparser = argparse.ArgumentParser()
-argparser.add_argument("-p", "--path", type=str, help="path to input image")
+# argparser.add_argument("-p", "--path", type=str, help="path to input image")
 argparser.add_argument("-t", "--type", type=str, default="local", help="type of input image")
 input_args = vars(argparser.parse_args())
 args = {}
 args["input"] = input_args
+
+path = "C:/swm10/dataset/real_img/"
+path_dir = os.listdir(path)
+path_dir.remove("results")
+args["input"]["path"] = path_dir
+
 args["size"] = {}
 args["size"]["width"] = 480
 args["size"]["height"] = 720
@@ -46,52 +52,53 @@ args["contour"] = {}
 args["contour"]["mode"] = cv2.RETR_EXTERNAL
 args["contour"]["method"] = cv2.CHAIN_APPROX_NONE
 
-origin = im_book.ImageHandler(img_path=args["input"]["path"], path_type = args["input"]["type"])
-args["size"]["height_origin"], args["size"]["width_origin"] = origin.image.shape[:2]
-args["size"]["height_rate"] = args["size"]["height_origin"]/args["size"]["height"]
-args["size"]["width_rate"] = args["size"]["width_origin"]/args["size"]["width"]
-resized = origin.im_resize(x=args["size"]["width"], y=args["size"]["height"])
+for p in args["input"]["path"]:
+    origin = im_book.ImageHandler(img_path=path+p, path_type = args["input"]["type"])
+    args["size"]["height_origin"], args["size"]["width_origin"] = origin.image.shape[:2]
+    args["size"]["height_rate"] = args["size"]["height_origin"]/args["size"]["height"]
+    args["size"]["width_rate"] = args["size"]["width_origin"]/args["size"]["width"]
+    resized = origin.im_resize(x=args["size"]["width"], y=args["size"]["height"])
 
-median = cv2.medianBlur(resized, ksize=args["median"]["KSize"])
+    median = cv2.medianBlur(resized, ksize=args["median"]["KSize"])
 
-ga_args = args["gauss"]
-gauss_width = round(args["size"]["width"]*ga_args["KRate"])
-gauss_height = round(args["size"]["height"]*ga_args["KRate"])
-if gauss_width%2==0: gauss_width-=1
-if gauss_height%2==0: gauss_height-=1
+    ga_args = args["gauss"]
+    gauss_width = round(args["size"]["width"]*ga_args["KRate"])
+    gauss_height = round(args["size"]["height"]*ga_args["KRate"])
+    if gauss_width%2==0: gauss_width-=1
+    if gauss_height%2==0: gauss_height-=1
 
-gaussed_h = cv2.GaussianBlur(median, ksize=(1,gauss_height), sigmaX=ga_args["sigmaXH"])
-gaussed_w = cv2.GaussianBlur(gaussed_h, ksize=(gauss_width,1), sigmaX=ga_args["sigmaXW"])
+    gaussed_h = cv2.GaussianBlur(median, ksize=(1,gauss_height), sigmaX=ga_args["sigmaXH"])
+    gaussed_w = cv2.GaussianBlur(gaussed_h, ksize=(gauss_width,1), sigmaX=ga_args["sigmaXW"])
 
-un_args = args["unsharp"]
-gaussed = cv2.GaussianBlur(median, ksize=un_args["KSize"], sigmaX=0)
-unsharp = im_book.ImageHandler(img=(1+un_args["alpha"])*gaussed_w.astype(np.int16))
-unsharp = unsharp.im_minus(un_args["alpha"]*gaussed.astype(np.int16))
+    un_args = args["unsharp"]
+    gaussed = cv2.GaussianBlur(median, ksize=un_args["KSize"], sigmaX=0)
+    unsharp = im_book.ImageHandler(img=(1+un_args["alpha"])*gaussed_w.astype(np.int16))
+    unsharp = unsharp.im_minus(un_args["alpha"]*gaussed.astype(np.int16))
 
-gray = im_book.ImageHandler(unsharp).im_change_type()
+    gray = im_book.ImageHandler(unsharp).im_change_type()
 
-bin_args = args["adaBin"]
-binary = cv2.adaptiveThreshold(src=gray, maxValue=1, 
-                            adaptiveMethod=bin_args["method"], 
-                            thresholdType=bin_args["type"], 
-                            blockSize=bin_args["BSize"], C=bin_args["C"])
+    bin_args = args["adaBin"]
+    binary = cv2.adaptiveThreshold(src=gray, maxValue=1, 
+                                adaptiveMethod=bin_args["method"], 
+                                thresholdType=bin_args["type"], 
+                                blockSize=bin_args["BSize"], C=bin_args["C"])
 
-mor_args = args["morphology"]
-kernel=cv2.getStructuringElement(shape=mor_args["shape"], ksize=mor_args["KSize"])
-morphology = cv2.erode(src=binary, kernel=kernel, iterations=mor_args["it_opening"])
-morphology = cv2.dilate(src=morphology, kernel=kernel, iterations=mor_args["it_opening"]+mor_args["it_closing"])
-morphology = cv2.erode(src=morphology, kernel=kernel, iterations=mor_args["it_closing"])
+    mor_args = args["morphology"]
+    kernel=cv2.getStructuringElement(shape=mor_args["shape"], ksize=mor_args["KSize"])
+    morphology = cv2.erode(src=binary, kernel=kernel, iterations=mor_args["it_opening"])
+    morphology = cv2.dilate(src=morphology, kernel=kernel, iterations=mor_args["it_opening"]+mor_args["it_closing"])
+    morphology = cv2.erode(src=morphology, kernel=kernel, iterations=mor_args["it_closing"])
 
-cont_args = args["contour"]
-contours, hierarchy = cv2.findContours(morphology, mode=cont_args["mode"], method=cont_args["method"])
+    cont_args = args["contour"]
+    contours, hierarchy = cv2.findContours(morphology, mode=cont_args["mode"], method=cont_args["method"])
 
-len_contours = [contour.shape[0] for contour in contours]
-main_contour = len_contours.index(max(len_contours))
-contour = contours[main_contour][:,0]
+    len_contours = [contour.shape[0] for contour in contours]
+    main_contour = len_contours.index(max(len_contours))
+    contour = contours[main_contour][:,0]
 
-retval=cv2.boundingRect(contour)
+    retval=cv2.boundingRect(contour)
 
-find_rectangle = cv2.rectangle(resized, retval, (0, 0, 255), 2)
-cv2.imwrite("C:/swm10/dataset/real_img/results/"+args["input"]["path"].split("\\")[-1],find_rectangle)
-cv2.imshow("Text Detection", find_rectangle)
-cv2.waitKey(0)
+    find_rectangle = cv2.rectangle(resized, retval, (0, 0, 255), 2)
+    cv2.imwrite("C:/swm10/dataset/real_img/results/"+p,find_rectangle)
+    # cv2.imshow("Text Detection", find_rectangle)
+    # cv2.waitKey(0)
