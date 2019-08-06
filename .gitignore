@@ -92,9 +92,9 @@ logdir
 node_modules
 .vscode
 uploads
+config
 
 # node file
-config/
 package-lock.json
 
 # python specific files
