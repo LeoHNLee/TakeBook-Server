@@ -72,8 +72,11 @@
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 
 # python: jupyter notebook
-*.ipynb
 .ipynb_checkpoints
+*.ipynb
+*.pdf
+*.jpg
+*.png
 
 # python: test codes
 __pycache__
@@ -83,8 +86,17 @@ tests
 
 # python: virtual env
 venv
+logdir
 
 # node diresctories
 node_modules
+.vscode
+uploads
+config
+
+# node file
 package-lock.json
-package.json
+
+# python specific files
+server/analysis_server/python_module/text_detection.py
+server/analysis_server/python_module/models/import_pb_to_tensorboard.py

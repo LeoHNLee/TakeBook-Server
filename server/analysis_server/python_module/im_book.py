@@ -3,28 +3,11 @@ warnings.filterwarnings('ignore')
 import numpy as np
 import urllib, requests
 import cv2, imutils
+from imutils.object_detection import non_max_suppression as NMS
 import pytesseract
 
 class NotProperImage(Exception):
     pass
-
-class BookClassification(object):
-    '''example:
-    import im_book
-    im_book.BookClassification().predict(img_path)
-    '''
-    def __init__(self):
-        self.ocr = None
-        self.vision = None
-
-    def image_cleaning(self):
-        pass
-
-    def train(self):
-        pass
-
-    def predict(self, img, lang='kor'):
-        return pytesseract.image_to_string(img, lang=lang)
 
 class ImageHandler(object):
     '''
@@ -66,7 +49,7 @@ class ImageHandler(object):
         return cv2.imread(img_path)
 
     def get_image_from_s3(self, img_path):
-        pass
+        raise NotProperImage("S3 is not yet Defined")
 
     def save_image(self, save_path):
         '''
@@ -76,6 +59,119 @@ class ImageHandler(object):
             -save_path: real path of directory you want to save the image
         '''
         cv2.imwrite(save_path, self.image)
+    
+    def copy(self, img=None):
+        if img is None:
+            img = self.image
+        return ImageHandler(img=img.copy())
+
+    def augmentate(self, img=None, background=None, background_option=0, rotation_degree=None, flip_option=None, size_constraint=False):
+        if img is None:
+            img = self.image
+        cols, rows, *channels = img.shape
+        ret = copy.deepcopy(img)
+        if rotation_degree is not None:
+            if len(channels)==0:
+                plus_one = np.ones((cols, rows), np.uint8)
+            else:
+                plus_one = np.ones((cols, rows, channels[0]), np.uint8)
+            ret = self.im_plus(origin=ret, other=plus_one)
+            ret = self.im_rotate(img=ret, degree=rotation_degree)
+        if flip_option is not None:
+            ret = self.im_flip(img=ret, option=flip_option)
+        if background is not None:
+            ret = self.im_background(background=background, img=ret, option=background_option)
+        if size_constraint:
+            ret = self.im_resize(img=ret, x=rows, y=cols)
+        return ret
+
+    def find_rectangle(self, img=None, args=None):
+        if img is None:
+            img = self.image
+        if args is None:
+            args = {}
+        if "size" not in args:
+            args["size"] = {}
+            args["size"]["width"] = 480
+            args["size"]["height"] = 720
+        if "median" not in args:
+            args["median"] = {}
+            args["median"]["KSize"] = 5
+        if "gauss" not in args:
+            args["gauss"] = {}
+            args["gauss"]["KRate"] = 0.1
+            args["gauss"]["sigmaXH"] = 0
+            args["gauss"]["sigmaYH"] = 0
+            args["gauss"]["sigmaXW"] = 0
+            args["gauss"]["sigmaYW"] = 0
+        if "unsharp" not in args:
+            args["unsharp"] = {}
+            args["unsharp"]["KSize"] = (11,15)
+            args["unsharp"]["alpha"] = 1
+            args["unsharp"]["sigmaX"] = 0
+            args["unsharp"]["sigmaY"] = 0
+        if "adaBin" not in args:
+            args["adaBin"] = {}
+            args["adaBin"]["method"] = cv2.ADAPTIVE_THRESH_GAUSSIAN_C
+            args["adaBin"]["type"] = cv2.THRESH_BINARY_INV
+            args["adaBin"]["BSize"] = 31
+            args["adaBin"]["C"] = 5
+        if "morphology" not in args:
+            args["morphology"] = {}
+            args["morphology"]["KSize"] = (3,4)
+            args["morphology"]["shape"] = cv2.MORPH_RECT
+            args["morphology"]["it_opening"] = 2
+            args["morphology"]["it_closing"] = 8
+        if "contour" not in args:
+            args["contour"] = {}
+            args["contour"]["mode"] = cv2.RETR_EXTERNAL
+            args["contour"]["method"] = cv2.CHAIN_APPROX_NONE
+
+        args["size"]["height_origin"], args["size"]["width_origin"] = img.shape[:2]
+        args["size"]["height_rate"] = args["size"]["height_origin"]/args["size"]["height"]
+        args["size"]["width_rate"] = args["size"]["width_origin"]/args["size"]["width"]
+        resized = self.im_resize(img=img, x=args["size"]["width"], y=args["size"]["height"])
+
+        median = cv2.medianBlur(resized, ksize=args["median"]["KSize"])
+
+        ga_args = args["gauss"]
+        gauss_width = round(args["size"]["width"]*ga_args["KRate"])
+        gauss_height = round(args["size"]["height"]*ga_args["KRate"])
+        if gauss_width%2==0: gauss_width-=1
+        if gauss_height%2==0: gauss_height-=1
+
+        gaussed_h = cv2.GaussianBlur(median, ksize=(1,gauss_height), sigmaX=ga_args["sigmaXH"])
+        gaussed_w = cv2.GaussianBlur(gaussed_h, ksize=(gauss_width,1), sigmaX=ga_args["sigmaXW"])
+
+        un_args = args["unsharp"]
+        gaussed = cv2.GaussianBlur(median, ksize=un_args["KSize"], sigmaX=0)
+        unsharp = ImageHandler(img=(1+un_args["alpha"])*gaussed_w.astype(np.int16))
+        unsharp = unsharp.im_minus(un_args["alpha"]*gaussed.astype(np.int16))
+
+        gray = ImageHandler(unsharp).im_change_type()
+
+        bin_args = args["adaBin"]
+        binary = cv2.adaptiveThreshold(src=gray, maxValue=1, 
+                                    adaptiveMethod=bin_args["method"], 
+                                    thresholdType=bin_args["type"], 
+                                    blockSize=bin_args["BSize"], C=bin_args["C"])
+
+        mor_args = args["morphology"]
+        kernel=cv2.getStructuringElement(shape=mor_args["shape"], ksize=mor_args["KSize"])
+        morphology = cv2.erode(src=binary, kernel=kernel, iterations=mor_args["it_opening"])
+        morphology = cv2.dilate(src=morphology, kernel=kernel, iterations=mor_args["it_opening"]+mor_args["it_closing"])
+        morphology = cv2.erode(src=morphology, kernel=kernel, iterations=mor_args["it_closing"])
+
+        cont_args = args["contour"]
+        contours, hierarchy = cv2.findContours(morphology, mode=cont_args["mode"], method=cont_args["method"])
+
+        len_contours = [contour.shape[0] for contour in contours]
+        main_contour = len_contours.index(max(len_contours))
+        contour = contours[main_contour][:,0]
+
+        ret=cv2.boundingRect(contour)
+
+        return ret
 
     def im_change_type(self, img=None, img_type=cv2.COLOR_BGR2GRAY):
         if img is None:
@@ -109,6 +205,28 @@ class ImageHandler(object):
             x = img.shape[1]
         ret = cv2.resize(img, dsize=(x,y), interpolation=option)
         return ret
+
+    def im_get_area(self, points, img=None, ratio=2.):
+        if img is None:
+            img = self.image
+        start_x, end_x, start_y, end_y = points
+        len_x = end_x - start_x
+        len_y = end_y - start_y
+        new_len_x = ratio * len_x
+        new_len_y = ratio * len_y
+        diff_x = (new_len_x - len_x)/2
+        diff_y = (new_len_y - len_y)/2
+        start_x -= diff_x
+        end_x += diff_x
+        start_y -= diff_y
+        end_y += diff_y
+        if start_x >= end_x or start_y >= end_y:
+            raise ValueError("new area is not proper")
+        if start_x <0: start_x = 0
+        if start_y <0: start_y = 0
+        if end_x > img.shape[1]: end_x= img.shape[1]
+        if end_y > img.shape[0]: end_y= img.shape[0]
+        return (int(start_x), int(end_x), int(start_y), int(end_y))
 
     def im_padding(self, big_size_img, small_size_img=None, value=0, padding=None, borderType=cv2.BORDER_CONSTANT, option=0):
         '''
@@ -146,26 +264,6 @@ class ImageHandler(object):
         else:
             raise ValueError("undefiend option")
         ret = cv2.copyMakeBorder(small_size_img, top, bottom, left, right, borderType=borderType, value=value)
-        return ret
-
-    def im_augmentation(self, img=None, background=None, background_option=0, rotation_degree=None, flip_option=None, size_constraint=False):
-        if img is None:
-            img = self.image
-        cols, rows, *channels = img.shape
-        ret = copy.deepcopy(img)
-        if rotation_degree is not None:
-            if len(channels)==0:
-                plus_one = np.ones((cols, rows), np.uint8)
-            else:
-                plus_one = np.ones((cols, rows, channels[0]), np.uint8)
-            ret = self.im_plus(origin=ret, other=plus_one)
-            ret = self.im_rotate(img=ret, degree=rotation_degree)
-        if flip_option is not None:
-            ret = self.im_flip(img=ret, option=flip_option)
-        if background is not None:
-            ret = self.im_background(background=background, img=ret, option=background_option)
-        if size_constraint:
-            ret = self.im_resize(img=ret, x=rows, y=cols)
         return ret
 
     def im_rotate(self, img=None, degree=90):
@@ -212,31 +310,139 @@ class ImageHandler(object):
         if img is None:
             img = self.image
         cols, rows, *channels = img.shape
-        # hole = np.zeros((cols,rows))
-        # if option == 1:
-        #     option = 2
-        #     adding_height = background.shape[0] - cols
-        #     adding_width = background.shape[1] - rows
-        #     top = random.randint(1, adding_height)
-        #     bottom = adding_height-top
-        #     left = random.randint(1, adding_width)
-        #     right = adding_width-left
-        #     padding = (top, bottom, left, right)
         padded_img = self.im_padding(background, img, padding=padding, option=option)
         is_it_background = padded_img==0
-        # padded_hole = self.im_padding(background, hole, value=1, padding=padding, option=option)
         background_hole = background*is_it_background
         ret = self.im_plus(background_hole, padded_img)
         return ret
 
-    def im_perspective(self, origin_points, img=None, new_width=None, new_height=None):
+    def im_perspective(self, origin_points, img=None, new_width=None, new_height=None, interpolation=cv2.INTER_LINEAR):
         if img is None:
             img = self.image
         if new_width is None:
             new_width = img.shape[1]
         if new_height is None:
             new_height = img.shape[0]
-        new_points = [[0,0], [width, 0], [height, 0], [width, height]]
+        new_points = [[0,0], [new_width, 0], [new_height, 0], [new_width, new_height]]
         M = cv2.getPerspectiveTransform(np.float32(origin_points), np.float32(new_points))
-        ret = cv2.wrapPerspective(img, M, dsize=(new_width, new_height))
+        ret = cv2.wrapPerspective(img, M, dsize=(new_width, new_height), flags=interpolation)
         return ret
+
+class BookClassification(object):
+    '''example:
+    import im_book
+    im_book.BookClassification().predict(img_path)
+    '''
+    def __init__(self):
+        self.vision = None
+
+    def image_cleaning(self):
+        pass
+
+    def train(self):
+        pass
+
+    def predict(self, img, east=None, lang='kor'):
+        if east is None:
+            return self.ocr(img=img, lang=lang)
+        else:
+            ocr_results = {}
+            text_areas = self.find_text_area(img=img, east_path=east)
+            for area in text_areas:
+                x1, x2, y1, y2 = area
+                ocr_results[area] = self.ocr(img=img[y1:y2, x1:x2], lang=lang)
+            return str(ocr_results)
+
+    def ocr(self, img, lang="kor"):
+        return pytesseract.image_to_string(img, lang=lang)
+
+    def find_text_area(self, img, east_path="models/east.pb", min_confidence=0.5, new_width=320, new_height=320):
+        (origin_height, origin_width) = img.shape[:2]
+        ratio_width = origin_width / float(new_width)
+        ratio_height = origin_height / float(new_height)
+
+        img = ImageHandler(img=img)
+        origin = img.copy()
+
+        img.image = img.im_resize(x=new_width, y=new_height)
+        blob = cv2.dnn.blobFromImage(img.image, 1.0, (new_width, new_height),
+		                            (123.68, 116.78, 103.94), swapRB=True, crop=False)
+
+        model = cv2.dnn.readNet(east_path)
+        model.setInput(blob)
+
+        # define the two output layer names for the EAST detector model that
+        # we are interested -- the first is the output probabilities and the
+        # second can be used to derive the bounding box coordinates of text
+        layer_names = [
+            "feature_fusion/Conv_7/Sigmoid",
+		    "feature_fusion/concat_3",
+            ]
+        (scores, geometry) = model.forward(layer_names)
+
+        (num_rows, num_cols) = scores.shape[2:4]
+        rects = []
+        confidences = []
+
+        for y in range(0, num_rows):
+            # extract the scores (probabilities), followed by the geometrical
+            # data used to derive potential bounding box coordinates that
+            # surround text
+            scoresData = scores[0, 0, y]
+            xData0 = geometry[0, 0, y]
+            xData1 = geometry[0, 1, y]
+            xData2 = geometry[0, 2, y]
+            xData3 = geometry[0, 3, y]
+            anglesData = geometry[0, 4, y]
+
+            # loop over the number of columns
+            for x in range(0, num_cols):
+                # if our score does not have sufficient probability, ignore it
+                if scoresData[x] < min_confidence:
+                    continue
+
+                # compute the offset factor as our resulting feature maps will
+                # be 4x smaller than the input image
+                (offsetX, offsetY) = (x * 4.0, y * 4.0)
+
+                # extract the rotation angle for the prediction and then
+                # compute the sin and cosine
+                angle = anglesData[x]
+                cos = np.cos(angle)
+                sin = np.sin(angle)
+
+                # use the geometry volume to derive the width and height of
+                # the bounding box
+                h = xData0[x] + xData2[x]
+                w = xData1[x] + xData3[x]
+
+                # compute both the starting and ending (x, y)-coordinates for
+                # the text prediction bounding box
+                endX = int(offsetX + (cos * xData1[x]) + (sin * xData2[x]))
+                endY = int(offsetY - (sin * xData1[x]) + (cos * xData2[x]))
+                startX = int(endX - w)
+                startY = int(endY - h)
+
+                # add the bounding box coordinates and probability score to
+                # our respective lists
+                rects.append((startX, startY, endX, endY))
+                confidences.append(scoresData[x])
+
+        # apply non-maxima suppression to suppress weak, overlapping bounding
+        # boxes
+        boxes = NMS(np.array(rects), probs=confidences)
+        points = []
+        # loop over the bounding boxes
+        for (startX, startY, endX, endY) in boxes:
+            # scale the bounding box coordinates based on the respective
+            # ratios
+            startX = int(startX * ratio_width)
+            startY = int(startY * ratio_height)
+            endX = int(endX * ratio_width)
+            endY = int(endY * ratio_height)
+            point = (startX, endX, startY, endY)
+
+            point = origin.im_get_area(points=point, ratio=2.0)
+            points.append(point)
+
+        return points

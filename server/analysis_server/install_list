@@ -2,10 +2,5 @@ pip3 install Pillow;
 pip3 install pytesseract;
 pip3 install opencv-python;
 pip3 install imutils;
-pip3 insatll numpy;
-
-npm install python-shell;
-npm install express;
-npm install body-parser;
-npm install request;
-npm install multer;
+pip3 install numpy;
+pip3 install requests;
