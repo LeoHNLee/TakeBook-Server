@@ -69,20 +69,24 @@ router.post('/result', (req, res) => {
         if (file && user_id) {
 
             let filename = file.originalname;
-
+            
             //다른 서버에 요청을 보낼 request form
-            const form = {
-                'filename': filename,
+            const form ={
+                method: 'POST',
+                uri: `${anlysis_server_address}/result`,
+                body: {
+                    'filename': filename,
+                },
+                json: true
             }
 
             //도서 분석 요청
-            postrequest.post(`${anlysis_server_address}/result`, { form },
-                function optionalCallback(err, httpResponse, response) {
+            postrequest.post(form, (err, httpResponse, response)=> {
+                    console.log(form)
                     if (err) {
                         return console.error('response failed:', err);
                     }
                     // respone 는 string로 옮, json으로 변형시켜줘야함
-                    response = JSON.parse(response)
 
                     let is_error = response.is_error;
 
@@ -149,9 +153,6 @@ router.post('/test', testupload.single('image_file'), (req, res) => {
             res.json(form)
         })
 
-        
-        // form.filename = 'test_title';
-        // form.isbn = '1234567890123';
     } else {
         form.is_error = true;
         form.error_code = 1;
