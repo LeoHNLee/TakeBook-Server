@@ -42,7 +42,8 @@ def get_library_book_info(published_date, page_no, cert_key, page_size=10, is_eb
         book['published_date'] = doc.select_one("PUBLISH_PREDATE").text
 
         books.append(book)
-    
+        book = {}
+
     return books
 
         # book['discriptions'] = get_kyobo_book_information(isbn)
@@ -74,28 +75,40 @@ def get_aladin_book_info(isbn_no, ttbkey, output = "xml"):
 
     # 옮긴이 가져오기
     authors = bs_obj.select_one("authors")
-    authors = authors.find_all('author')
+    if authors is None:
+        translator = ""
+    else:
+        authors = authors.find_all('author')
 
-    translator = ""
-    # authorType    author: 지은이, illustrator: 그림, storywriter: 글, authorphoto: 사진
-    #               editor: 편집부, translator: 옮긴이
-    for data in authors:
-        if data['authorType'] == 'translator':
-            translator = data.text
+        translator = ""
+        # authorType    author: 지은이, illustrator: 그림, storywriter: 글, authorphoto: 사진
+        #               editor: 편집부, translator: 옮긴이
+        for data in authors:
+            if data['authorType'] == 'translator':
+                translator = data.text
 
     # 카테고리
     # category_id = bs_obj.select_one("categoryId").text
     # category_name = bs_obj.select_one("categoryName").text
 
     # 목차
-    toc = bs_obj.select_one("toc").text
-    toc = processing_text(str(toc))
+    toc = bs_obj.select_one("toc")
+    if toc is None:
+        toc = ""
+    else:
+        toc = toc.text    
+        toc = processing_text(str(toc))
 
     get_html_source = requests.get(url = item_link)
     # BeautifulSoup Object: html parsing
     bs_obj = BeautifulSoup(get_html_source.content, "html.parser")
 
-    image_url = bs_obj.find("img",{"id":"CoverMainImage"})['src']
+    image_url = bs_obj.find("img",{"id":"CoverMainImage"})
+    if image_url is None:
+        return None
+    else:
+        image_url = image_url['src']
+        
 
     book={}
     book["url_alladin"] = item_link                     
