@@ -1,0 +1,5 @@
+[1/1] Re-running CMake...
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /Users/sunsil/Documents/FlutterWorkspace/booktail/booktail/android/opencv/.externalNativeBuild/cmake/debug/x86_64
+FAILED: /Users/sunsil/Library/Android/sdk/cmake/3.6.4111459/bin/cmake -H/Users/sunsil/Documents/FlutterWorkspace/booktail/booktail/android/opencv/libcxx_helper -B/Users/sunsil/Documents/FlutterWorkspace/booktail/booktail/android/opencv/.externalNativeBuild/cmake/debug/x86_64

@@ -1,0 +1,27 @@
+{
+  "buildFiles": [
+    "/Users/sunsil/Documents/FlutterWorkspace/booktail/booktail/android/opencv/libcxx_helper/CMakeLists.txt"
+  ],
+  "cleanCommands": [
+    "/Users/sunsil/Library/Android/sdk/cmake/3.6.4111459/bin/cmake --build /Users/sunsil/Documents/FlutterWorkspace/booktail/booktail/android/opencv/.externalNativeBuild/cmake/release/x86_64 --target clean"
+  ],
+  "libraries": {
+    "opencv_jni_shared-Release-x86_64": {
+      "artifactName": "opencv_jni_shared",
+      "buildCommand": "/Users/sunsil/Library/Android/sdk/cmake/3.6.4111459/bin/cmake --build /Users/sunsil/Documents/FlutterWorkspace/booktail/booktail/android/opencv/.externalNativeBuild/cmake/release/x86_64 --target opencv_jni_shared",
+      "abi": "x86_64",
+      "output": "/Users/sunsil/Documents/FlutterWorkspace/booktail/booktail/android/opencv/.externalNativeBuild/cmake/release/x86_64/libopencv_jni_shared.a"
+    },
+    "lib_opencv-Release-x86_64": {
+      "artifactName": "lib_opencv",
+      "abi": "x86_64",
+      "output": "/Users/sunsil/Documents/FlutterWorkspace/booktail/opencv/native/libs/x86_64/libopencv_java4.so"
+    },
+    "native-lib-Release-x86_64": {
+      "artifactName": "native-lib",
+      "buildCommand": "/Users/sunsil/Library/Android/sdk/cmake/3.6.4111459/bin/cmake --build /Users/sunsil/Documents/FlutterWorkspace/booktail/booktail/android/opencv/.externalNativeBuild/cmake/release/x86_64 --target native-lib",
+      "abi": "x86_64",
+      "output": "/Users/sunsil/Documents/FlutterWorkspace/booktail/booktail/build/opencv/intermediates/cmake/release/obj/x86_64/libnative-lib.so"
+    }
+  }
+}

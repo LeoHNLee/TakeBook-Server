@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:booktail/Constant.dart';
 import 'package:booktail/PreviewScreen.dart';
 import 'package:booktail/PushingScreen.dart';
+import 'package:booktail/lab/ExpandedListView.dart';
 import 'package:simple_permissions/simple_permissions.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -71,19 +73,42 @@ class _MyHomePageState extends State<MyHomePage> {
                         MaterialPageRoute(
                             builder: (context) => PushingScreen()))
                   },
+                ),
+                RaisedButton(
+                  child: Text('실험실'),
+                  onPressed: () => {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => ExpandableScreen()))
+                  },
                 )
               ]),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.pushNamed(context, CAMERA_SCREEN);
+          _startCamera();
+          //Navigator.pushNamed(context, CAMERA_SCREEN);
           //Navigator.push(context,  MaterialPageRoute(builder: (context) => PreviewScreen()));
         },
         tooltip: 'Camera',
         child: Icon(Icons.camera),
       ),
     );
+  }
+
+  // 카메라 여는 부분
+  void _startCamera() async {
+    const String _channel = 'CameraActivity';
+    const platform = const MethodChannel(_channel);
+
+    try {
+      var st = await platform.invokeMethod('startCameraActivity');
+      print(st);
+    } on PlatformException catch (e) {
+      print(e.message);
+    }
   }
 
   @override
