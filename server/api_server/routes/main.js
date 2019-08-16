@@ -4,11 +4,13 @@ const postrequest = require('request');
 const multer = require('multer');
 const multers3 = require('multer-s3');
 const aws = require('aws-sdk');
+const async = require('async');
 
 const mysql_connetion = require('../bin/mysql_connetion');
 
 const router = express.Router();
 const anlysis_server_address = `http://127.0.0.1:5901`;
+const es_server_address = `http://127.0.0.1:5902`;
 
 //aws region 설정, s3설정
 aws.config.region = 'ap-northeast-2';
@@ -61,7 +63,7 @@ router.post('/result', (req, res) => {
             res.json(response_body);
             return;
         }
-        
+
         let file = req.file;
         let user_id = req.body.user_id;
 
@@ -69,51 +71,50 @@ router.post('/result', (req, res) => {
         if (file && user_id) {
 
             let filename = file.originalname;
-            
+
             //다른 서버에 요청을 보낼 request form
-            const form ={
+            const form = {
                 method: 'POST',
                 uri: `${anlysis_server_address}/result`,
                 body: {
-                    'filename': filename,
+                    'fileename': filename,
                 },
                 json: true
             }
 
             //도서 분석 요청
-            postrequest.post(form, (err, httpResponse, response)=> {
-                    console.log(form)
-                    if (err) {
-                        return console.error('response failed:', err);
-                    }
-                    // respone 는 string로 옮, json으로 변형시켜줘야함
+            postrequest.post(form, (err, httpResponse, response) => {
+                console.log(form)
+                if (err) {
+                    return console.error('response failed:', err);
+                }
 
-                    let is_error = response.is_error;
+                let is_error = response.is_error;
 
-                    if (is_error) {
-                        response_body.is_error = is_error
-                        response_body.error_code = response.error_code
-                        response_body.error_code = 1
+                if (is_error) {
+                    response_body.is_error = is_error
+                    response_body.error_code = response.error_code
+                    response_body.error_code = 1
+                    res.json(response_body)
+                } else {
+                    response_body.is_error = is_error
+                    response_body.result = response.result
+
+                    mysql_connetion.query(`SELECT * FROM book WHERE isbn=${9788928055760};`, (err, results, fields) => {
+                        if (err) {
+                            console.log(err);
+                        }
+
+                        if (results.length) {
+                            for (let key in results[0]) {
+                                let upperkey = key.toLowerCase();
+                                response_body[upperkey] = results[0][key];
+                            }
+                        }
                         res.json(response_body)
-                    } else {
-                        response_body.is_error = is_error
-                        response_body.result = response.result
-
-                        mysql_connetion.query(`SELECT * FROM book WHERE isbn=${9788928055760};`, (err, results, fields) => {
-                            if (err) {
-                                console.log(err);
-                            }
-
-                            if (results.length) {
-                                for (let key in results[0]) {
-                                    let upperkey = key.toLowerCase();
-                                    response_body[upperkey] = results[0][key];
-                                }
-                            }
-                            res.json(response_body)
-                        })
-                    }
-                })
+                    })
+                }
+            })
 
         } else {
             response_body.is_error = true;
@@ -159,8 +160,49 @@ router.post('/test', testupload.single('image_file'), (req, res) => {
         res.json(form)
     }
 
-    
+
 
 })
+
+router.get('/save', (req, res) => {
+
+    mysql_connetion.query(`select TITLE,ISBN, IMAGE_URL from book where PUBLISHED_DATE like '201801%'`, (err, results, fields) => {
+
+        var tasks =[]
+        for (let key in results) {
+
+            //다른 서버에 요청을 보낼 request form
+            let form = {
+                method: 'POST',
+                uri: `${es_server_address}/save`,
+                body: {},
+                json: true
+            }
+
+            form.body.title = results[key].TITLE;
+            form.body.isbn = results[key].ISBN;
+            form.body.fileurl = results[key].IMAGE_URL;
+
+            tasks.push(function(callback){
+                postrequest.post(form, (err, httpResponse, response) =>{
+                    if(err){
+                        console.log(err);
+                    }
+                })
+                callback(null);
+            })
+            tasks.push(()=>{},1000)
+        }
+        async.waterfall(tasks, (err)=>{
+            if(err){
+                console.log(err);
+            }else{
+                console.log("done");
+            }
+        })
+    })
+
+})
+
 
 module.exports = router;

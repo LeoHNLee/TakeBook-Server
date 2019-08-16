@@ -42,6 +42,35 @@ function pytojs(img_path, path_type, response, response_body) {
 
         fs.unlinkSync(img_path);
     });
+
+};
+
+function getresult(img_path, path_type, response, response_body) {
+    let { PythonShell } = require('python-shell')
+
+    var options = {
+        mode: 'text',
+        // pythonPath: '/usr/local/bin/python3', // local python 설치 경로
+        pythonPath: './venv/bin/python3', // venv python 설치 경로
+        pythonOptions: ['-u'],
+        scriptPath: './python_module', // 실행할 python 파일 경로
+        args: ['-p', img_path, '-t', path_type]
+    };
+
+    PythonShell.run('node_book_predict.py', options, function (err, results) {
+
+        if (err) {
+            console.log(`에러발생: ${err}`)
+        }
+
+        var data = ``;
+        for (var i in results) {
+            data += results[i] + ' ';
+        }
+
+        response_body.result = data;
+        response.json(response_body);
+    });
 };
 
 router.get('/result', (req, res) => {
@@ -88,6 +117,14 @@ router.post('/result', (req, res) => {
         response_body.error_code = 1;
         res.json(response_body);
     }
+
+});
+
+router.post('/es', (req, res) => {
+    let fileurl = req.body.fileurl;
+    let response_body = {}
+
+    getresult(fileurl, 'url', res, response_body);
 
 });
 
