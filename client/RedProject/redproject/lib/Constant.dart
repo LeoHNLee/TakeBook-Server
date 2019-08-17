@@ -1,0 +1,7 @@
+final String HOME_SCREEN="/HOME_SCREEN";
+final String CAMERA_SCREEN="/CAMERA_SCREEN";
+final String PREVIEW_SCREEN="/PREVIEW_SCREEN";
+
+final int PRIMARY_COLOR = 0xFF7F0506;
+final int ACCENT_COLOR = 0xFF2D3433;
+final int CANVAS_COLOR = 0xFFffefd6;
