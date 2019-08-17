@@ -4,7 +4,7 @@ const postrequest = require('request');
 const router = express.Router();
 
 const es_address = 'http://localhost:9200'
-const anlysis_server_address = 'http://localhost:5901'
+const anlysis_server_address = 'http://54.180.49.131:5901'
 
 
 router.get('/', (req, res) => {
@@ -72,68 +72,52 @@ router.post('/save', (req, res) => {
 });
 
 router.post('/search', (req, res) => {
-    let fileurl = req.body.fileurl;
 
-    //다른 서버에 요청을 보낼 request form
-    const form = {
+    let strArray = req.body.result.split(' ')
+
+    while (true) {
+        var search = strArray.indexOf('');
+        if (search != -1) {
+            strArray.splice(search, 1);
+        } else {
+            break;
+        }
+    }
+
+    const esform = {
         method: 'POST',
-        uri: `${anlysis_server_address}/es`,
+        uri: `${es_address}/red/book/_search`,
         body: {
-            'fileurl': fileurl,
         },
         json: true
     }
 
-    //도서 분석 요청
-    postrequest.post(form, (err, httpResponse, response) => {
-        if (err) {
-            return console.error('response failed:', err);
-        }
-        let strArray = response.result.split(' ')
-
-        while (true) {
-            var search = strArray.indexOf('');
-            if (search != -1) {
-                strArray.splice(search, 1);
-            } else {
-                break;
+    const query = {
+        query: {
+            bool: {
+                should: []
             }
         }
-
-        const esform = {
-            method: 'POST',
-            uri: `${es_address}/red/book/_search`,
-            body: {
-            },
-            json: true
-        }
-
-        const query = {
-            query: {
-                bool: {
-                    should: []
-                }
+    }
+    for (var st in strArray) {
+        var form = {
+            "wildcard": {
+                "result": {}
             }
-        }
-        for(var st in strArray){
-            var form = {
-                "wildcard": {
-                    "result": {}
-                }
-            };
-            
-            form.wildcard.result.value = `*${strArray[st]}*`;
+        };
 
-            query.query.bool.should.push(form)
-        }
+        form.wildcard.result.value = `*${strArray[st]}*`;
 
-        esform.body = query
+        query.query.bool.should.push(form)
+    }
 
-        postrequest.get(esform, (err, httpResponse, response) => {
-            console.log(err)
-            res.json(response)
-        })
+    esform.body = query
+
+    postrequest.get(esform, (err, httpResponse, response) => {
+        console.log(err)
+        res.json(response)
     })
+
 });
 
 

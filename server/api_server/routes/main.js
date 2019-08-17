@@ -9,7 +9,7 @@ const async = require('async');
 const mysql_connetion = require('../bin/mysql_connetion');
 
 const router = express.Router();
-const anlysis_server_address = `http://127.0.0.1:5901`;
+const analysis_server_address = `http://127.0.0.1:5901`;
 const es_server_address = `http://127.0.0.1:5902`;
 
 //aws region 설정, s3설정
@@ -75,16 +75,15 @@ router.post('/result', (req, res) => {
             //다른 서버에 요청을 보낼 request form
             const form = {
                 method: 'POST',
-                uri: `${anlysis_server_address}/result`,
+                uri: `${analysis_server_address}/result`,
                 body: {
-                    'fileename': filename,
+                    'filename': filename,
                 },
                 json: true
             }
 
             //도서 분석 요청
             postrequest.post(form, (err, httpResponse, response) => {
-                console.log(form)
                 if (err) {
                     return console.error('response failed:', err);
                 }
@@ -92,31 +91,51 @@ router.post('/result', (req, res) => {
                 let is_error = response.is_error;
 
                 if (is_error) {
+                    console.log("분석 요청 오류");
                     response_body.is_error = is_error
                     response_body.error_code = response.error_code
                     response_body.error_code = 1
                     res.json(response_body)
                 } else {
-                    response_body.is_error = is_error
-                    response_body.result = response.result
 
-                    mysql_connetion.query(`SELECT * FROM book WHERE isbn=${9788928055760};`, (err, results, fields) => {
-                        if (err) {
-                            console.log(err);
-                        }
+                    //다른 서버에 요청을 보낼 request form
+                    const form = {
+                        method: 'POST',
+                        uri: `${es_server_address}/search`,
+                        body: {
+                            'result': response.result,
+                        },
+                        json: true
+                    }
 
-                        if (results.length) {
-                            for (let key in results[0]) {
-                                let upperkey = key.toLowerCase();
-                                response_body[upperkey] = results[0][key];
-                            }
+                    postrequest.post(form, (err, httpResponse, response) => {
+                        let is_find = response.hits.total;
+                        if (is_find === 0) {
+                            response_body.is_error = true;
+                            response_body.result = 3;
+                        } else {
+                            let search_isbn = response.hits.hits[0]._source.isbn;
+                            mysql_connetion.query(`SELECT * FROM book WHERE isbn=${search_isbn};`, (err, results, fields) => {
+                                if (err) {
+                                    console.log(err);
+                                }
+
+                                if (results.length) {
+                                    for (let key in results[0]) {
+                                        let upperkey = key.toLowerCase();
+                                        response_body[upperkey] = results[0][key];
+                                    }
+                                }
+                                res.json(response_body)
+                            })
                         }
-                        res.json(response_body)
                     })
+
                 }
             })
 
         } else {
+            console.log("form 값 오류");
             response_body.is_error = true;
             //error_code: 1     Request 필수값 미설정.
             response_body.error_code = 1;
@@ -168,7 +187,7 @@ router.get('/save', (req, res) => {
 
     mysql_connetion.query(`select TITLE,ISBN, IMAGE_URL from book where PUBLISHED_DATE like '201801%'`, (err, results, fields) => {
 
-        var tasks =[]
+        var tasks = []
         for (let key in results) {
 
             //다른 서버에 요청을 보낼 request form
@@ -183,20 +202,22 @@ router.get('/save', (req, res) => {
             form.body.isbn = results[key].ISBN;
             form.body.fileurl = results[key].IMAGE_URL;
 
-            tasks.push(function(callback){
-                postrequest.post(form, (err, httpResponse, response) =>{
-                    if(err){
+            tasks.push(function (callback) {
+                postrequest.post(form, (err, httpResponse, response) => {
+                    if (err) {
                         console.log(err);
                     }
                 })
                 callback(null);
             })
-            tasks.push(()=>{},1000)
+            if (key === '5') {
+                break;
+            }
         }
-        async.waterfall(tasks, (err)=>{
-            if(err){
+        async.waterfall(tasks, (err) => {
+            if (err) {
                 console.log(err);
-            }else{
+            } else {
                 console.log("done");
             }
         })
