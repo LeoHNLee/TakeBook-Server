@@ -114,8 +114,10 @@ router.post('/search', (req, res) => {
     esform.body = query
 
     postrequest.get(esform, (err, httpResponse, response) => {
-        console.log(err)
-        res.json(response)
+        if(err){
+            console.log(err);
+        }
+        res.json(response);
     })
 
 });

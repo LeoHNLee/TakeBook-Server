@@ -39,7 +39,6 @@ function pytojs(img_path, path_type, response, response_body) {
         response_body.is_error = false;
         response_body.result = data;
         response.json(response_body);
-
         fs.unlinkSync(img_path);
     });
 
@@ -69,6 +68,7 @@ function getresult(img_path, path_type, response, response_body) {
         }
 
         response_body.result = data;
+        
         response.json(response_body);
     });
 };

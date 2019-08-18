@@ -113,6 +113,7 @@ router.post('/result', (req, res) => {
                         if (is_find === 0) {
                             response_body.is_error = true;
                             response_body.result = 3;
+                            res.json(response_body)
                         } else {
                             let search_isbn = response.hits.hits[0]._source.isbn;
                             mysql_connetion.query(`SELECT * FROM book WHERE isbn=${search_isbn};`, (err, results, fields) => {
@@ -126,6 +127,7 @@ router.post('/result', (req, res) => {
                                         response_body[upperkey] = results[0][key];
                                     }
                                 }
+                                response_body.is_error = false;
                                 res.json(response_body)
                             })
                         }
@@ -145,12 +147,77 @@ router.post('/result', (req, res) => {
 
 });
 
-router.post('/test', testupload.single('image_file'), (req, res) => {
+router.post('/ocrtest', (req, res) => {
+
+    upload(req, res, (err) => {
+
+        const response_body = {};
+
+        if (err) {
+            response_body.is_error = true;
+            //error_code: 1     Request 필수값 미설정.
+            response_body.error_code = 1;
+            res.json(response_body);
+            return;
+        }
+
+        let file = req.file;
+        let user_id = req.body.user_id;
+
+        //필수값 없을시
+        if (file && user_id) {
+
+            let filename = file.originalname;
+
+            //다른 서버에 요청을 보낼 request form
+            const form = {
+                method: 'POST',
+                uri: `${analysis_server_address}/result`,
+                body: {
+                    'filename': filename,
+                },
+                json: true
+            }
+
+            //도서 분석 요청
+            postrequest.post(form, (err, httpResponse, response) => {
+                if (err) {
+                    return console.error('response failed:', err);
+                }
+
+                let is_error = response.is_error;
+
+                if (is_error) {
+                    console.log("분석 요청 오류");
+                    response_body.is_error = is_error
+                    response_body.error_code = response.error_code
+                    response_body.error_code = 1
+                    res.json(response_body)
+                } else {
+                    response_body.result = response.result;
+                    res.json(response_body)
+                }
+            })
+
+        } else {
+            console.log("form 값 오류");
+            response_body.is_error = true;
+            //error_code: 1     Request 필수값 미설정.
+            response_body.error_code = 1;
+            res.json(response_body)
+        }
+    })
+
+});
+
+router.post('/ocrtest', testupload.single('image_file'), (req, res) => {
 
     const form = {}
 
     let file = req.file;
     let user_id = req.body.user_id;
+
+
 
     if (file && user_id) {
         fs.unlinkSync(`./uploads/${file.filename}`);
