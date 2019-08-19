@@ -25,14 +25,14 @@ class _PreviewPageState extends State<PreviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Preview Page')),
+      appBar: AppBar(title: Text('미리 보기')),
       body:
       Stack(
         children: <Widget>[
           Column(
             children: <Widget>[
               Center(
-                child: Image.file(File(widget.imagePath), height: 400.0),
+                child: Image.file(File(widget.imagePath), width: MediaQuery.of(context).size.width),
               ),
               Expanded(
                   child: Container(
@@ -105,7 +105,25 @@ class _PreviewPageState extends State<PreviewScreen> {
             builder: (context) =>
                 BookinfoScreen(Books.fromJson(map))));
       } else {
-        Navigator.pop(context);
+        showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              // return object of type Dialog
+              return AlertDialog(
+                title: new Text("오류"),
+                content: new Text("인식에 실패했습니다. 다시 촬영해주세요."),
+                actions: <Widget>[
+                  // usually buttons at the bottom of the dialog
+                  new FlatButton(
+                    child: new Text("확인"),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              );
+            }
+        );
       }
     });
 
