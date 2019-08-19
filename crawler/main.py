@@ -1,4 +1,3 @@
-import pymysql
 # from collections import OrderedDict
 import json
 import os.path
@@ -21,7 +20,7 @@ def insert_into_database(book):
     Item={}
 
     # 속성 순서
-    values = ['isbn','title','published_date','author','translator','publisher','url_alladin','image_url','comtents','discriptions']
+    values = ['isbn','title','published_date','author','translator','publisher','url_alladin','image_url','contents','discriptions']
 
     for value in values:
         if book[value] !='':
@@ -40,7 +39,6 @@ def insert_into_database(book):
         if error_name == 'ValidationException':
             print(e)
         else:
-            print(e)
             print(f'{book["isbn"]}: Already exists')
     except Exception as e:
         print(e)
@@ -126,6 +124,7 @@ if __name__ == "__main__":
     # database 설정
     dynamodb = boto3.resource('dynamodb',
                             aws_access_key_id=system_parameters["access_key_id"],
-                            aws_secret_access_key=system_parameters["secret_access_key"])
+                            aws_secret_access_key=system_parameters["secret_access_key"],
+                            region_name=system_parameters['region_name'])
 
     main(system_parameters=system_parameters)

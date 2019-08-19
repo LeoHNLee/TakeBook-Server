@@ -5,10 +5,9 @@
 * config 폴더를 생성하여 2개의 파일을 만들어 줘야함.
     * config.json
         {
-            "db_host": "host 번호 ex> 127.0.0.1",
-            "db_user": "db 유저 아이디",
-            "db_pw": "db 유저 비밀번호",
-            "db_port": 포트번호,
+            "access_key_id": "aws access key",
+            "secret_access_key": "aws secret access key",
+            "region_name": "aws 지역 이름 ex> ap-northeast-2",
             "library_key":"국립중앙도서관 api 검색 key",
             "aladin_key": "알라딘 api 검색 key"
         }
