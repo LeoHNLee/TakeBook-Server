@@ -23,4 +23,7 @@
 
 ### client
 
+- 클라이언트 프로젝트
+- Flutter 프로젝트이기 때문에 Android Studio에 Flutter 설치 필요
+
 ### crawler
