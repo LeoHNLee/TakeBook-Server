@@ -1,9 +1,14 @@
 '''
 -description:
--input: str img_path, str path_type
-    - img_path: url, local path, s3 path
-    - path_type: url, local, s3
+-input:
+        ap.add_argument("-p", "--path", type=str, help="path to input image")
+        ap.add_argument("-t", "--type", type=str, default="local", help="type of input image")
+        ap.add_argument("-l", "--language", type=str, default="kor+eng", help="select languge of book cover")
+        ap.add_argument("-e", "--east", type=str, help="east algorithm path")
 -output: str predicted_img
+
+-Error:
+
 '''
 import sys, os, warnings, argparse
 warnings.filterwarnings('ignore')
@@ -28,7 +33,7 @@ if __name__ == "__main__":
         ap = argparse.ArgumentParser()
         ap.add_argument("-p", "--path", type=str, help="path to input image")
         ap.add_argument("-t", "--type", type=str, default="local", help="type of input image")
-        ap.add_argument("-l", "--language", type=str, default="kor", help="select languge of book cover")
+        ap.add_argument("-l", "--language", type=str, default="kor+eng", help="select languge of book cover")
         ap.add_argument("-e", "--east", type=str, help="east algorithm path")
         args = vars(ap.parse_args())
     except Exception as e:

@@ -5,8 +5,12 @@ import urllib, requests
 import cv2, imutils
 from imutils.object_detection import non_max_suppression as NMS
 import pytesseract
+import re
 
 class NotProperImage(Exception):
+    pass
+
+class OCRError(Exception):
     pass
 
 class ImageHandler(object):
@@ -354,7 +358,22 @@ class BookClassification(object):
             return str(ocr_results)
 
     def ocr(self, img, lang="kor"):
-        return pytesseract.image_to_string(img, lang=lang)
+        langs = lang.split("+")
+        ret = ""
+        for lang in langs:
+            text = pytesseract.image_to_string(img, lang=lang)
+            text = self.prepare_text(text, lang)
+            ret += text+"\n"
+        return ret
+
+    def prepare_text(self, text, option):
+        if "kor":
+            ret = re.sub("[^가-힣,.!?]"," ",text)
+        elif "eng":
+            ret = re.sub("[^a-zA-Z,.!?]"," ",text)
+        else:
+            raise OCRError("not defined language")
+        return " ".join(ret.split())
 
     def find_text_area(self, img, east_path="models/east.pb", min_confidence=0.5, new_width=320, new_height=320):
         (origin_height, origin_width) = img.shape[:2]
