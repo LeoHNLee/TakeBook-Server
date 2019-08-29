@@ -1,12 +1,23 @@
-import sys, os, warnings, random, copy, math
-warnings.filterwarnings('ignore')
-import numpy as np
-import urllib, requests
+### url
+import urllib
+import requests
+### image
 import cv2, imutils
 from imutils.object_detection import non_max_suppression as NMS
+### text
 import pytesseract
 import re
+### own
 from exceptions import *
+### 
+import sys
+import os
+import random
+import copy
+import math
+import numpy as np
+import warnings
+warnings.filterwarnings('ignore')
 
 class ImageHandler(object):
     '''
@@ -169,7 +180,6 @@ class ImageHandler(object):
         contour = contours[main_contour][:,0]
 
         ret=cv2.boundingRect(contour)
-
         return ret
 
     def im_change_type(self, img=None, img_type=cv2.COLOR_BGR2GRAY):
@@ -339,7 +349,24 @@ class BookRecognizer(object):
     def train(self):
         pass
 
-    def predict(self, img, east=None, lang='kor'):
+    def predict(self, img, east=None, lang='kor', features="text"):
+        ret = {}
+        for feature in features:
+            if feature == "text":
+                ret['text'] = self.predict_text(img=img, east=east, lang=lang)
+            elif feature == "img":
+                ret["image"] = self.predict_image(img=img)
+        return ret
+
+    def predict_image(self, img):
+        ret = {}
+        colors = ("blue", "green", "red")
+        for i, color in enumerate(colors):
+            color_histogram = cv2.calcHist(img,[i],None,[256],[0,256])
+            ret[color] = color_histogram[:,0].astype("int").tolist()
+        return ret
+
+    def predict_text(self,img, east=None, lang="kor"):
         if east is None:
             return self.ocr(img=img, lang=lang)
         else:
@@ -348,7 +375,7 @@ class BookRecognizer(object):
             for area in text_areas:
                 x1, x2, y1, y2 = area
                 ocr_results[area] = self.ocr(img=img[y1:y2, x1:x2], lang=lang)
-            return str(ocr_results)
+            return ocr_results
 
     def ocr(self, img, lang="kor"):
         langs = lang.split("+")
