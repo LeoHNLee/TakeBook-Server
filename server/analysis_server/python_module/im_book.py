@@ -331,17 +331,10 @@ class BookRecognizer(object):
     '''example:
     from im_book import BookRecognizer
     model = BookRecognizer()
-    model.predict(img_path)
+    model.predict(img)
     '''
     def __init__(self):
         self.vision = None
-        self.text_compiler = {
-            "kor": re.compile("[^ㄱ-ㅣ가-힣,.!?]"),
-            "eng": re.compile("[^a-zA-Z,.!?]"),
-        }
-
-    def image_cleaning(self):
-        pass
 
     def train(self):
         pass
@@ -359,22 +352,12 @@ class BookRecognizer(object):
 
     def ocr(self, img, lang="kor"):
         langs = lang.split("+")
-        ret = ""
+        ret = {}
         for lang in langs:
             if lang not in self.text_compiler:
                 raise TextError("not defiend language")
             text = pytesseract.image_to_string(img, lang=lang)
-            text = self.prepare_text(text, lang)
-            ret += text+"\n"
-        return ret
-
-    def prepare_text(self, text, lang):
-        try:
-            compiler = self.text_compiler[lang]
-        except KeyError as e:
-            raise TextError("not defined language")
-        ret = compiler.sub(" ", text)
-        ret = " ".join(ret.split())
+            ret[lang] = text
         return ret
 
     def find_text_area(self, img, east_path="models/east.pb", min_confidence=0.5, new_width=320, new_height=320):
@@ -467,3 +450,22 @@ class BookRecognizer(object):
             points.append(point)
 
         return points
+
+class TextHandler():
+    def __init__(self, text):
+        self.text = text
+        self.text_compiler = {
+            "kor": re.compile("[^ㄱ-ㅣ가-힣,.!?]"),
+            "eng": re.compile("[^a-zA-Z,.!?]"),
+        }
+
+    def prepare_text(self, lang, text=None):
+        if text is None:
+            text = self.text
+        try:
+            compiler = self.text_compiler[lang]
+        except KeyError as e:
+            raise TextError("not defined language")
+        ret = compiler.sub(" ", text)
+        ret = " ".join(ret.split())
+        return ret
