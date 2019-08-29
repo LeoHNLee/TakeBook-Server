@@ -22,6 +22,7 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
+import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
@@ -144,9 +145,10 @@ public class CameraActivity extends AppCompatActivity implements CameraBridgeVie
         float wRatio = w / 720;
         float hRatio = h / 480;
         int alpha = 1;
-        Imgproc.Canny(matInput, matResult, 50, 150);
+        //Imgproc.Canny(matInput, matResult, 50, 150);
 
         Imgproc.cvtColor(matInput, matResult, Imgproc.COLOR_RGBA2BGR);
+
         Imgproc.resize(matResult, matResult, new Size(720, 480));
         Imgproc.medianBlur(matResult, medianResult, 5);
         Imgproc.GaussianBlur(medianResult, matResult, new Size(1, 47), 0);
@@ -156,10 +158,11 @@ public class CameraActivity extends AppCompatActivity implements CameraBridgeVie
 
         //Imgproc.Canny(matInput, matResult, 50, 150);
 
-        minusImage(matResult, matResult, alpha);
 
-        /*
+        minusImage(matResult, medianResult, alpha);
+
         Imgproc.cvtColor(matResult, matResult, Imgproc.COLOR_BGR2GRAY);
+
         Imgproc.adaptiveThreshold(matResult, matResult, 1,
                 Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C,
                 Imgproc.THRESH_BINARY_INV,
@@ -170,74 +173,44 @@ public class CameraActivity extends AppCompatActivity implements CameraBridgeVie
         Imgproc.erode(matResult, matResult, matKernel);
         Imgproc.erode(matResult, matResult, matKernel);
 
-        Imgproc.dilate(matResult, matResult, matKernel);
-        Imgproc.dilate(matResult, matResult, matKernel);
-        Imgproc.dilate(matResult, matResult, matKernel);
-        Imgproc.dilate(matResult, matResult, matKernel);
-        Imgproc.dilate(matResult, matResult, matKernel);
-        Imgproc.dilate(matResult, matResult, matKernel);
-        Imgproc.dilate(matResult, matResult, matKernel);
-        Imgproc.dilate(matResult, matResult, matKernel);
-        Imgproc.dilate(matResult, matResult, matKernel);
-        Imgproc.dilate(matResult, matResult, matKernel);
 
+        for(int i = 0; i < 10; i++) {
+            Imgproc.dilate(matResult, matResult, matKernel);
+        }
 
-        Imgproc.erode(matResult, matResult, matKernel);
-        Imgproc.erode(matResult, matResult, matKernel);
-        Imgproc.erode(matResult, matResult, matKernel);
-        Imgproc.erode(matResult, matResult, matKernel);
-        Imgproc.erode(matResult, matResult, matKernel);
-        Imgproc.erode(matResult, matResult, matKernel);
-        Imgproc.erode(matResult, matResult, matKernel);
-        Imgproc.erode(matResult, matResult, matKernel);
+        for(int i = 0; i < 8; i++) {
+            Imgproc.erode(matResult, matResult, matKernel);
+        }
 
         List<MatOfPoint> contours = new ArrayList<>();
         Mat matHicy = new Mat();
 
         Imgproc.findContours(matResult, contours, matHicy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_NONE);
-        */
+
+        int max = -1;
+        MatOfPoint ret = null;
+
+        ArrayList<Object> len_contours = new ArrayList<>();
+        for(MatOfPoint contour : contours) {
+            int len = contour.toArray().length;
+
+            if(max < len) {
+                max = len;
+                ret = contour;
+            }
+        }
+
+        Imgproc.rectangle(matInput, Imgproc.boundingRect(ret), new Scalar(0, 0, 255));
 
         Imgproc.resize(matResult, matResult, new Size(w, h));
 
-        return matResult;
+        return matInput;
     }
 
     private void minusImage(Mat matFirst, Mat matSecond, int alpha) {
 
 
-        //Mat matMinus = new Mat(matFirst.rows(), matFirst.cols(), matFirst.type());
         minus(matFirst.nativeObj, matSecond.nativeObj, alpha);
-
-        /*
-        int c = matFirst.cols();
-        int r = matFirst.rows();
-
-        double[] bufFirst;
-        double[] bufSecond;
-
-        for (int i = 0; i < r; i++) {
-            for (int j = 0; j < c; j++) {
-
-                //double[] bufFirst = matFirst.get(i, j);
-                //double[] bufSecond = matSecond.get(i, j);
-
-                double[] array = new double[3];
-
-                for(int k = 0; k < 3; k++) {
-                    int different = (int) ((alpha + 1) * bufFirst[k] - alpha * bufSecond[k]);
-
-                    if(different < 0) {
-                        different = 0;
-                    }
-
-                    array[k] = different;
-                }
-
-                matMinus.put(i, j, array);
-            }
-
-        }
-        */
 
     }
 

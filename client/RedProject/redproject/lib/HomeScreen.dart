@@ -11,10 +11,7 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        body: Stack(
-      children: <Widget>[new MyHomePage()],
-    ));
+    return MyHomePage();
   }
 }
 
@@ -32,19 +29,55 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    List<String> list = [
-      'assets/book1.jpg',
-      'assets/book2.jpg',
-      'assets/book3.jpg',
-      'assets/book4.jpg',
-      'assets/book5.jpg',
-      'assets/book1.jpg',
-      'assets/book2.jpg',
-      'assets/book3.jpg',
-      'assets/book4.jpg',
-      'assets/book5.jpg',
-    ];
 
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('title'),
+          bottom: TabBar(
+            tabs: <Widget>[
+              Tab(text: 'tab1'),
+              Tab(text: 'tan2')
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: <Widget>[
+            CustomScrollView(
+              slivers: <Widget>[
+                FirstPage(),
+              ],
+            ),
+            Column(
+              children: <Widget>[
+                RaisedButton(
+                  child: Text('Start Camera'),
+                  onPressed: () => {
+                    _startCamera()
+                  },
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage('assets/ui_sample.png'),
+                      fit: BoxFit.fill,
+                      centerSlice: Rect.fromLTWH(25, 25, 50, 50)
+                    )
+                  ),
+                  child: Container(
+                    width: 110,
+                    height: 320,
+                  )
+                ),
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+
+    /*
     return Scaffold(
       appBar: AppBar(
         title: Text("REaD"),
@@ -96,6 +129,7 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Icon(Icons.camera),
       ),
     );
+    */
   }
 
   // 카메라 여는 부분
@@ -127,5 +161,46 @@ class _MyHomePageState extends State<MyHomePage> {
         _allowWriteFile = true;
       });
     }
+  }
+}
+
+class FirstPage extends StatelessWidget{
+
+  List<String> list = [
+    'assets/book1.jpg',
+    'assets/book2.jpg',
+    'assets/book3.jpg',
+    'assets/book4.jpg',
+    'assets/book5.jpg',
+    'assets/book1.jpg',
+    'assets/book2.jpg',
+    'assets/book3.jpg',
+    'assets/book4.jpg',
+    'assets/book5.jpg',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+
+    return SliverGrid(
+      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 150,
+        childAspectRatio: 3 / 5,
+      ),
+      delegate: SliverChildBuilderDelegate(
+            (BuildContext context, int index) {
+          return Container(
+            alignment: Alignment.center,
+            child: Column(
+              children: <Widget>[
+                Image.asset(list[index % 5], fit: BoxFit.fitHeight, height: 150,),
+                Text(list[index % 5])
+              ],
+            ),
+          );
+        },
+        childCount: 20,
+      ),
+    );
   }
 }

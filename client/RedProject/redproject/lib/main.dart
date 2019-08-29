@@ -19,7 +19,7 @@ Future<Null> main() async {
 
   runApp(
     MaterialApp(
-      title: "Camera App",
+      title: "책을찍다",
       debugShowCheckedModeBanner: false,
       theme: new ThemeData(
         primarySwatch: Colors.purple,
