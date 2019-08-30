@@ -6,12 +6,7 @@ import cv2, imutils
 from imutils.object_detection import non_max_suppression as NMS
 import pytesseract
 import re
-
-class NotProperImage(Exception):
-    pass
-
-class OCRError(Exception):
-    pass
+from exceptions import *
 
 class ImageHandler(object):
     '''
@@ -23,10 +18,10 @@ class ImageHandler(object):
         self.path_type = path_type
         self.img_path = img_path
         if (img_path is None)^(path_type is None):
-            raise NotProperImage('You have to input both img_path and path_type')
+            raise ImageError('You have to input both img_path and path_type')
         if img is None:
             if img_path is None:
-                raise NotProperImage("You do not input any args. You have to input at least one arg. 'img' or 'img_path'")
+                raise ImageError("You do not input any args. You have to input at least one arg. 'img' or 'img_path'")
             else:
                 self.image = self.get_image()
         else:
@@ -40,7 +35,7 @@ class ImageHandler(object):
         elif self.path_type=='s3':
             ret = self.get_image_from_s3(self.img_path)
         else:
-            raise NotProperImage("Is it proper img_path?")
+            raise ImageError("Is it proper img_path?")
         return ret
 
     def get_image_from_url(self, img_path):
@@ -53,7 +48,7 @@ class ImageHandler(object):
         return cv2.imread(img_path)
 
     def get_image_from_s3(self, img_path):
-        raise NotProperImage("S3 is not yet Defined")
+        raise ImageError("S3 is not yet Defined")
 
     def save_image(self, save_path):
         '''
@@ -332,16 +327,14 @@ class ImageHandler(object):
         ret = cv2.wrapPerspective(img, M, dsize=(new_width, new_height), flags=interpolation)
         return ret
 
-class BookClassification(object):
+class BookRecognizer(object):
     '''example:
-    import im_book
-    im_book.BookClassification().predict(img_path)
+    from im_book import BookRecognizer
+    model = BookRecognizer()
+    model.predict(img)
     '''
     def __init__(self):
         self.vision = None
-
-    def image_cleaning(self):
-        pass
 
     def train(self):
         pass
@@ -359,21 +352,13 @@ class BookClassification(object):
 
     def ocr(self, img, lang="kor"):
         langs = lang.split("+")
-        ret = ""
+        ret = {}
         for lang in langs:
+            if lang not in self.text_compiler:
+                raise TextError("not defiend language")
             text = pytesseract.image_to_string(img, lang=lang)
-            text = self.prepare_text(text, lang)
-            ret += text+"\n"
+            ret[lang] = text
         return ret
-
-    def prepare_text(self, text, option):
-        if "kor":
-            ret = re.sub("[^가-힣,.!?]"," ",text)
-        elif "eng":
-            ret = re.sub("[^a-zA-Z,.!?]"," ",text)
-        else:
-            raise OCRError("not defined language")
-        return " ".join(ret.split())
 
     def find_text_area(self, img, east_path="models/east.pb", min_confidence=0.5, new_width=320, new_height=320):
         (origin_height, origin_width) = img.shape[:2]
@@ -465,3 +450,22 @@ class BookClassification(object):
             points.append(point)
 
         return points
+
+class TextHandler():
+    def __init__(self, text):
+        self.text = text
+        self.text_compiler = {
+            "kor": re.compile("[^ㄱ-ㅣ가-힣,.!?]"),
+            "eng": re.compile("[^a-zA-Z,.!?]"),
+        }
+
+    def prepare_text(self, lang, text=None):
+        if text is None:
+            text = self.text
+        try:
+            compiler = self.text_compiler[lang]
+        except KeyError as e:
+            raise TextError("not defined language")
+        ret = compiler.sub(" ", text)
+        ret = " ".join(ret.split())
+        return ret

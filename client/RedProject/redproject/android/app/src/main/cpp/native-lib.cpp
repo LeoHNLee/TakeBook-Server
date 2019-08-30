@@ -48,8 +48,8 @@ Java_com_ff0000_redproject_CameraActivity_minus(JNIEnv *env, jobject instance, j
 
         for (int x = 0; x < width; x++) {
 
-            cv::Vec3b firstVector = firstMat.at<cv::Vec3b>(y,x);
-            cv::Vec3b secondVector = secondMat.at<cv::Vec3b>(y,x);
+            cv::Vec3b firstVector = firstMat.at<cv::Vec3b>(y, x);
+            cv::Vec3b secondVector = secondMat.at<cv::Vec3b>(y, x);
 
             int redDiff = (alpha + 1) * firstVector[0] - alpha * secondVector[0];
             int greenDiff = (alpha + 1) * firstVector[1] - alpha * secondVector[1];
@@ -63,7 +63,7 @@ Java_com_ff0000_redproject_CameraActivity_minus(JNIEnv *env, jobject instance, j
             firstVector[1] = cv::saturate_cast<uchar>( greenDiff );
             firstVector[2] = cv::saturate_cast<uchar>( blueDiff );
 
-            firstMat.at<cv::Vec3b>(y,x) = firstVector;
+            firstMat.at<cv::Vec3b>(y, x) = firstVector;
         }
     }
 

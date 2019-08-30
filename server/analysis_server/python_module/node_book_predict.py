@@ -6,26 +6,29 @@
         ap.add_argument("-l", "--language", type=str, default="kor+eng", help="select languge of book cover")
         ap.add_argument("-e", "--east", type=str, help="east algorithm path")
 -output: str predicted_img
-
--Error:
-
 '''
 import sys, os, warnings, argparse
 warnings.filterwarnings('ignore')
-import im_book
+from im_book import BookRecognizer, ImageHandler
+from exceptions import *
 
-class NotProperQuery(Exception):
-        pass
+error_returner = ErrorReturner()
 
 def main(args):
-        # get node query
     try:
-        img = im_book.ImageHandler(img_path=args["path"], path_type=args["type"])
-        model = im_book.BookClassification()
+        img = ImageHandler(img_path=args["path"], path_type=args["type"])
+        model = BookRecognizer()
         ret = model.predict(img.image, lang=args["language"], east=args["east"])
-        return ret
+    except TextError as e:
+        ret = error_returner.get("TextError")
+        ret["message"] = e
+    except ImageError as e:
+        ret = error_returner.get("ImageError")
+        ret["message"] = e
     except Exception as e:
-        return 'Error: '+str(e)
+        ret = error_returner.get("PythonError")
+        ret["message"] = e
+    return ret
 
 if __name__ == "__main__":
     try:
@@ -37,7 +40,8 @@ if __name__ == "__main__":
         ap.add_argument("-e", "--east", type=str, help="east algorithm path")
         args = vars(ap.parse_args())
     except Exception as e:
-        ret = "Error: "+str(e)
+        ret = error_returner.get("PythonError")
+        ret["message"] = e
     else:
         ret = main(args)
     print(ret)
