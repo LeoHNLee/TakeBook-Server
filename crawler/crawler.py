@@ -29,12 +29,6 @@ def get_library_book_info(published_date, page_no, cert_key, page_size=10, is_eb
         if isbn == '':
             isbn = doc.select_one('SET_ISBN').text
 
-        # book = get_aladin_book_info(isbn)
-        # if book == None or book == "none_data":
-        #     print(f'{isbn}: is failed')
-        # elif book == "daily_limt":
-        #     return book
-
         book['isbn'] = isbn
         book['title'] = doc.select_one("TITLE").text
         book['author'] = doc.select_one("AUTHOR").text
@@ -45,10 +39,6 @@ def get_library_book_info(published_date, page_no, cert_key, page_size=10, is_eb
         book = {}
 
     return books
-
-        # book['discriptions'] = get_kyobo_book_information(isbn)
-        # print_book_info(book)
-        # insert_into_database(db_cursor,book)
         
 
 def get_aladin_book_info(isbn_no, ttbkey, output = "xml"):
