@@ -2,7 +2,8 @@
 import urllib
 import requests
 ### image
-import cv2, imutils
+import cv2
+import imutils
 from imutils.object_detection import non_max_suppression as NMS
 ### text
 import pytesseract
@@ -43,8 +44,6 @@ class ImageHandler(object):
             ret = self.get_image_from_url(self.img_path)
         elif self.path_type=='local':
             ret = self.get_image_from_local(self.img_path)
-        elif self.path_type=='s3':
-            ret = self.get_image_from_s3(self.img_path)
         else:
             raise ImageError("Is it proper img_path?")
         return ret
@@ -57,9 +56,6 @@ class ImageHandler(object):
 
     def get_image_from_local(self, img_path):
         return cv2.imread(img_path)
-
-    def get_image_from_s3(self, img_path):
-        raise ImageError("S3 is not yet Defined")
 
     def save_image(self, save_path):
         '''
@@ -338,10 +334,11 @@ class ImageHandler(object):
         return ret
 
 class BookRecognizer(object):
-    '''example:
-    from im_book import BookRecognizer
-    model = BookRecognizer()
-    model.predict(img)
+    '''
+    example:
+        from im_book import BookRecognizer
+        model = BookRecognizer()
+        model.predict(img)
     '''
     def __init__(self):
         self.vision = None
@@ -381,10 +378,8 @@ class BookRecognizer(object):
         langs = lang.split("+")
         ret = {}
         for lang in langs:
-            if lang not in self.text_compiler:
-                raise TextError("not defiend language")
             text = pytesseract.image_to_string(img, lang=lang)
-            ret[lang] = text
+            ret[lang] = TextHandler(text).text_cleaning(lang=lang)
         return ret
 
     def find_text_area(self, img, east_path="models/east.pb", min_confidence=0.5, new_width=320, new_height=320):
@@ -479,20 +474,22 @@ class BookRecognizer(object):
         return points
 
 class TextHandler():
-    def __init__(self, text):
-        self.text = text
-        self.text_compiler = {
+    __text_compiler__ = {
             "kor": re.compile("[^ㄱ-ㅣ가-힣,.!?]"),
             "eng": re.compile("[^a-zA-Z,.!?]"),
         }
 
-    def prepare_text(self, lang, text=None):
+    def __init__(self, text):
+        self.text = text
+
+    def text_cleaning(self, lang, text=None):
         if text is None:
             text = self.text
         try:
-            compiler = self.text_compiler[lang]
+            compiler = __text_compiler__[lang]
         except KeyError as e:
             raise TextError("not defined language")
-        ret = compiler.sub(" ", text)
-        ret = " ".join(ret.split())
+        else:
+            ret = compiler.sub(" ", text)
+            ret = " ".join(ret.split())
         return ret
