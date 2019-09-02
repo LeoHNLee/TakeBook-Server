@@ -8,41 +8,55 @@ import sys
 import time
 import random
 import crawler
-import boto3
 import botocore
+import pymysql
+import datetime
+
 
 # db에 data저장
-def insert_into_database(book):
+def insert_into_database(curs, book):
 
-    #table name 설정
-    table = dynamodb.Table('book')
-
-    Item={}
-
-    # 속성 순서
-    values = ['isbn','title','published_date','author','translator','publisher','url_alladin','image_url','contents','discriptions']
-
-    for value in values:
-        if book[value] !='':
-            Item[value]= book[value]
+    sql = """insert into book
+         values (%s, %s, %s, %s, %s, %s, %s,%s,%s,%s, %s, %s, %s)"""
 
     try:
-        table.put_item(Item=Item,Expected={
-            'isbn':{
-                "Exists":False
-            }
-        })
+        curs.execute(sql, (book['isbn'], book['title'], book['author'],
+                           book['publisher'],book['published_date'], book['category'], 
+                           book['price'],book['image_url'], book['alladin_url'],
+                           None, None, book['contents'],
+                           book['discriptions']))
+        conn.commit()
+        
         print(f'{book["isbn"]}: is success!')
-
-    except botocore.exceptions.ClientError as e:
-        error_name = e.response['Error']['Code']
-        if error_name == 'ValidationException':
-            print(e)
-        else:
-            print(f'{book["isbn"]}: Already exists')
+    except pymysql.err.IntegrityError:
+        print(f'{book["isbn"]}: Already exists')
+    except TypeError as e:
+        print(f'{book["isbn"]}: Data is not complete')
     except Exception as e:
         print(e)
-    
+
+def combine_book_data(library_book, aladin_book):
+    book = {}
+    book['isbn'] = library_book['isbn']
+    book['title'] = library_book['title']
+    book['author'] = library_book['author']
+    book['publisher'] = library_book['publisher']
+    book['published_date'] = library_book['published_date']
+
+    if aladin_book.get('author') is not None:
+        book['author'] = aladin_book.get('author')
+
+    book['alladin_url'] = aladin_book['alladin_url']
+    book['contents'] = aladin_book['contents']
+    book['discriptions'] = aladin_book['discriptions']
+    book['category'] = aladin_book['category']
+    book['image_url'] = aladin_book['image_url']
+    book['price'] = aladin_book['price']
+
+    return book
+
+
+
 # 메인함수
 def main(system_parameters, page_size=10):
 
@@ -74,29 +88,21 @@ def main(system_parameters, page_size=10):
             logfile.write(f'{date}{page_no}')
             logfile.close()
 
-            books = crawler.get_library_book_info(
+            library_books = crawler.get_library_book_info(
                 published_date=date, page_no=page_no, page_size=page_size, cert_key=system_parameters['library_key'])
 
-            for book in books:
+            for library_book in library_books:
                 aladin_book = crawler.get_aladin_book_info(
-                    isbn_no=book['isbn'], ttbkey=system_parameters['aladin_key'])
-                if aladin_book == 'daily_limt':
-                    print(aladin_book)
-                    return
-                elif aladin_book is not None:
-                    if aladin_book.get('author') is not None:
-                        book['author'] = aladin_book.get('author')
+                    isbn_no=library_book['isbn'], ttbkey=system_parameters['aladin_key'])
+                # if aladin_book == 'daily_limt':
+                #     print(aladin_book)
+                #     return
+                if aladin_book is not None:
+                    book = combine_book_data(library_book,aladin_book)
+                    insert_into_database(db_cursor, book)
 
-                    book['url_alladin'] = aladin_book['url_alladin']
-                    book['translator'] = aladin_book['translator']
-                    book['contents'] = aladin_book['contents']
-                    book['image_url'] = aladin_book['image_url']
-                    book['discriptions'] = crawler.get_kyobo_book_descriptions(
-                        book['isbn'])
-                    # insert_into_database(db_cursor, book)
-                    insert_into_database(book)
                 else:
-                    print(book['isbn'] + " is falid")
+                    print(library_book['isbn'] + " is falid")
 
                 time.sleep(1)
 
@@ -121,10 +127,18 @@ if __name__ == "__main__":
 
     system_parameters["state_file_path"] = current_path+'/config/save_state'
 
-    # database 설정
-    dynamodb = boto3.resource('dynamodb',
-                            aws_access_key_id=system_parameters["access_key_id"],
-                            aws_secret_access_key=system_parameters["secret_access_key"],
-                            region_name=system_parameters['region_name'])
+    # MySQL Connection 연결
+    conn = pymysql.connect(host=system_parameters["db_host"],
+                           port=system_parameters["db_port"],
+                           user=system_parameters['db_user'],
+                           password=system_parameters["db_pw"],
+                           db=system_parameters["db_name"],
+                           charset='utf8')
+
+    # cursor 설정
+    db_cursor = conn.cursor()
+    db_cursor.execute("set names utf8")
+    conn.commit()
+    
 
     main(system_parameters=system_parameters)
