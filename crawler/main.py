@@ -8,7 +8,6 @@ import sys
 import time
 import random
 import crawler
-import botocore
 import pymysql
 import datetime
 
@@ -30,8 +29,25 @@ def insert_into_database(curs, book):
         print(f'{book["isbn"]}: is success!')
     except pymysql.err.IntegrityError:
         print(f'{book["isbn"]}: Already exists')
+        update_data_into_database(curs, book)
     except TypeError as e:
         print(f'{book["isbn"]}: Data is not complete')
+    except Exception as e:
+        print(e)
+
+# db에 data저장
+def update_data_into_database(curs, book):
+
+    sql = """update book
+         set author = (%s)
+         where isbn = (%s) and author = '' """
+
+    try:
+        curs.execute(sql, (book['author'],book['isbn']))
+        conn.commit()
+        
+        print(f'{book["isbn"]}: is success! {book["author"]}')
+
     except Exception as e:
         print(e)
 

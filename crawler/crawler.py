@@ -63,6 +63,8 @@ def get_aladin_book_info(isbn_no, ttbkey, output = "xml"):
     item_link = link[0].text
 
     author = bs_obj.select_one("author").text
+    if author == '':
+        author = None
 
     # # 옮긴이 가져오기
     # authors = bs_obj.select_one("authors")
