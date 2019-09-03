@@ -359,7 +359,7 @@ class BookRecognizer(object):
         ret = {}
         colors = ("blue", "green", "red")
         for i, color in enumerate(colors):
-            color_histogram = cv2.calcHist(img,[i],None,[256],[0,256])
+            color_histogram = cv2.calcHist([img],[i],None,[256],[0,256])
             ret[color] = color_histogram[:,0].astype("int").tolist()
         return ret
 
@@ -486,7 +486,7 @@ class TextHandler():
         if text is None:
             text = self.text
         try:
-            compiler = __text_compiler__[lang]
+            compiler = self.__text_compiler__[lang]
         except KeyError as e:
             raise TextError("not defined language")
         else:

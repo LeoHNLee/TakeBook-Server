@@ -49,9 +49,9 @@ function getresult(img_path, path_type, response, response_body) {
     var options = {
         mode: 'text',
         // pythonPath: '/usr/local/bin/python3', // local python 설치 경로
-        pythonPath: './venv/bin/python3', // venv python 설치 경로
+        pythonPath: '/Users/bsh/Documents/git_directory/p1039_red/server/analysis_server/venv/bin/python3', // venv python 설치 경로
         pythonOptions: ['-u'],
-        scriptPath: './python_module', // 실행할 python 파일 경로
+        scriptPath: '/Users/bsh/Documents/git_directory/p1039_red/server/analysis_server/python_module', // 실행할 python 파일 경로
         args: ['-p', img_path, '-t', path_type]
     };
 
@@ -66,9 +66,10 @@ function getresult(img_path, path_type, response, response_body) {
             data += results[i] + ' ';
         }
 
-        response_body.result = data;
+        response.json(data);
+        // response_body.result = data;
         
-        response.json(response_body);
+        // response.json(response_body);
     });
 };
 
