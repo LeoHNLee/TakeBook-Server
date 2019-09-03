@@ -210,6 +210,81 @@ router.post('/result', (req, res) => {
 
 });
 
+router.post('/analysis', (req, res) => {
+    upload(req, res, (err) => {
+
+        const response_body = {};
+
+        if (err) {
+            response_body.is_error = true;
+            //error_code: 1     Request 필수값 미설정.
+            response_body.error_code = 1;
+            res.json(response_body);
+            return;
+        }
+
+        let file = req.file;
+        let user_id = req.body.user_id;
+
+        //필수값 없을시
+        if (file && user_id) {
+
+            let filename = file.originalname;
+
+            (async (response_body) => {
+                let analysis_result = {};
+
+                //도서 분석 요청
+                await new Promise((resolve, reject) => {
+
+                    // 도서 분석 요청 request form
+                    let form = {
+                        method: 'POST',
+                        uri: `${analysis_server_address}/result`,
+                        body: {
+                            'filename': filename,
+                        },
+                        json: true
+                    }
+
+                    postrequest.post(form, (err, httpResponse, response) => {
+                        if (err) {
+                            // 요청 에러
+                            response_body.is_error = true;
+                            response_body.error_code = 1;
+                            analysis_result = false;
+                            resolve("analysis_requset_error")
+                        }
+                        else {
+                            let is_error = response.is_error;
+
+                            if (is_error) {
+                                console.log("분석 요청 오류");
+                                response_body.is_error = is_error
+                                response_body.error_code = 1
+                                analysis_result = false;
+                                resolve("analysis_requset_fail");
+                            } else {
+                                analysis_result = response;
+                                resolve("analysis_requset_success!");
+                            }
+                        }
+                    });
+                });
+                res.json(analysis_result);
+
+            })(response_body);
+
+        } else {
+            console.log("form 값 오류");
+            response_body.is_error = true;
+            //error_code: 1     Request 필수값 미설정.
+            response_body.error_code = 1;
+            res.json(response_body)
+        }
+    })
+});
+
 router.post('/ocrtest', (req, res) => {
 
     upload(req, res, (err) => {

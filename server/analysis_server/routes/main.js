@@ -15,18 +15,17 @@ AWS.config.region = 'ap-northeast-2'
 // @parms   response_body: respone 의 body form
 function pytojs(img_path, path_type, response, response_body) {
     let { PythonShell } = require('python-shell')
-
-    var options = {
+    
+    let options = {
         mode: 'text',
         // pythonPath: '/usr/local/bin/python3', // local python 설치 경로
-        pythonPath: './venv/bin/python3', // venv python 설치 경로
+        pythonPath: '/Users/bsh/Documents/git_directory/p1039_red/server/analysis_server/venv/bin/python3', // venv python 설치 경로
         pythonOptions: ['-u'],
-        scriptPath: './python_module', // 실행할 python 파일 경로
+        scriptPath: '/Users/bsh/Documents/git_directory/p1039_red/server/analysis_server/python_module', // 실행할 python 파일 경로
         args: ['-p', img_path, '-t', path_type]
     };
 
     PythonShell.run('node_book_predict.py', options, function (err, results) {
-
         if (err) {
             console.log(`에러발생: ${err}`)
         }
@@ -95,7 +94,6 @@ router.post('/result', (req, res) => {
             Key: filename
         };
 
-        
         s3.getObject(params).createReadStream()
         .on('error', (e) => {
             response_body.is_error = true;
