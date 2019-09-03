@@ -29,27 +29,11 @@ def insert_into_database(curs, book):
         print(f'{book["isbn"]}: is success!')
     except pymysql.err.IntegrityError:
         print(f'{book["isbn"]}: Already exists')
-        update_data_into_database(curs, book)
     except TypeError as e:
         print(f'{book["isbn"]}: Data is not complete')
     except Exception as e:
         print(e)
 
-# db에 data저장
-def update_data_into_database(curs, book):
-
-    sql = """update book
-         set author = (%s)
-         where isbn = (%s) and author = '' """
-
-    try:
-        curs.execute(sql, (book['author'],book['isbn']))
-        conn.commit()
-        
-        print(f'{book["isbn"]}: is success! {book["author"]}')
-
-    except Exception as e:
-        print(e)
 
 def combine_book_data(library_book, aladin_book):
     book = {}
@@ -87,11 +71,13 @@ def main(system_parameters, page_size=10):
     page_no = int(state[8:])
     published_date = datetime.date(year, month, day)
     print(f'load published_date: {year} {month} {day}  page_no: {page_no}')
-
+    
     # 현재 기준 내일 시간
     tomorrow = datetime.date.today() + datetime.timedelta(days=1)
 
     statefile.close()
+
+    query_count = 94997
 
     while(published_date != tomorrow):
         date = str(published_date).replace('-', '')
@@ -110,6 +96,8 @@ def main(system_parameters, page_size=10):
             for library_book in library_books:
                 aladin_book = crawler.get_aladin_book_info(
                     isbn_no=library_book['isbn'], ttbkey=system_parameters['aladin_key'])
+                
+                query_count += 1
                 # if aladin_book == 'daily_limt':
                 #     print(aladin_book)
                 #     return
@@ -122,10 +110,19 @@ def main(system_parameters, page_size=10):
 
                 time.sleep(1)
 
+
+                if query_count > 95000:
+                    print("daliy query limit")
+                    sys.exit()
+
+            
             page_no += 1
+
 
         page_no = 1
         published_date += datetime.timedelta(days=1)
+
+        
 
 
 if __name__ == "__main__":

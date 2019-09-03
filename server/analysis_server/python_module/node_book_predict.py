@@ -50,7 +50,7 @@ if __name__ == "__main__":
         ret["message"] = str(e)
     else:
         ret = main(args)
-    print(ret)
+    # print(ret)
     ret = json.dumps(ret)
-
+    # ret = '{}'.format(ret)
     print(ret)

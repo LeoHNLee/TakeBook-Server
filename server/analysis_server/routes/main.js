@@ -35,9 +35,18 @@ function pytojs(img_path, path_type, response, response_body) {
             data += results[i] + ' ';
         }
 
-        response_body.is_error = false;
-        response_body.result = data;
-        response.json(response_body);
+        String.prototype.replaceAll = function(org, dest) {
+            return this.split(org).join(dest);
+        }
+
+        console.log(data.replaceAll('\'','\"'));
+        data = JSON.parse(data)
+        response.json(data);
+        // response.json(data);
+        
+        // response_body.is_error = false;
+        // response_body.result = data;
+        // response.json(response_body);
         fs.unlinkSync(img_path);
     });
 
@@ -66,10 +75,10 @@ function getresult(img_path, path_type, response, response_body) {
             data += results[i] + ' ';
         }
 
-        response.json(data);
-        // response_body.result = data;
         
-        // response.json(response_body);
+        response_body.result = data;
+        
+        response.json(response_body);
     });
 };
 
