@@ -352,7 +352,10 @@ class BookRecognizer(object):
             if feature == "text":
                 ret['text'] = self.predict_text(img=img, east=east, lang=lang)
             elif feature == "img":
-                ret["image"] = self.predict_image(img=img)
+                y, x, *_ = img.shape
+                if x != 360 or y != 480:
+                    temp = cv2.resize(img, dsize=(360,480), interpolation=cv2.INTER_LINEAR)
+                ret["image"] = self.predict_image(img=temp)
         return ret
 
     def predict_image(self, img):
@@ -363,7 +366,7 @@ class BookRecognizer(object):
             ret[color] = color_histogram[:,0].astype("int").tolist()
         return ret
 
-    def predict_text(self,img, east=None, lang="kor"):
+    def predict_text(self, img, east=None, lang="kor"):
         if east is None:
             return self.ocr(img=img, lang=lang)
         else:
