@@ -5,6 +5,7 @@ import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -20,8 +21,10 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
+import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
+import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
@@ -34,10 +37,15 @@ public class CameraActivity extends AppCompatActivity implements CameraBridgeVie
 
     private static final String TAG = "opencv";
     private CameraBridgeViewBase mOpenCvCameraView;
+    private Mat matOriginal;
     private Mat matInput;
     private Mat matResult;
-    private Bitmap bitmap;
-    private boolean b = false;
+    CameraBridgeViewBase.CvCameraViewFrame cvFrame;
+    private Rect boundingRect;
+    private boolean boolProcess = false;
+
+    int w;
+    int h;
 
     public native void ConvertRGBtoGray(long matAddrInput, long matAddrResult);
 
@@ -80,7 +88,6 @@ public class CameraActivity extends AppCompatActivity implements CameraBridgeVie
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             //퍼미션 상태 확인
             if (!hasPermissions(PERMISSIONS)) {
-
                 //퍼미션 허가 안되어있다면 사용자에게 요청
                 requestPermissions(PERMISSIONS, PERMISSIONS_REQUEST_CODE);
             }
@@ -133,6 +140,28 @@ public class CameraActivity extends AppCompatActivity implements CameraBridgeVie
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
 
+        if(!boolProcess) {
+            boolProcess = true;
+            cvFrame = inputFrame;
+            new ImageAsync().execute();
+        } else {
+            matInput = inputFrame.rgba();
+            if(boundingRect != null) {
+                Imgproc.rectangle(matInput, boundingRect, new Scalar(0, 0, 255), 3);
+            }
+        }
+
+        return matInput;
+
+        /*matInput = inputFrame.rgba();
+        Mat mRgbaT = matInput.t();
+        Core.flip(matInput.t(), mRgbaT, 1);
+        Imgproc.resize(mRgbaT, mRgbaT, matInput.size());
+
+        return matInput;*/
+    }
+
+    private void imageProcessing(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         matInput = inputFrame.rgba();
 
         if (matResult != null) matResult.release();
@@ -140,8 +169,8 @@ public class CameraActivity extends AppCompatActivity implements CameraBridgeVie
         Mat medianResult = new Mat(matInput.rows(), matInput.cols(), matInput.type());
         Mat matKernel = new Mat();
 
-        int w = (int) matInput.size().width;
-        int h = (int) matInput.size().height;
+        w = (int) matInput.size().width;
+        h = (int) matInput.size().height;
         float wRatio = w / 720;
         float hRatio = h / 480;
         int alpha = 1;
@@ -190,7 +219,6 @@ public class CameraActivity extends AppCompatActivity implements CameraBridgeVie
         int max = -1;
         MatOfPoint ret = null;
 
-        ArrayList<Object> len_contours = new ArrayList<>();
         for(MatOfPoint contour : contours) {
             int len = contour.toArray().length;
 
@@ -200,18 +228,42 @@ public class CameraActivity extends AppCompatActivity implements CameraBridgeVie
             }
         }
 
-        Imgproc.rectangle(matInput, Imgproc.boundingRect(ret), new Scalar(0, 0, 255));
-
-        Imgproc.resize(matResult, matResult, new Size(w, h));
-
-        return matInput;
+        if(ret != null) {
+            boundingRect = Imgproc.boundingRect(ret);
+            Log.v("BoundingRect", "ratio = " + wRatio);
+            Log.v("BoundingRect1", "width = " + boundingRect.width + ", height = " + boundingRect.height + ", x = " + boundingRect.x + ", y = " + boundingRect.y);
+            boundingRect.width = (int) (boundingRect.width * wRatio);
+            boundingRect.height = (int) (boundingRect.height * wRatio);
+            boundingRect.x = (int) (boundingRect.x * wRatio);
+            boundingRect.y = (int) (boundingRect.y * wRatio);
+            Log.v("BoundingRect2", "width = " + boundingRect.width + ", height = " + boundingRect.height + ", x = " + boundingRect.x + ", y = " + boundingRect.y);
+        }
     }
 
     private void minusImage(Mat matFirst, Mat matSecond, int alpha) {
-
-
         minus(matFirst.nativeObj, matSecond.nativeObj, alpha);
+    }
 
+    class ImageAsync extends AsyncTask<String, String, String> {
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+        }
+
+        @Override
+        protected String doInBackground(String... strings) {
+            imageProcessing(cvFrame);
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+            boolProcess = false;
+
+            Imgproc.rectangle(matInput, boundingRect, new Scalar(0, 0, 255));
+            Imgproc.resize(matResult, matResult, new Size(w, h));
+        }
     }
 
     //여기서부턴 퍼미션 관련 메소드
