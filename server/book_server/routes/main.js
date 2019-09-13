@@ -59,6 +59,47 @@ router.get('/DetaillInfo', (req, res) => {
 
 });
 
+//internal
+
+router.get('/Query', (req, res) => {
+
+    let respone_form = {}
+
+    let query = `SELECT isbn FROM innodb.book where published_date like '2017051%' limit 400;`;
+
+    database.query(query, (err, results, fields) => {
+
+        if (err) {
+            //db 오류
+            console.log(err)
+            respone_form.Result_Code = "ES011";
+            respone_form.Message = "Book DataBase Server Error";
+        }
+        else{
+            if (results.length) {
+
+                respone_form.Result_Code = "RS000";
+                respone_form.Message = "Response Success";
+                respone_form.Response = {};
+                respone_form.Response.isbn = [];
+    
+                for (let key in results) {
+                    respone_form.Response.isbn.push(results[key].isbn);
+                }
+
+            }
+            else{
+                // 일치하는 isbn 없음.
+                respone_form.Result_Code = "EC005";
+                respone_form.Message = "Not Exist Parameter Info";
+            }
+        }
+        res.send(respone_form)
+ 
+    })
+
+});
+
 router.post('/save', (req, res) => {
 
     let title = req.body.title;

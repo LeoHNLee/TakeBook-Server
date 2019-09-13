@@ -56,7 +56,6 @@ def combine_book_data(library_book, aladin_book):
     return book
 
 
-
 # 메인함수
 def main(system_parameters, page_size=10):
 
