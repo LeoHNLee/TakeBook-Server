@@ -15,7 +15,7 @@ AWS.config.region = 'ap-northeast-2'
 // @parms   response_body: respone 의 body form
 function pytojs(img_path, path_type, response, response_body) {
     let { PythonShell } = require('python-shell')
-    
+
     let options = {
         mode: 'text',
         // pythonPath: '/usr/local/bin/python3', // local python 설치 경로
@@ -35,15 +35,15 @@ function pytojs(img_path, path_type, response, response_body) {
             data += results[i] + ' ';
         }
 
-        String.prototype.replaceAll = function(org, dest) {
+        String.prototype.replaceAll = function (org, dest) {
             return this.split(org).join(dest);
         }
 
-        console.log(data.replaceAll('\'','\"'));
+        console.log(data.replaceAll('\'', '\"'));
         data = JSON.parse(data)
         response.json(data);
         // response.json(data);
-        
+
         // response_body.is_error = false;
         // response_body.result = data;
         // response.json(response_body);
@@ -52,7 +52,7 @@ function pytojs(img_path, path_type, response, response_body) {
 
 };
 
-function getresult(img_path, path_type, response, response_body) {
+async function getresult(img_path, path_type) {
     let { PythonShell } = require('python-shell')
 
     var options = {
@@ -64,22 +64,29 @@ function getresult(img_path, path_type, response, response_body) {
         args: ['-p', img_path, '-t', path_type]
     };
 
-    PythonShell.run('node_book_predict.py', options, function (err, results) {
+    let analyze_result = '';
+    await new Promise((resolve, reject) => {
+        PythonShell.run('node_book_predict.py', options, function (err, results) {
 
-        if (err) {
-            console.log(`에러발생: ${err}`)
-        }
+            if (err) {
+                console.log(`에러발생: ${err}`)
+                reject("python error");
+            }
 
-        var data = ``;
-        for (var i in results) {
-            data += results[i] + ' ';
-        }
+            var data = ``;
+            for (var i in results) {
+                data += results[i] + ' ';
+            }
 
-        
-        response_body.result = data;
-        
-        response.json(response_body);
-    });
+            resolve("success");
+            analyze_result = data;
+            return;
+        });
+    })
+
+    analyze_result = JSON.parse(analyze_result);
+
+    return analyze_result;
 };
 
 router.get('/result', (req, res) => {
@@ -105,18 +112,18 @@ router.post('/result', (req, res) => {
         };
 
         s3.getObject(params).createReadStream()
-        .on('error', (e) => {
-            response_body.is_error = true;
-            // error_code: 2     S3에 해당 파일이 존재하지 않음.
-            response_body.error_code = 2;
-            res.json(response_body);
+            .on('error', (e) => {
+                response_body.is_error = true;
+                // error_code: 2     S3에 해당 파일이 존재하지 않음.
+                response_body.error_code = 2;
+                res.json(response_body);
 
-            fs.unlinkSync(`./uploads/${filename}`);
-        })
-        .pipe(file)
-        .on('finish',()=>{
-            pytojs(`uploads/${filename}`, 'local', res, response_body);
-        });
+                fs.unlinkSync(`./uploads/${filename}`);
+            })
+            .pipe(file)
+            .on('finish', () => {
+                pytojs(`uploads/${filename}`, 'local', res, response_body);
+            });
 
     }
     else {
@@ -128,11 +135,26 @@ router.post('/result', (req, res) => {
 
 });
 
-router.post('/es', (req, res) => {
-    let fileurl = req.body.fileurl;
-    let response_body = {}
+router.get('/UrlAnalyze', (req, res) => {
+    let respone_body = {}
+    let image_url = req.query.image_url;
 
-    getresult(fileurl, 'url', res, response_body);
+    if(!image_url){
+        //필수 파라미터 누락
+        respone_form.Result_Code = "EC001";
+        respone_form.Message = "invalid parameter error";
+        res.json(respone_form)
+        return;
+    }
+
+    getresult(image_url, 'url').then(analyze_result => {
+        if(!analyze_result.code){
+            respone_body.Result_Code = "RS000";
+            respone_body.Message = "Response Success";
+            respone_body.Response = analyze_result;
+            res.json(respone_body)
+        }
+    });
 
 });
 
