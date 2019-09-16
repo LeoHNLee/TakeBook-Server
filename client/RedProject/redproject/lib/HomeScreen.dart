@@ -35,6 +35,9 @@ class _MyHomePageState extends State<MyHomePage> {
       child: Scaffold(
         appBar: AppBar(
           title: Text('title'),
+          leading: Column(
+
+          ),
           bottom: TabBar(
             tabs: <Widget>[
               Tab(text: 'tab1'),
@@ -56,6 +59,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   onPressed: () => {
                     _startCamera()
                   },
+                ),
+                RaisedButton(
+                  child: Text('')
                 ),
                 Container(
                   decoration: BoxDecoration(
