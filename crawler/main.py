@@ -76,7 +76,7 @@ def main(system_parameters, page_size=10):
 
     statefile.close()
 
-    query_count = 94997
+    query_count = 0
 
     while(published_date != tomorrow):
         date = str(published_date).replace('-', '')
@@ -93,6 +93,10 @@ def main(system_parameters, page_size=10):
                 published_date=date, page_no=page_no, page_size=page_size, cert_key=system_parameters['library_key'])
 
             for library_book in library_books:
+                
+                if library_book['isbn'] == '':
+                    continue
+                
                 aladin_book = crawler.get_aladin_book_info(
                     isbn_no=library_book['isbn'], ttbkey=system_parameters['aladin_key'])
                 
