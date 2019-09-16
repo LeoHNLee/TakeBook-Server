@@ -1,12 +1,24 @@
-import sys, os, warnings, random, copy, math
-warnings.filterwarnings('ignore')
-import numpy as np
-import urllib, requests
-import cv2, imutils
+### url
+import urllib
+import requests
+### image
+import cv2
+import imutils
 from imutils.object_detection import non_max_suppression as NMS
+### text
 import pytesseract
 import re
+### own
 from exceptions import *
+### 
+import sys
+import os
+import random
+import copy
+import math
+import numpy as np
+import warnings
+warnings.filterwarnings('ignore')
 
 class ImageHandler(object):
     '''
@@ -32,8 +44,6 @@ class ImageHandler(object):
             ret = self.get_image_from_url(self.img_path)
         elif self.path_type=='local':
             ret = self.get_image_from_local(self.img_path)
-        elif self.path_type=='s3':
-            ret = self.get_image_from_s3(self.img_path)
         else:
             raise ImageError("Is it proper img_path?")
         return ret
@@ -46,9 +56,6 @@ class ImageHandler(object):
 
     def get_image_from_local(self, img_path):
         return cv2.imread(img_path)
-
-    def get_image_from_s3(self, img_path):
-        raise ImageError("S3 is not yet Defined")
 
     def save_image(self, save_path):
         '''
@@ -169,7 +176,6 @@ class ImageHandler(object):
         contour = contours[main_contour][:,0]
 
         ret=cv2.boundingRect(contour)
-
         return ret
 
     def im_change_type(self, img=None, img_type=cv2.COLOR_BGR2GRAY):
@@ -328,10 +334,11 @@ class ImageHandler(object):
         return ret
 
 class BookRecognizer(object):
-    '''example:
-    from im_book import BookRecognizer
-    model = BookRecognizer()
-    model.predict(img)
+    '''
+    example:
+        from im_book import BookRecognizer
+        model = BookRecognizer()
+        model.predict(img)
     '''
     def __init__(self):
         self.vision = None
@@ -339,7 +346,27 @@ class BookRecognizer(object):
     def train(self):
         pass
 
-    def predict(self, img, east=None, lang='kor'):
+    def predict(self, img, east=None, lang='kor', features="text"):
+        ret = {}
+        for feature in features:
+            if feature == "text":
+                ret['text'] = self.predict_text(img=img, east=east, lang=lang)
+            elif feature == "img":
+                y, x, *_ = img.shape
+                if x != 360 or y != 480:
+                    temp = cv2.resize(img, dsize=(360,480), interpolation=cv2.INTER_LINEAR)
+                ret["image"] = self.predict_image(img=temp)
+        return ret
+
+    def predict_image(self, img):
+        ret = {}
+        colors = ("blue", "green", "red")
+        for i, color in enumerate(colors):
+            color_histogram = cv2.calcHist([img],[i],None,[256],[0,256])
+            ret[color] = color_histogram[:,0].astype("int").tolist()
+        return ret
+
+    def predict_text(self, img, east=None, lang="kor"):
         if east is None:
             return self.ocr(img=img, lang=lang)
         else:
@@ -348,16 +375,14 @@ class BookRecognizer(object):
             for area in text_areas:
                 x1, x2, y1, y2 = area
                 ocr_results[area] = self.ocr(img=img[y1:y2, x1:x2], lang=lang)
-            return str(ocr_results)
+            return ocr_results
 
     def ocr(self, img, lang="kor"):
         langs = lang.split("+")
         ret = {}
         for lang in langs:
-            if lang not in self.text_compiler:
-                raise TextError("not defiend language")
             text = pytesseract.image_to_string(img, lang=lang)
-            ret[lang] = text
+            ret[lang] = TextHandler(text).text_cleaning(lang=lang)
         return ret
 
     def find_text_area(self, img, east_path="models/east.pb", min_confidence=0.5, new_width=320, new_height=320):
@@ -452,20 +477,22 @@ class BookRecognizer(object):
         return points
 
 class TextHandler():
-    def __init__(self, text):
-        self.text = text
-        self.text_compiler = {
+    __text_compiler__ = {
             "kor": re.compile("[^ㄱ-ㅣ가-힣,.!?]"),
             "eng": re.compile("[^a-zA-Z,.!?]"),
         }
 
-    def prepare_text(self, lang, text=None):
+    def __init__(self, text):
+        self.text = text
+
+    def text_cleaning(self, lang, text=None):
         if text is None:
             text = self.text
         try:
-            compiler = self.text_compiler[lang]
+            compiler = self.__text_compiler__[lang]
         except KeyError as e:
             raise TextError("not defined language")
-        ret = compiler.sub(" ", text)
-        ret = " ".join(ret.split())
+        else:
+            ret = compiler.sub(" ", text)
+            ret = " ".join(ret.split())
         return ret
