@@ -6,7 +6,7 @@ import 'package:redproject/Constant.dart';
 import 'package:redproject/CameraHomeScreen.dart';
 import 'package:redproject/HomeScreen.dart';
 import 'package:redproject/SplashScreen.dart';
-import 'package:redproject/PreviewScreen.dart';
+import 'package:redproject/LoginScreen.dart';
 
 List<CameraDescription> cameras;
 
@@ -29,7 +29,7 @@ Future<Null> main() async {
       ),
       home: SplashScreen(),
       routes: <String, WidgetBuilder>{
-        HOME_SCREEN: (BuildContext context) => HomeScreen(),
+        HOME_SCREEN: (BuildContext context) => LoginScreen(),
         CAMERA_SCREEN: (BuildContext context) => CameraHomeScreen(cameras),
       },
     ),

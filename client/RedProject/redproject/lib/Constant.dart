@@ -4,4 +4,8 @@ final String PREVIEW_SCREEN="/PREVIEW_SCREEN";
 
 final int PRIMARY_COLOR = 0xFF7F0506;
 final int ACCENT_COLOR = 0xFF2D3433;
-final int CANVAS_COLOR = 0xFFffefd6;
+final int TITLEBAR_COLOR = 0xFFFFFFFF;
+final int CANVAS_COLOR = 0xFFFFFFFF;
+
+final int COLOR_PINK = 0xFFE579AB;
+final int COLOR_YELLOW = 0xFFFCC22A;
