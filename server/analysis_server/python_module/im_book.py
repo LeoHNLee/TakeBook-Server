@@ -359,6 +359,26 @@ class BookRecognizer(object):
         return ret
 
     def predict_image(self, img):
+        '''
+        -Description: extract image descriptors using SURF method
+        -Input
+            -img: resized image
+        -Output
+            -descriptors: image descriptors ((n,128) dim)
+        '''
+        # Create SURF Algorithm and set to 128-dim
+        surf = cv2.xfeatures2d.SURF_create(500)
+        surf.setExtended(True)
+
+        # gray scale
+        img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+
+        # extract descriptor
+        _, descriptors = surf.detectAndCompute(img, None)
+        descriptors = descriptors.tolist()
+        return descriptors
+
+    def predict_BGR_histogram(self, img):
         ret = {}
         colors = ("blue", "green", "red")
         for i, color in enumerate(colors):

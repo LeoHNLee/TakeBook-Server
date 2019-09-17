@@ -43,14 +43,12 @@ if __name__ == "__main__":
         ap.add_argument("-t", "--type", type=str, default="local", help="type of input image")
         ap.add_argument("-l", "--language", type=str, default="kor+eng", help="select languge of book cover")
         ap.add_argument("-e", "--east", type=str, help="east algorithm path")
-        ap.add_argument("-f", "--feature", type=str, default="img+text", help="select features")
+        ap.add_argument("-f", "--feature", type=str, default="img", help="select features")
         args = vars(ap.parse_args())
     except Exception as e:
         ret = error_returner.get("ArgumentError")
         ret["message"] = str(e)
     else:
         ret = main(args)
-    # print(ret)
     ret = json.dumps(ret)
-    # ret = '{}'.format(ret)
     print(ret)
