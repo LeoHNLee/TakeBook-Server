@@ -3,7 +3,7 @@ const fs = require('fs');
 const request = require('request');
 const router = express.Router();
 
-const es_address = 'http://localhost:9200';
+const es_address = 'http://54.180.49.131:9200';
 const es_server_address = 'http://127.0.0.1:5902';
 const book_server_address = 'http://127.0.0.1:5903';
 const analysis_server_address = 'http://127.0.0.1:5901';
