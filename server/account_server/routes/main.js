@@ -4,8 +4,10 @@ const postrequest = require('request');
 const multer = require('multer');
 const multers3 = require('multer-s3');
 const aws = require('aws-sdk');
+const jwt = require("jsonwebtoken");
 
 const mysql_connetion = require('../bin/mysql_connetion');
+const secretObj = require("../config/jwtkey");
 
 const router = express.Router();
 const analysis_server_address = `http://127.0.0.1:5901`;
@@ -83,27 +85,31 @@ router.post('/CreaateUsers', (req, res) => {
             }
 
             console.log(signup_date)
-            mysql_connetion.query(`insert into user (id, pw, name, signup_date, profile_url, access_state) 
-                                        values (?,?,?,?,?,?)`,[user_id,user_password,user_name,signup_date, profile_url,access_state], (err, results, fields) => {
+            mysql_connetion.query(`insert into user (id, pw, name, signup_date, profile_url, update_date, access_state) 
+                                        values (?,?,?,?,?,?,?)`, [user_id, user_password, user_name, signup_date, profile_url, signup_date, access_state], (err, results, fields) => {
                 if (err) {
-                    switch(err.code){
+                    switch (err.code) {
                         case "ER_DUP_ENTRY":
                             response_body.Result_Code = "RS001";
                             response_body.Message = "Response Success";
-                            response_body.Response={}
+                            response_body.Response = {}
                             response_body.Response.Result = false;
                             response_body.Response.Message = "Same ID already exists";
+                        default:
+                            response_body.Result_Code = "ES010";
+                            response_body.Message = "DataBase Server Error";
                     }
+                    console.log(err)
                 }
-                else{
+                else {
                     response_body.Result_Code = "RS000";
                     response_body.Message = "Response Success";
                 }
                 res.json(response_body)
             })
-            
+
         }
-    
+
     })
 
 });
@@ -112,23 +118,22 @@ router.get('/CheckIDExists', (req, res) => {
     const response_body = {};
 
     let user_id = req.query.user_id
-    
-    if(user_id){
-        mysql_connetion.query(`select id from user where id = ?`,[user_id], (err, results, fields) => {
+
+    if (user_id) {
+        mysql_connetion.query(`select id from user where id = ?`, [user_id], (err, results, fields) => {
             if (err) {
                 console.log(err)
                 response_body.Result_Code = "ES010";
                 response_body.Message = "DataBase Server Error";
             }
-            else{
-                console.log(results.length)
-                if(results.length){
+            else {
+                if (results.length) {
                     response_body.Result_Code = "RS001";
                     response_body.Message = "Response Success";
                     response_body.Response = {};
                     response_body.Response.Result = false;
                     response_body.Response.Message = "Same ID already exists";
-                }else{
+                } else {
                     response_body.Result_Code = "RS000";
                     response_body.Message = "Response Success";
                     response_body.Response = {};
@@ -139,7 +144,67 @@ router.get('/CheckIDExists', (req, res) => {
             res.json(response_body)
         })
 
-    }else{
+    } else {
+        //필수 파라미터 누락
+        response_body.Result_Code = "EC001";
+        response_body.Message = "invalid parameter error";
+        res.json(response_body)
+    }
+
+});
+
+router.post('/UserLogin', (req, res) => {
+    const response_body = {};
+
+    let user_id = req.body.user_id;
+    let user_password = req.body.user_password;
+
+    if (user_id && user_password) {
+        mysql_connetion.query(`select id, pw, name, signup_date, profile_url, update_date from user where id = ?`, [user_id], (err, results, fields) => {
+            if (err) {
+                console.log(err)
+                response_body.Result_Code = "ES010";
+                response_body.Message = "DataBase Server Error";
+            }
+            else {
+                if (results.length) {
+
+                    if (results[0].pw === user_password) {
+
+                        // jwt 토큰 생성
+                        let token = jwt.sign({ id: results[0].id }, secretObj.secret)
+
+                        //로그인 성공.
+                        response_body.Result_Code = "RS001";
+                        response_body.Message = "Response Success";
+                        response_body.Response = {};
+
+                        //유저 토큰
+                        response_body.Response.user_token = token;
+
+                        //회원 정보
+                        response_body.Response.user_info = {};
+                        response_body.Response.user_info.id = results[0].id;
+                        response_body.Response.user_info.name = results[0].name;
+                        response_body.Response.user_info.signup_date = results[0].signup_date;
+                        response_body.Response.user_info.profile_url = results[0].profile_url;
+                        response_body.Response.user_info.update_date = results[0].update_date;
+                    } else {
+                        // password 오류.
+                        response_body.Result_Code = "RS001";
+                        response_body.Message = "Incorrect User Information";
+                    }
+
+                } else {
+                    // 로그인 실패.
+                    response_body.Result_Code = "RS001";
+                    response_body.Message = "Incorrect User Information";
+                }
+            }
+            res.json(response_body)
+        })
+
+    } else {
         //필수 파라미터 누락
         response_body.Result_Code = "EC001";
         response_body.Message = "invalid parameter error";
@@ -149,8 +214,52 @@ router.get('/CheckIDExists', (req, res) => {
 });
 
 
-router.get('/CheckIDExists', (req, res) => {
-    res.send('왜일루왔누?');
+router.get('/UserInfo', (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    try {
+        let decoded = jwt.verify(token, secretObj.secret);
+        if (decoded) {
+            let user_id = decoded.id;
+            mysql_connetion.query(`select id, name, signup_date, profile_url, update_date from user where id = ?`, [user_id], (err, results, fields) => {
+                if (err) {
+                    console.log(err)
+                    response_body.Result_Code = "ES010";
+                    response_body.Message = "DataBase Server Error";
+                }
+                else {
+                    response_body.Result_Code = "RS001";
+                    response_body.Message = "Response Success";
+                    response_body.Response = {};
+
+                    //회원 정보
+                    response_body.Response.user_info = {};
+                    for (let value in results[0]) {
+                        response_body.Response.user_info[value] = results[0][value];
+                    }
+                    //날짜 데이터 다듬기
+                    response_body.Response.user_info.update_date = response_body.Response.user_info.update_date.toISOString().slice(0, 19).replace('T', ' ');
+                    response_body.Response.user_info.signup_date = response_body.Response.user_info.signup_date.toISOString().slice(0, 19).replace('T', ' ');
+                }
+                res.send(response_body);
+            });
+        }
+        else {
+            //권한 없는 토큰.
+            response_body.Result_Code = "EC002";
+            response_body.Message = "Unauthorized token";
+            res.send(response_body);
+        }
+    }
+    catch (JsonWebTokenError) {
+        //권한 없는 토큰.
+        response_body.Result_Code = "EC002";
+        response_body.Message = "Unauthorized token";
+        res.send(response_body);
+    }
+
 });
 
 router.post('/result', (req, res) => {
