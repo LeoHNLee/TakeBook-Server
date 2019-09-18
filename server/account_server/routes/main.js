@@ -34,7 +34,122 @@ let upload = multer({
     })
 }).single('image_file');
 
-router.get('/result', (req, res) => {
+
+
+router.post('/CreaateUsers', (req, res) => {
+
+    // 유저 버킷 업로드 설정
+    let user_file_upload = multer({
+        storage: multers3({
+            s3: s3,
+            bucket: "takebook-user-bucket",
+            metadata: function (req, file, cb) {
+                let user_id = req.body.user_id;
+                cb(null, { fieldName: `${user_id}-profile.jpg` });
+            },
+            key: function (req, file, cb) {
+                let user_id = req.body.user_id;
+                cb(null, `${user_id}-profile.jpg`);
+            }
+        })
+    }).single('profile_image');
+
+
+    user_file_upload(req, res, (err) => {
+
+        const response_body = {};
+
+        if (err) {
+            response_body.Result_Code = "ES011";
+            response_body.Message = "S3 Server Error";
+            res.json(response_body)
+        }
+        else if (!req.body.user_id || !req.body.user_password || !req.body.user_name) {
+            // 필수 파라미터 미입력
+            response_body.Result_Code = "EC001";
+            response_body.Message = "invalid parameter error";
+            res.json(response_body)
+        }
+        else {
+            let user_id = req.body.user_id;
+            let user_password = req.body.user_password;
+            let user_name = req.body.user_name;
+            let signup_date = new Date().toISOString().slice(0, 19).replace('T', ' ');
+            let profile_url = null;
+            let access_state = 0;
+
+            if (req.file) {
+                profile_url = req.file.location;
+            }
+
+            console.log(signup_date)
+            mysql_connetion.query(`insert into user (id, pw, name, signup_date, profile_url, access_state) 
+                                        values (?,?,?,?,?,?)`,[user_id,user_password,user_name,signup_date, profile_url,access_state], (err, results, fields) => {
+                if (err) {
+                    switch(err.code){
+                        case "ER_DUP_ENTRY":
+                            response_body.Result_Code = "RS001";
+                            response_body.Message = "Response Success";
+                            response_body.Response={}
+                            response_body.Response.Result = false;
+                            response_body.Response.Message = "Same ID already exists";
+                    }
+                }
+                else{
+                    response_body.Result_Code = "RS000";
+                    response_body.Message = "Response Success";
+                }
+                res.json(response_body)
+            })
+            
+        }
+    
+    })
+
+});
+
+router.get('/CheckIDExists', (req, res) => {
+    const response_body = {};
+
+    let user_id = req.query.user_id
+    
+    if(user_id){
+        mysql_connetion.query(`select id from user where id = ?`,[user_id], (err, results, fields) => {
+            if (err) {
+                console.log(err)
+                response_body.Result_Code = "ES010";
+                response_body.Message = "DataBase Server Error";
+            }
+            else{
+                console.log(results.length)
+                if(results.length){
+                    response_body.Result_Code = "RS001";
+                    response_body.Message = "Response Success";
+                    response_body.Response = {};
+                    response_body.Response.Result = false;
+                    response_body.Response.Message = "Same ID already exists";
+                }else{
+                    response_body.Result_Code = "RS000";
+                    response_body.Message = "Response Success";
+                    response_body.Response = {};
+                    response_body.Response.Result = true;
+                    response_body.Response.Message = "ID is Available";
+                }
+            }
+            res.json(response_body)
+        })
+
+    }else{
+        //필수 파라미터 누락
+        response_body.Result_Code = "EC001";
+        response_body.Message = "invalid parameter error";
+        res.json(response_body)
+    }
+
+});
+
+
+router.get('/CheckIDExists', (req, res) => {
     res.send('왜일루왔누?');
 });
 
