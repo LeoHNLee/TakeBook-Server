@@ -11,8 +11,8 @@ const mainRouter = require('./routes/main')
 app.use(logger('dev'));
 app.use('/uploads', express.static('uploads'));
 app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({extended : true}));
 app.use(cookieParser());
-// app.use(bodyParser.urlencoded())
 
 //router 경로추가
 app.use('/', mainRouter);
