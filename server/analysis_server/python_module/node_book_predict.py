@@ -15,7 +15,6 @@ def main(args):
         ret = model.predict(img.image, lang=args["language"], east=args["east"], features=args["feature"].split("+"))
     except TextError as e:
         ret = error_returner.get("TextError")
-
         ret["message"] = str(e)
     except ImageError as e:
         ret = error_returner.get("ImageError")
