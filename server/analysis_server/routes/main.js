@@ -39,7 +39,6 @@ function pytojs(img_path, path_type, response, response_body) {
             return this.split(org).join(dest);
         }
 
-        console.log(data.replaceAll('\'', '\"'));
         data = JSON.parse(data)
         response.json(data);
         // response.json(data);
@@ -67,7 +66,7 @@ async function getresult(img_path, path_type) {
     let analyze_result = '';
     await new Promise((resolve, reject) => {
         PythonShell.run('node_book_predict.py', options, function (err, results) {
-
+            
             if (err) {
                 console.log(`에러발생: ${err}`)
                 reject("python error");
@@ -141,9 +140,9 @@ router.get('/UrlAnalyze', (req, res) => {
 
     if(!image_url){
         //필수 파라미터 누락
-        respone_form.Result_Code = "EC001";
-        respone_form.Message = "invalid parameter error";
-        res.json(respone_form)
+        respone_body.Result_Code = "EC001";
+        respone_body.Message = "invalid parameter error";
+        res.json(respone_body)
         return;
     }
 
@@ -153,6 +152,8 @@ router.get('/UrlAnalyze', (req, res) => {
             respone_body.Message = "Response Success";
             respone_body.Response = analyze_result;
             res.json(respone_body)
+        }else{
+            res.json(analyze_result);
         }
     });
 
