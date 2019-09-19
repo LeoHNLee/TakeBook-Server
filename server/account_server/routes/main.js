@@ -37,6 +37,19 @@ let upload = multer({
     })
 }).single('image_file');
 
+function params_check(params, check_list) {
+    let result = null;
+    for (let param in params) {
+        if (params[param]) {
+            if (!check_list[param].includes(params[param])) {
+                result = param;
+                break;
+            }
+        }
+    }
+    return result;
+}
+
 // let user_file_upload = multer({
 //     storage: multers3({
 //         s3: s3,
@@ -52,12 +65,12 @@ let upload = multer({
 //     })
 // }).single('profile_image');
 
-function join_json_list(join_key, list1,list2){
+function join_json_list(join_key, list1, list2) {
 
-    let join_list=[];
-    for(let i in list1){
-        let result = Object.assign({},list1[i]
-            ,list2.find(item=>item[join_key]==list1[i][join_key]))
+    let join_list = [];
+    for (let i in list1) {
+        let result = Object.assign({}, list1[i]
+            , list2.find(item => item[join_key] == list1[i][join_key]))
         join_list.push(result)
     }
 
@@ -437,7 +450,7 @@ router.get('/UserBook', (req, res) => {
         //
         if (!user_id) {
             user_id = main_user_id;
-        }else{
+        } else {
             // 다른 사용자 검색 일 경우.
             user_id = main_user_id;
         }
@@ -445,7 +458,7 @@ router.get('/UserBook', (req, res) => {
         //
 
         let keyword = (req.query.keyword) ? req.query.keyword : null;
-        let category = ((req.query.category)&&keyword) ? req.query.category : "isbn";
+        let category = ((req.query.category) && keyword) ? req.query.category : "isbn";
         let max_count = (req.query.max_count) ? req.query.max_count : null;
         let sort_key = (req.query.sort_key) ? req.query.sort_key : null;
         let sort_method = (req.query.sort_method) ? req.query.sort_method : "asc";
@@ -458,46 +471,34 @@ router.get('/UserBook', (req, res) => {
             sort_method: sort_method
         }
 
-
-        if(category){
-            if(!["title", "isbn", "author"].includes(category)){
-                //파라미터 값 오류
-                response_body.Result_Code = "EC001";
-                response_body.Message = "category parameter error";
-                res.send(response_body);
-                return;
-            }
+        //파라미터 값 확인.
+        let check_list = {
+            category: ["title", "isbn", "author"],
+            sort_key: ["isbn", "title", "author", "publisher", "registration_date"],
+            sort_method: ["asc", "desc"]
         }
 
-        if(sort_key){
-            if(!["title", "author", "publisher", "registration_date"].includes(sort_key)){
-                //파라미터 값 오류
-                response_body.Result_Code = "EC001";
-                response_body.Message = "sort_key parameter error";
-                res.send(response_body);
-                return;
-            }
-        }
+        let params = { category, sort_key, sort_method }
 
-        if(sort_method){
-            if(!["asc", "desc"].includes(sort_method)){
-                //파라미터 값 오류
-                response_body.Result_Code = "EC001";
-                response_body.Message = "sort_method parameter error";
-                res.send(response_body);
-                return;
-            }
+        let check_result = params_check(params, check_list)
+
+        if (check_result) {
+            //파라미터 값 오류
+            response_body.Result_Code = "EC001";
+            response_body.Message = `${check_result} parameter error`;
+            res.send(response_body);
+            return;
         }
 
         // query 구문 구성
         let query = `select isbn, registration_date from registered_book where user_id = ? `
 
         // sort_key==="registration_date" 인 경우에만 예외처리. 디비의 스키마가 다르기 떄문.
-        if(sort_key==="registration_date"){
-            query+= `order by ${sort_key} ${sort_method} `;
+        if (sort_key === "registration_date") {
+            query += `order by ${sort_key} ${sort_method} `;
 
-            if(max_count){
-                query+=`limit ${max_count}`;
+            if (max_count) {
+                query += `limit ${max_count}`;
             }
         }
 
@@ -520,7 +521,7 @@ router.get('/UserBook', (req, res) => {
                 });
                 isbn_list.push(results[result].isbn);
             }
-            
+
             //book 정보 가져오기
             let internal_server_request_form = {
                 method: 'GET',
@@ -531,13 +532,13 @@ router.get('/UserBook', (req, res) => {
                 json: true
             }
 
-            for(let key in query_key){
-                if(query_key[key]){
+            for (let key in query_key) {
+                if (query_key[key]) {
                     internal_server_request_form.qs[key] = query_key[key];
                 }
             }
 
-            if(sort_key==="registration_date"){
+            if (sort_key === "registration_date") {
                 internal_server_request_form.qs.sort_key = null;
                 internal_server_request_form.qs.max_count = null;
             }
@@ -551,17 +552,17 @@ router.get('/UserBook', (req, res) => {
                     res.send(response_body);
                     return;
                 }
-                
-                switch(response.Result_Code){
-                    case "RS000":{
+
+                switch (response.Result_Code) {
+                    case "RS000": {
                         let book_join_list = [];
-                        if(sort_key==="registration_date"){
+                        if (sort_key === "registration_date") {
                             // isbn을 통한 join
                             // registration_date 인경우 예외처리.
-                            book_join_list = join_json_list("isbn",book_list,response.Response.item);
-                        }else{
+                            book_join_list = join_json_list("isbn", book_list, response.Response.item);
+                        } else {
                             //isbn을 통한 join
-                            book_join_list = join_json_list("isbn",response.Response.item,book_list)
+                            book_join_list = join_json_list("isbn", response.Response.item, book_list)
                         }
 
                         //요청 성공.
@@ -573,7 +574,7 @@ router.get('/UserBook', (req, res) => {
                         };
                         break;
                     }
-                    case "ES011":{
+                    case "ES011": {
                         response_body.Result_Code = response.Result_Code;
                         response_body.Message = "Book DataBase Server Error";
                         break;
@@ -581,7 +582,6 @@ router.get('/UserBook', (req, res) => {
                 }
                 res.json(response_body)
             })
-
 
         });
 
