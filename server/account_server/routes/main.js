@@ -1,6 +1,6 @@
 const express = require('express');
 const fs = require('fs');
-const postrequest = require('request');
+const request = require('request');
 const multer = require('multer');
 const multers3 = require('multer-s3');
 const aws = require('aws-sdk');
@@ -9,6 +9,7 @@ const mysql_connetion = require('../bin/mysql_connetion');
 const jwt_token = require("../bin/jwt_token");
 
 const router = express.Router();
+const internal_server_address = `http://127.0.0.1:5910`;
 const analysis_server_address = `http://127.0.0.1:5901`;
 const es_server_address = `http://127.0.0.1:5902`;
 
@@ -51,7 +52,17 @@ let upload = multer({
 //     })
 // }).single('profile_image');
 
+function join_json_list(join_key, list1,list2){
 
+    let join_list=[];
+    for(let i in list1){
+        let result = Object.assign({},list1[i]
+            ,list2.find(item=>item[join_key]==list1[i][join_key]))
+        join_list.push(result)
+    }
+
+    return join_list;
+}
 
 router.post('/CreaateUsers', (req, res) => {
     response_body = {}
@@ -209,6 +220,7 @@ router.get('/UserInfo', (req, res) => {
 
     if (decoded) {
         let user_id = decoded.id;
+
         mysql_connetion.query(`select id, name, signup_date, profile_url, update_date from user where id = ?`, [user_id], (err, results, fields) => {
             if (err) {
                 console.log(err)
@@ -233,6 +245,7 @@ router.get('/UserInfo', (req, res) => {
             }
             res.send(response_body);
         });
+
     } else {
         //권한 없는 토큰.
         response_body.Result_Code = "EC002";
@@ -374,13 +387,13 @@ router.delete('/UserProfile', (req, res) => {
         };
 
         s3.deleteObject(params, function (err, data) {
-            if (err){
+            if (err) {
                 console.log(err)
                 //S3 서버 오류
                 response_body.Result_Code = "ES011";
                 response_body.Message = "S3 Server Error";
                 res.send(response_body);
-            }else{
+            } else {
                 console.log(data)
                 //정보 수정
                 mysql_connetion.query(`update user set profile_url = null where id = ?;`, [user_id], (err, results, fields) => {
@@ -399,6 +412,179 @@ router.delete('/UserProfile', (req, res) => {
                 });
             }
         });
+    } else {
+        //권한 없는 토큰.
+        response_body.Result_Code = "EC002";
+        response_body.Message = "Unauthorized token";
+        res.send(response_body);
+    }
+});
+
+//책 리스트 불러오기
+router.get('/UserBook', (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let main_user_id = decoded.id;
+        let user_id = req.query.user_id;
+
+        //유저 권한 채크
+        // 미구현
+        //
+        if (!user_id) {
+            user_id = main_user_id;
+        }else{
+            // 다른 사용자 검색 일 경우.
+            user_id = main_user_id;
+        }
+        //
+        //
+
+        let keyword = (req.query.keyword) ? req.query.keyword : null;
+        let category = ((req.query.category)&&keyword) ? req.query.category : "isbn";
+        let max_count = (req.query.max_count) ? req.query.max_count : null;
+        let sort_key = (req.query.sort_key) ? req.query.sort_key : null;
+        let sort_method = (req.query.sort_method) ? req.query.sort_method : "asc";
+
+        let query_key = {
+            keyword: keyword,
+            category: category,
+            max_count: max_count,
+            sort_key: sort_key,
+            sort_method: sort_method
+        }
+
+
+        if(category){
+            if(!["title", "isbn", "author"].includes(category)){
+                //파라미터 값 오류
+                response_body.Result_Code = "EC001";
+                response_body.Message = "category parameter error";
+                res.send(response_body);
+                return;
+            }
+        }
+
+        if(sort_key){
+            if(!["title", "author", "publisher", "registration_date"].includes(sort_key)){
+                //파라미터 값 오류
+                response_body.Result_Code = "EC001";
+                response_body.Message = "sort_key parameter error";
+                res.send(response_body);
+                return;
+            }
+        }
+
+        if(sort_method){
+            if(!["asc", "desc"].includes(sort_method)){
+                //파라미터 값 오류
+                response_body.Result_Code = "EC001";
+                response_body.Message = "sort_method parameter error";
+                res.send(response_body);
+                return;
+            }
+        }
+
+        // query 구문 구성
+        let query = `select isbn, registration_date from registered_book where user_id = ? `
+
+        // sort_key==="registration_date" 인 경우에만 예외처리. 디비의 스키마가 다르기 떄문.
+        if(sort_key==="registration_date"){
+            query+= `order by ${sort_key} ${sort_method} `;
+
+            if(max_count){
+                query+=`limit ${max_count}`;
+            }
+        }
+
+        mysql_connetion.query(query, [user_id], (err, results, fields) => {
+            if (err) {
+                console.log(err);
+                //데이터 베이스 오류
+                response_body.Result_Code = "ES010";
+                response_body.Message = "DataBase Server Error";
+                res.send(response_body);
+                return;
+            }
+
+            let book_list = [];
+            let isbn_list = [];
+            for (let result in results) {
+                book_list.push({
+                    isbn: results[result].isbn,
+                    registration_date: results[result].registration_date.toISOString().slice(0, 19).replace('T', ' ')
+                });
+                isbn_list.push(results[result].isbn);
+            }
+            
+            //book 정보 가져오기
+            let internal_server_request_form = {
+                method: 'GET',
+                uri: `${internal_server_address}/UserBook`,
+                qs: {
+                    isbn_list: isbn_list
+                },
+                json: true
+            }
+
+            for(let key in query_key){
+                if(query_key[key]){
+                    internal_server_request_form.qs[key] = query_key[key];
+                }
+            }
+
+            if(sort_key==="registration_date"){
+                internal_server_request_form.qs.sort_key = null;
+                internal_server_request_form.qs.max_count = null;
+            }
+
+            //도서 정보 요청
+            request.get(internal_server_request_form, (err, httpResponse, response) => {
+                if (err) {
+                    //내부 서버 오류
+                    response_body.Result_Code = "ES004";
+                    response_body.Message = "Internal Server Error";
+                    res.send(response_body);
+                    return;
+                }
+                
+                switch(response.Result_Code){
+                    case "RS000":{
+                        let book_join_list = [];
+                        if(sort_key==="registration_date"){
+                            // isbn을 통한 join
+                            // registration_date 인경우 예외처리.
+                            book_join_list = join_json_list("isbn",book_list,response.Response.item);
+                        }else{
+                            //isbn을 통한 join
+                            book_join_list = join_json_list("isbn",response.Response.item,book_list)
+                        }
+
+                        //요청 성공.
+                        response_body.Result_Code = response.Result_Code;
+                        response_body.Message = "Response Success";
+                        response_body.Response = {
+                            count: book_join_list.length,
+                            item: book_join_list
+                        };
+                        break;
+                    }
+                    case "ES011":{
+                        response_body.Result_Code = response.Result_Code;
+                        response_body.Message = "Book DataBase Server Error";
+                        break;
+                    }
+                }
+                res.json(response_body)
+            })
+
+
+        });
+
     } else {
         //권한 없는 토큰.
         response_body.Result_Code = "EC002";
@@ -445,7 +631,7 @@ router.post('/result', (req, res) => {
                         json: true
                     }
 
-                    postrequest.post(form, (err, httpResponse, response) => {
+                    request.post(form, (err, httpResponse, response) => {
                         if (err) {
                             // 요청 에러
                             response_body.is_error = true;
@@ -488,7 +674,7 @@ router.post('/result', (req, res) => {
                         json: true
                     }
 
-                    postrequest.post(form, (err, httpResponse, response) => {
+                    request.post(form, (err, httpResponse, response) => {
                         if (err) {
                             // 요청 에러
                             resolve("elasticsearch_requset_failed")
@@ -617,7 +803,7 @@ router.post('/analysis', (req, res) => {
                         json: true
                     }
 
-                    postrequest.post(form, (err, httpResponse, response) => {
+                    request.post(form, (err, httpResponse, response) => {
                         if (err) {
                             // 요청 에러
                             response_body.is_error = true;
@@ -690,7 +876,7 @@ router.post('/ocrtest', (req, res) => {
                     }
 
                     //도서 분석 요청
-                    postrequest.post(form, (err, httpResponse, response) => {
+                    request.post(form, (err, httpResponse, response) => {
                         if (err) {
                             return console.error('response failed:', err);
                         }

@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 const logger = require('morgan');
 
 //router
-const mainRouter = require('./routes/main')
+const mainRouter = require('./routes/main');
 
 
 app.use(logger('dev'));
