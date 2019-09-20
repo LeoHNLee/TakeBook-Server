@@ -96,7 +96,7 @@ router.get('/List', (req, res) => {
 
     let query = `SELECT title, isbn, author, publisher FROM book WHERE `;
 
-    if(keyword){
+    if (keyword) {
         if (category === 'isbn') {
             query += `${category} = '${keyword}' or`
         } else {
@@ -104,7 +104,7 @@ router.get('/List', (req, res) => {
         }
     }
 
-    
+
     //string 으로 변환
     for (let i in keyword) {
         keyword[i] = JSON.stringify(keyword[i]);
@@ -159,7 +159,7 @@ router.get('/SearchInISBN', (req, res) => {
     let respone_form = {}
 
     let isbn_list = req.query.isbn_list;
-    
+
     if (!isbn_list) {
         //필수 파라미터 누락
         respone_form.Result_Code = "EC001";
@@ -176,7 +176,7 @@ router.get('/SearchInISBN', (req, res) => {
 
     let query = `SELECT title, isbn, author, publisher FROM book WHERE `;
 
-    if(keyword){
+    if (keyword) {
         if (category === 'isbn') {
             query += `${category} = '${keyword}' and `
         } else {
@@ -206,15 +206,15 @@ router.get('/SearchInISBN', (req, res) => {
             respone_form.Result_Code = "ES011";
             respone_form.Message = "Book DataBase Server Error";
         }
-        else{
+        else {
             respone_form.Result_Code = "RS000";
             respone_form.Message = "Response Success";
             respone_form.Response = {
                 count: results.length,
                 item: []
             };
-            
-            for(let i in results){
+
+            for (let i in results) {
                 respone_form.Response.item.push(results[i])
             }
 
@@ -224,6 +224,45 @@ router.get('/SearchInISBN', (req, res) => {
     })
 
 });
+
+router.get('/CheckISBNExists', (req, res) => {
+
+    let response_body = {};
+
+    let isbn = req.query.isbn;
+
+    if (isbn) {
+        let query = `select isbn from book where isbn = ?;`;
+        mysql_connetion.query(query,[isbn], (err, results, fields) => {
+            if (err) {
+                //db 오류
+                console.log(err)
+                response_body.Result_Code = "ES011";
+                response_body.Message = "Book DataBase Server Error";
+            }
+            else {
+
+                if (results.length) {
+                    //동일 아이디 존제
+                    response_body.Result_Code = "RS000";
+                    response_body.Message = "Response Success";
+                } else {
+                    //사용 가능한 아이디
+                    response_body.Result_Code = "EC005";
+                    response_body.Message = "Not Exist Parameter Info";
+                }
+            }
+            res.send(response_body)
+        })
+    } else {
+        //필수 파라미터 누락
+        response_body.Result_Code = "EC001";
+        response_body.Message = "invalid parameter error";
+        res.json(response_body)
+    }
+
+});
+
 
 
 router.get('/Query', (req, res) => {
