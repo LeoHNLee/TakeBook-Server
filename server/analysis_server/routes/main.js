@@ -141,9 +141,9 @@ router.get('/UrlAnalyze', (req, res) => {
 
     if(!image_url){
         //필수 파라미터 누락
-        respone_form.Result_Code = "EC001";
-        respone_form.Message = "invalid parameter error";
-        res.json(respone_form)
+        respone_body.Result_Code = "EC001";
+        respone_body.Message = "invalid parameter error";
+        res.json(respone_body)
         return;
     }
 

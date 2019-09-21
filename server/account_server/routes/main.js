@@ -19,6 +19,7 @@ let s3 = new aws.S3();
 var db = new aws.DynamoDB.DocumentClient();
 let bucket = 'red-bucket';
 const user_bucket = 'takebook-user-bucket';
+const image_bucket = 'takebook-book-image';
 
 //mysql 연결
 mysql_connetion.connect();
@@ -781,27 +782,78 @@ router.put('/UserBook', (req, res) => {
 });
 
 //책 이미지 등록
-router.post('/AnalyzeBook', (req, res) => {
+router.post('/AnalyzeImage', (req, res) => {
     const response_body = {};
 
     let token = req.headers.authorization;
     let decoded = jwt_token.token_check(token);
     if (decoded) {
-        
+        let user_id = decoded.id;
+
         let user_file_upload = multer({
             storage: multers3({
                 s3: s3,
-                bucket: user_bucket,
+                bucket: image_bucket,
                 metadata: function (req, file, cb) {
-                    cb(null, { fieldName: `${email_parser(user)}-profile.jpg` });
+                    cb(null, { fieldName: `${email_parser(user_id)}-${file.originalname}` });
                 },
                 key: function (req, file, cb) {
-                    cb(null, `${email_parser(user)}-profile.jpg`);
+                    cb(null, `${email_parser(user_id)}-${file.originalname}`);
                 }
             })
-        }).single('profile_image');
+        }).single('book_image');
 
         user_file_upload(req, res, (err) => {
+            if (err) {
+                //필수 파라미터 누락
+                response_body.Result_Code = "EC001";
+                response_body.Message = "invalid parameter error";
+                res.json(response_body);
+                return;
+            }
+
+            let image_name = req.file.originalname;
+
+            mysql_connetion.query(`insert into registered_image values (?, ?, ?, ?)`, [image_name, user_id, new Date(), 0], (err, results, fields) => {
+                if (err) {
+                    console.log(err)
+                    response_body.Result_Code = "ES010";
+                    response_body.Message = "DataBase Server Error";
+
+                    //s3 업로드된 파일 삭제
+                    var params = {
+                        Bucket: image_bucket,
+                        Key: `${user_id}-${image_name}`
+                    };
+
+                    s3.deleteObject(params, function (err, data) {
+                        if (err) {
+                            console.log(err)
+                        }
+                    });
+
+                } else {
+                    response_body.Result_Code = "RS000";
+                    response_body.Message = "Response Success";
+
+                    //book 정보 가져오기
+                    let internal_server_request_form = {
+                        method: 'GET',
+                        uri: `${internal_server_address}/AnalyzeImage`,
+                        qs:{
+                            user_id: user_id,
+                            image_url: req.file.location
+                        },
+                        json: true
+                    }
+
+                    request.get(internal_server_request_form, (err, httpResponse, response) => {
+                        console.log(response)
+                    });
+
+                }
+                res.json(response_body);
+            });
 
         })
     } else {

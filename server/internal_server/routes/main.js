@@ -114,6 +114,37 @@ router.get('/CheckISBNExists', (req, res) => {
     }
 })
 
+router.get('/AnalyzeImage', (req, res) => {
+    let response_body = {};
+
+    let user_id = req.query.user_id;
+    let image_url = req.query.image_url;
+
+    //book 정보 가져오기
+    let internal_server_request_form = {
+        method: 'GET',
+        uri: `${analysis_server_address}/UrlAnalyze`,
+        qs: {
+            image_url: image_url
+        },
+        json: true
+    }
+
+    //도서 정보 요청
+    request.get(internal_server_request_form, (err, httpResponse, response) => {
+        if (err) {
+            //내부 서버 오류
+            response_body.Result_Code = "ES011";
+            response_body.Message = "Book DataBase Server Error";
+            res.json(response_body);
+            return;
+        }
+        res.json(response)
+    })
+    
+})
+
+
 //책 리스트 불러오기
 router.put('/UserBook', (req, res) => {
 
