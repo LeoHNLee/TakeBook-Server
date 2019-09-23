@@ -1,5 +1,5 @@
 let message = {
-    set_result_message = function (response_body, result_code, message) {
+    set_result_message: function (response_body, result_code, message) {
         response_body.Result_Code = result_code;
         if (message) {
             response_body.Message = message;

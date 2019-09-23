@@ -384,7 +384,7 @@ router.get('/AnalyzeImage', (req, res) => {
                 switch (response.Result_Code) {
                     case "RS000": {
                         // 요청 성공
-                        message.set_result_message(response_body,"RS001" , "Bas Request");
+                        message.set_result_message(response_body,"RS001" , "Bad Request");
                         break;
                     }
                     case "EC001": {

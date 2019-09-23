@@ -564,6 +564,52 @@ router.get('/UserBook', (req, res) => {
     }
 });
 
+//책 등록
+router.post('/UserBook', (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let isbn = req.body.isbn;
+
+        let second_isbn = (req.body.second_isbn) ? req.body.second_isbn : null;
+        let third_isbn = (req.body.third_isbn) ? req.body.third_isbn : null;
+        let fourth_isbn = (req.body.fourth_isbn) ? req.body.fourth_isbn : null;
+        let fifth_isbn = (req.body.fifth_isbn) ? req.body.fifth_isbn : null;
+        let bookmark = (req.body.bookmark) ? req.body.bookmark : false;
+
+        mysql_connetion.query(`insert into registered_book values (?, ?, ?, ?, ?, ?, ?, ?);`,
+            [user_id, isbn, new Date(), bookmark, second_isbn, third_isbn, fourth_isbn, fifth_isbn], (err, results, fields) => {
+                let result_code = null;
+                if (err) {
+                    //User DB 서버 오류
+                    if (err.code == "ER_DUP_ENTRY") {
+                        //데이터 중복
+                        result_code = "RS000";
+                    }
+                    else {
+                        //서버 오류
+                        result_code = "ES010";
+                    }
+                } else {
+                    //등록 성공
+                    result_code = "RS000";
+                }
+                message.set_result_message(response_body, result_code);
+                res.json(response_body);
+            });
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        res.send(response_body);
+    }
+});
+
 //책 정보 수정
 router.put('/UserBook', (req, res) => {
 
@@ -962,8 +1008,7 @@ router.delete('/RegisteredImage', (req, res) => {
 
     } else {
         //필수 파라미터 누락
-        response_body.Result_Code = "EC001";
-        response_body.Message = "invalid parameter error";
+        message.set_result_message(response_body, "EC001");
         res.json(response_body);
     }
 

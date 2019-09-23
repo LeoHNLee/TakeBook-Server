@@ -150,7 +150,7 @@ router.get('/UrlAnalyze', (req, res) => {
 
     getresult(image_url, 'url').then(analyze_result => {
         if(!analyze_result.code){
-            message.set_result_message(respone_body, "RS001");
+            message.set_result_message(respone_body, "RS000");
             respone_body.Response = analyze_result;
             res.json(respone_body)
         }
