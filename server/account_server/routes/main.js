@@ -410,7 +410,6 @@ router.delete('/UserProfile', (req, res) => {
                 response_body.Message = "S3 Server Error";
                 res.send(response_body);
             } else {
-                console.log(data)
                 //정보 수정
                 mysql_connetion.query(`update user set profile_url = null where id = ?;`, [user_id], (err, results, fields) => {
                     if (err) {
@@ -781,89 +780,6 @@ router.put('/UserBook', (req, res) => {
     }
 });
 
-//책 이미지 등록
-router.post('/AnalyzeImage', (req, res) => {
-    const response_body = {};
-
-    let token = req.headers.authorization;
-    let decoded = jwt_token.token_check(token);
-    if (decoded) {
-        let user_id = decoded.id;
-
-        let user_file_upload = multer({
-            storage: multers3({
-                s3: s3,
-                bucket: image_bucket,
-                metadata: function (req, file, cb) {
-                    cb(null, { fieldName: `${email_parser(user_id)}-${file.originalname}` });
-                },
-                key: function (req, file, cb) {
-                    cb(null, `${email_parser(user_id)}-${file.originalname}`);
-                }
-            })
-        }).single('book_image');
-
-        user_file_upload(req, res, (err) => {
-            if (err) {
-                //필수 파라미터 누락
-                response_body.Result_Code = "EC001";
-                response_body.Message = "invalid parameter error";
-                res.json(response_body);
-                return;
-            }
-
-            let image_name = req.file.originalname;
-
-            mysql_connetion.query(`insert into registered_image values (?, ?, ?, ?)`, [image_name, user_id, new Date(), 0], (err, results, fields) => {
-                if (err) {
-                    console.log(err)
-                    response_body.Result_Code = "ES010";
-                    response_body.Message = "DataBase Server Error";
-
-                    //s3 업로드된 파일 삭제
-                    var params = {
-                        Bucket: image_bucket,
-                        Key: `${user_id}-${image_name}`
-                    };
-
-                    s3.deleteObject(params, function (err, data) {
-                        if (err) {
-                            console.log(err)
-                        }
-                    });
-
-                } else {
-                    response_body.Result_Code = "RS000";
-                    response_body.Message = "Response Success";
-
-                    //book 정보 가져오기
-                    let internal_server_request_form = {
-                        method: 'GET',
-                        uri: `${internal_server_address}/AnalyzeImage`,
-                        qs:{
-                            user_id: user_id,
-                            image_url: req.file.location
-                        },
-                        json: true
-                    }
-
-                    request.get(internal_server_request_form, (err, httpResponse, response) => {
-                        console.log(response)
-                    });
-
-                }
-                res.json(response_body);
-            });
-
-        })
-    } else {
-        //권한 없는 토큰.
-        response_body.Result_Code = "EC002";
-        response_body.Message = "Unauthorized token";
-        res.send(response_body);
-    }
-});
-
 //사용자 등록 책 삭제
 router.delete('/UserBook', (req, res) => {
 
@@ -964,6 +880,205 @@ router.delete('/UserBook', (req, res) => {
         response_body.Message = "Unauthorized token";
         res.send(response_body);
     }
+});
+
+//책 이미지 등록
+router.post('/AnalyzeImage', (req, res) => {
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+    if (decoded) {
+        let user_id = decoded.id;
+
+        let user_file_upload = multer({
+            storage: multers3({
+                s3: s3,
+                bucket: image_bucket,
+                metadata: function (req, file, cb) {
+                    cb(null, { fieldName: `${email_parser(user_id)}-${file.originalname}` });
+                },
+                key: function (req, file, cb) {
+                    cb(null, `${email_parser(user_id)}-${file.originalname}`);
+                }
+            })
+        }).single('book_image');
+
+        user_file_upload(req, res, (err) => {
+            if (err) {
+                //필수 파라미터 누락
+                response_body.Result_Code = "EC001";
+                response_body.Message = "invalid parameter error";
+                res.json(response_body);
+                return;
+            }
+
+            let image_name = req.file.originalname;
+
+            mysql_connetion.query(`insert into registered_image values (?, ?, ?, ?)`, [image_name, user_id, new Date(), false], (err, results, fields) => {
+                if (err) {
+                    console.log(err)
+                    response_body.Result_Code = "ES010";
+                    response_body.Message = "DataBase Server Error";
+
+                    //s3 업로드된 파일 삭제
+                    var params = {
+                        Bucket: image_bucket,
+                        Key: `${user_id}-${image_name}`
+                    };
+
+                    s3.deleteObject(params, function (err, data) {
+                        if (err) {
+                            console.log(err)
+                        }
+                    });
+
+                } else {
+                    response_body.Result_Code = "RS000";
+                    response_body.Message = "Response Success";
+
+                    //book 정보 가져오기
+                    let internal_server_request_form = {
+                        method: 'GET',
+                        uri: `${internal_server_address}/AnalyzeImage`,
+                        qs: {
+                            user_id: user_id,
+                            file_name: req.file.originalname,
+                            image_url: req.file.location
+                        },
+                        json: true
+                    }
+
+                    request.get(internal_server_request_form, (err, httpResponse, response) => {
+                        console.log(response)
+                    });
+
+                }
+                res.json(response_body);
+            });
+
+        })
+    } else {
+        //권한 없는 토큰.
+        response_body.Result_Code = "EC002";
+        response_body.Message = "Unauthorized token";
+        res.send(response_body);
+    }
+});
+
+
+//internal api
+
+//책 정보 등록
+router.post('/AddUserBook', (req, res) => {
+
+    const response_body = {};
+
+    let user_id = req.body.user_id;
+    let isbn = req.body.isbn;
+
+    if (user_id && isbn) {
+        let second_isbn = (req.body.second_isbn) ? req.body.second_isbn : null;
+        let third_isbn = (req.body.third_isbn) ? req.body.third_isbn : null;
+        let fourth_isbn = (req.body.fourth_isbn) ? req.body.fourth_isbn : null;
+        let fifth_isbn = (req.body.fifth_isbn) ? req.body.fifth_isbn : null;
+        let bookmark = (req.body.bookmark) ? req.body.bookmark : false;
+
+        mysql_connetion.query(`insert into registered_book values (?, ?, ?, ?, ?, ?, ?, ?);`,
+            [user_id, isbn, new Date(), bookmark, second_isbn, third_isbn, fourth_isbn, fifth_isbn], (err, results, fields) => {
+                if (err) {
+                    //User DB 서버 오류
+                    if (err.code == "ER_DUP_ENTRY") {
+                        //데이터 중복
+                        response_body.Result_Code = "RS000";
+                        response_body.Message = "Response Success";
+                    }
+                    else {
+                        response_body.Result_Code = "ES010";
+                        response_body.Message = "DataBase Server Error";
+                    }
+                } else {
+                    //등록 성공
+                    response_body.Result_Code = "RS000";
+                    response_body.Message = "Response Success";
+                }
+                res.json(response_body);
+            });
+
+    } else {
+        //필수 파라미터 누락
+        response_body.Result_Code = "EC001";
+        response_body.Message = "invalid parameter error";
+        res.json(response_body);
+    }
+
+});
+
+//책 정보 수정
+router.put('/RegisteredImage', (req, res) => {
+
+    const response_body = {};
+
+    let user_id = req.body.user_id;
+    let file_name = req.body.file_name;
+
+    if (user_id && file_name) {
+
+        mysql_connetion.query(`update registered_image set state = ? where user_id = ? and file_name = ?;`,
+            [true, user_id, file_name], (err, results, fields) => {
+                if (err) {
+                    //User DB 서버 오류
+                    response_body.Result_Code = "ES010";
+                    response_body.Message = "DataBase Server Error";
+                } else {
+                    //등록 성공
+                    response_body.Result_Code = "RS000";
+                    response_body.Message = "Response Success";
+                }
+                res.json(response_body);
+            });
+
+    } else {
+        //필수 파라미터 누락
+        response_body.Result_Code = "EC001";
+        response_body.Message = "invalid parameter error";
+        res.json(response_body);
+    }
+
+});
+
+//책 정보 수정
+router.delete('/RegisteredImage', (req, res) => {
+
+    const response_body = {};
+
+    let user_id = req.body.user_id;
+    let file_name = req.body.file_name;
+
+    if (user_id && file_name) {
+
+        // delete from user where id
+        mysql_connetion.query(`delete from registered_image where user_id = ? and file_name = ?;`,
+            [user_id, file_name], (err, results, fields) => {
+                if (err) {
+                    //User DB 서버 오류
+                    response_body.Result_Code = "ES010";
+                    response_body.Message = "DataBase Server Error";
+                } else {
+                    //등록 성공
+                    response_body.Result_Code = "RS000";
+                    response_body.Message = "Response Success";
+                }
+                res.json(response_body);
+            });
+
+    } else {
+        //필수 파라미터 누락
+        response_body.Result_Code = "EC001";
+        response_body.Message = "invalid parameter error";
+        res.json(response_body);
+    }
+
 });
 
 router.post('/result', (req, res) => {

@@ -348,7 +348,7 @@ router.get('/InsertData', (req, res) => {
                 let request_form = {
                     method: 'POST',
                     uri: `${es_server_address}/SaveFeature`,
-                    body:{
+                    body: {
                         isbn: book_server_response.Response.isbn[count]
                     },
                     json: true
@@ -433,6 +433,40 @@ router.post('/search', (req, res) => {
         }
         res.json(response);
     })
+
+});
+
+router.post('/SeacrhFeature', (req, res) => {
+
+    let response_body = {};
+
+    let img_feature = req.body.img_feature;
+    let text_feature = req.body.text_feature;
+
+    if (img_feature && text_feature) {
+
+        setTimeout(() => {
+            //필수 파라미터 누락
+            response_body.Result_Code = "RS000";
+            response_body.Message = "Response Success";
+            response_body.Response ={
+                isbn: "9788967497385",
+                second_isbn: "9791156931430",
+                third_isbn: "9791157529957",
+                fourth_isbn: "9791170280965",
+                fifth_isbn: "9791186665435"
+            };
+            res.json(response_body);
+        }, 10000);
+
+    } else {
+        //필수 파라미터 누락
+        response_body.Result_Code = "EC001";
+        response_body.Message = "invalid parameter error";
+        res.json(response_body);
+    }
+
+
 
 });
 
