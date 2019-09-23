@@ -3,6 +3,7 @@ const fs = require('fs');
 const postrequest = require('request');
 
 const mysql_connetion = require('../bin/mysql_connetion');
+const message = require('../bin/message');
 
 const es_address = 'http://localhost:9200'
 const anlysis_server_address = 'http://54.180.49.131:5901'
@@ -12,15 +13,14 @@ const router = express.Router();
 
 router.get('/DetaillInfo', (req, res) => {
 
-    let respone_form = {}
+    let response_body = {}
 
     let isbn = req.query.isbn;
 
     if (!isbn) {
         //필수 파라미터 누락
-        respone_form.Result_Code = "EC001";
-        respone_form.Message = "invalid parameter error";
-        res.json(respone_form)
+        message.set_result_message(response_body,"EC001");
+        res.json(response_body)
         return;
     }
 
@@ -31,28 +31,24 @@ router.get('/DetaillInfo', (req, res) => {
         if (err) {
             //db 오류
             console.log(err)
-            respone_form.Result_Code = "ES011";
-            respone_form.Message = "Book DataBase Server Error";
+            message.set_result_message(response_body,"ES011");
         }
         else {
             if (results.length) {
-
-                respone_form.Result_Code = "RS000";
-                respone_form.Message = "Response Success";
-                respone_form.Response = {};
+                message.set_result_message(response_body,"RS000");
+                response_body.Response = {};
 
                 for (let key in results[0]) {
-                    respone_form.Response[key] = results[0][key];
+                    response_body.Response[key] = results[response_body0][key];
                 }
 
             }
             else {
                 // 일치하는 isbn 없음.
-                respone_form.Result_Code = "EC005";
-                respone_form.Message = "Not Exist Parameter Info";
+                message.set_result_message(response_body,"EC005");
             }
         }
-        res.send(respone_form)
+        res.send(response_body)
 
     })
 
@@ -61,38 +57,15 @@ router.get('/DetaillInfo', (req, res) => {
 
 router.get('/List', (req, res) => {
 
-    let respone_form = {}
+    let response_body = {}
 
     let keyword = (req.query.keyword) ? req.query.keyword : null;
-    // if (!keyword) {
-    //     //필수 파라미터 누락
-    //     respone_form.Result_Code = "EC001";
-    //     respone_form.Message = "invalid parameter error";
-    //     res.json(respone_form)
-    //     return;
-    // }
+
     let category = (req.query.category) ? req.query.category : "title";
     let max_count = (req.query.max_count) ? req.query.max_count : null;
     let sort_key = (req.query.sort_key) ? req.query.sort_key : "title";
     let sort_method = (req.query.sort_method) ? req.query.sort_method : "asc";
 
-    //     "keyword: string
-    // category: string
-    //   - default: ""title""
-    //   - list:
-    //     - ""title"", ""isbn"", ""author""
-    //     - ""publisher""
-    // maxcount: int
-    //   - default: all
-    // sort_key: string
-    //   - default: title
-    //   - list:
-    //     - ""title"", ""isbn"", ""author""
-    //     - ""publisher"", ""registration_date""
-    // sort_method: string
-    //   - default: asc
-    //   - list:
-    //     - """"asc"""", """"desc"""""""
 
     let query = `SELECT title, isbn, author, publisher FROM book WHERE `;
 
@@ -124,28 +97,28 @@ router.get('/List', (req, res) => {
     //     if (err) {
     //         //db 오류
     //         console.log(err)
-    //         respone_form.Result_Code = "ES011";
-    //         respone_form.Message = "Book DataBase Server Error";
+    //         response_body.Result_Code = "ES011";
+    //         response_body.Message = "Book DataBase Server Error";
     //     }
     //     else{
     //         if (results.length) {
 
-    //             respone_form.Result_Code = "RS000";
-    //             respone_form.Message = "Response Success";
-    //             respone_form.Response = {};
+    //             response_body.Result_Code = "RS000";
+    //             response_body.Message = "Response Success";
+    //             response_body.Response = {};
 
     //             for (let key in results[0]) {
-    //                 respone_form.Response[key] = results[0][key];
+    //                 response_body.Response[key] = results[0][key];
     //             }
 
     //         }
     //         else{
     //             // 일치하는 isbn 없음.
-    //             respone_form.Result_Code = "EC005";
-    //             respone_form.Message = "Not Exist Parameter Info";
+    //             response_body.Result_Code = "EC005";
+    //             response_body.Message = "Not Exist Parameter Info";
     //         }
     //     }
-    //     res.send(respone_form)
+    //     res.send(response_body)
 
     // })
 
@@ -156,15 +129,14 @@ router.get('/List', (req, res) => {
 
 router.get('/SearchInISBN', (req, res) => {
 
-    let respone_form = {}
+    let response_body = {}
 
     let isbn_list = req.query.isbn_list;
 
     if (!isbn_list) {
         //필수 파라미터 누락
-        respone_form.Result_Code = "EC001";
-        respone_form.Message = "invalid parameter error";
-        res.json(respone_form)
+        message.set_result_message(response_body,"EC001");
+        res.json(response_body)
         return;
     }
     let keyword = (req.query.keyword) ? req.query.keyword : null;
@@ -203,23 +175,21 @@ router.get('/SearchInISBN', (req, res) => {
         if (err) {
             //db 오류
             console.log(err)
-            respone_form.Result_Code = "ES011";
-            respone_form.Message = "Book DataBase Server Error";
+            message.set_result_message(response_body,"ES011");
         }
         else {
-            respone_form.Result_Code = "RS000";
-            respone_form.Message = "Response Success";
-            respone_form.Response = {
+            message.set_result_message(response_body,"RS000");
+            response_body.Response = {
                 count: results.length,
                 item: []
             };
 
             for (let i in results) {
-                respone_form.Response.item.push(results[i])
+                response_body.Response.item.push(results[i])
             }
 
         }
-        res.send(respone_form)
+        res.send(response_body)
 
     })
 
@@ -234,30 +204,28 @@ router.get('/CheckISBNExists', (req, res) => {
     if (isbn) {
         let query = `select isbn from book where isbn = ?;`;
         mysql_connetion.query(query,[isbn], (err, results, fields) => {
+            let result_code = "";
             if (err) {
                 //db 오류
                 console.log(err)
-                response_body.Result_Code = "ES011";
-                response_body.Message = "Book DataBase Server Error";
+                result_code = "ES011";
             }
             else {
 
                 if (results.length) {
                     //동일 아이디 존제
-                    response_body.Result_Code = "RS000";
-                    response_body.Message = "Response Success";
+                    result_code = "RS000";
                 } else {
                     //사용 가능한 아이디
-                    response_body.Result_Code = "EC005";
-                    response_body.Message = "Not Exist Parameter Info";
+                    result_code = "EC005";
                 }
             }
+            message.set_result_message(response_body,result_code);
             res.send(response_body)
         })
     } else {
         //필수 파라미터 누락
-        response_body.Result_Code = "EC001";
-        response_body.Message = "invalid parameter error";
+        message.set_result_message(response_body,"EC001");
         res.json(response_body)
     }
 
@@ -267,7 +235,7 @@ router.get('/CheckISBNExists', (req, res) => {
 
 router.get('/Query', (req, res) => {
 
-    let respone_form = {}
+    let response_body = {}
 
     let query = `SELECT isbn FROM innodb.book where published_date like '2017051%' limit 400;`;
 
@@ -276,29 +244,26 @@ router.get('/Query', (req, res) => {
         if (err) {
             //db 오류
             console.log(err)
-            respone_form.Result_Code = "ES011";
-            respone_form.Message = "Book DataBase Server Error";
+            message.set_result_message(response_body,"ES011");
         }
         else {
             if (results.length) {
 
-                respone_form.Result_Code = "RS000";
-                respone_form.Message = "Response Success";
-                respone_form.Response = {};
-                respone_form.Response.isbn = [];
+                message.set_result_message(response_body,"RS000");
+                response_body.Response = {};
+                response_body.Response.isbn = [];
 
                 for (let key in results) {
-                    respone_form.Response.isbn.push(results[key].isbn);
+                    response_body.Response.isbn.push(results[key].isbn);
                 }
 
             }
             else {
                 // 일치하는 isbn 없음.
-                respone_form.Result_Code = "EC005";
-                respone_form.Message = "Not Exist Parameter Info";
+                message.set_result_message(response_body,"EC005");
             }
         }
-        res.send(respone_form)
+        res.send(response_body)
 
     })
 

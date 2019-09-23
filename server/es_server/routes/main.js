@@ -3,6 +3,8 @@ const fs = require('fs');
 const request = require('request');
 const router = express.Router();
 
+const message = require('../bin/message');
+
 const es_address = 'http://54.180.49.131:9200';
 const es_server_address = 'http://127.0.0.1:5902';
 const book_server_address = 'http://127.0.0.1:5903';
@@ -447,8 +449,7 @@ router.post('/SeacrhFeature', (req, res) => {
 
         setTimeout(() => {
             //필수 파라미터 누락
-            response_body.Result_Code = "RS000";
-            response_body.Message = "Response Success";
+            message.set_result_message(response_body, "RS000")
             response_body.Response ={
                 isbn: "9788967497385",
                 second_isbn: "9791156931430",
@@ -461,8 +462,7 @@ router.post('/SeacrhFeature', (req, res) => {
 
     } else {
         //필수 파라미터 누락
-        response_body.Result_Code = "EC001";
-        response_body.Message = "invalid parameter error";
+        message.set_result_message(response_body, "EC001")
         res.json(response_body);
     }
 

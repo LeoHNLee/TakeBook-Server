@@ -10,12 +10,15 @@ let s3 = new aws.S3();
 const user_bucket = 'takebook-user-bucket';
 const image_bucket = 'takebook-book-image';
 
+const message = require("../bin/message");
+
 const account_server_address = 'http://127.0.0.1:5900';
 const analysis_server_address = 'http://127.0.0.1:5901';
 const es_server_address = 'http://127.0.0.1:5902';
 const book_server_address = 'http://127.0.0.1:5903';
 
 const es_address = 'http://54.180.49.131:9200';
+
 
 function email_parser(user_id) {
     let text = user_id;
@@ -63,8 +66,7 @@ router.get('/UserBook', (req, res) => {
     request.get(internal_server_request_form, (err, httpResponse, response) => {
         if (err) {
             //내부 서버 오류
-            response_body.Result_Code = "ES011";
-            response_body.Message = "Book DataBase Server Error";
+            message.set_result_message(response_body,"ES011");
             res.json(response_body);
             return;
         }
@@ -89,44 +91,19 @@ router.get('/CheckISBNExists', (req, res) => {
         }
 
         request.get(internal_server_request_form, (err, httpResponse, response) => {
+            let result_code = "";
             if (err) {
                 //Book 서버 오류.
-                response_body.Result_Code = "ES004";
-                response_body.Message = "Internal Server Error";
+                result_code = "ES002";
             } else {
-                switch (response.Result_Code) {
-                    case ("RS000"): {
-                        //일치하는 isbn 존재
-                        response_body.Result_Code = "RS000";
-                        response_body.Message = "Response Success";
-                        break;
-                    }
-                    case ("EC001"): {
-                        //필수 파라미터 누락
-                        response_body.Result_Code = "EC001";
-                        response_body.Message = "invalid parameter error";
-                        break;
-                    }
-                    case ("EC005"): {
-                        //존재하지 않는 isbn
-                        response_body.Result_Code = "EC005";
-                        response_body.Message = "Not Exist Parameter Info";
-                        break;
-                    }
-                    case ("ES011"): {
-                        //book db서버 오류
-                        response_body.Result_Code = "ES011";
-                        response_body.Message = "Book DataBase Server Error";
-                        break;
-                    }
-                }
+                result_code = "response.Result_Code";
             }
+            message.set_result_message(response_body,"ES002");
             res.json(response_body);
         });
     } else {
         //필수 파라미터 누락
-        response_body.Result_Code = "EC001";
-        response_body.Message = "invalid parameter error";
+        message.set_result_message(response_body, "EC001");
         res.json(response_body);
     }
 })
@@ -140,8 +117,7 @@ router.get('/AnalyzeImage', (req, res) => {
 
 
     if (!(user_id && file_name && image_url)) {
-        response_body.Result_Code = "EC001";
-        response_body.Message = "invalid parameter error"
+        message.set_result_message(response_body, "EC001");
         res.json(response_body);
         return;
     }
@@ -149,7 +125,6 @@ router.get('/AnalyzeImage', (req, res) => {
     (async () => {
 
         let analysis_result = null;
-
 
         await new Promise((resolve, reject) => {
             //book 정보 가져오기
@@ -178,24 +153,13 @@ router.get('/AnalyzeImage', (req, res) => {
                     break;
                 }
                 default: {
-                    response_body.Result_Code = "ES001";
-                    response_body.Message = "Internal Server Error";
+                    //분석 서버 오류
+                    message.set_result_message(response_body,"ES001");
                     break;
                 }
             }
         }).catch(error_code => {
-            switch (error_code) {
-                case "ES001": {
-                    response_body.Result_Code = "ES001";
-                    response_body.Message = "Internal Server Error";
-                    break;
-                }
-                default: {
-                    //무슨 에러인지 모른경우.
-                    response_body.Result_Code = "0000";
-                    response_body.Message = "Error";
-                }
-            }
+            message.set_result_message(response_body, error_code);
         });
 
 
@@ -233,30 +197,22 @@ router.get('/AnalyzeImage', (req, res) => {
                         break;
                     }
                     default: {
-                        response_body.Result_Code = "ES003";
-                        response_body.Message = "Internal Server Error";
+                        //특성 매칭 서버 오류
+                        message.set_result_message(response_body, "ES003");
                         break;
                     }
                 }
             }).catch(error_code => {
                 switch (error_code) {
-                    case "EC001": {
-                        //필수 파라미터 누락
-                        response_body.Result_Code = "ES001";
-                        response_body.Message = "invalid parameter error";
-                        break;
-                    }
-                    case "ES012": {
-                        //es 데이터 서버 오류
-                        response_body.Result_Code = "ES001";
-                        response_body.Message = "Elasticsearch Server Error";
+                    case "EC001": //필수 파라미터 누락
+                    case "ES012": {//es 데이터 서버 오류
+                        message.set_result_message(response_body, "ES001");
                         break;
                     }
                     default: {
                         //무슨 에러인지 모른경우.
+                        message.set_result_message(response_body, error_code);
                         console.log(error_code)
-                        response_body.Result_Code = "0000";
-                        response_body.Message = "Error";
                     }
                 }
             });
@@ -355,39 +311,27 @@ router.get('/AnalyzeImage', (req, res) => {
                 switch (response.Result_Code) {
                     case "RS000": {
                         // 요청 성공
-                        // 필수 파라미터 누락
-                        response_body.Result_Code = "RS000";
-                        response_body.Message = "Response Success";
+                        message.set_result_message(response_body, "RS000");
                         break;
                     }
                     case "EC001": {
                         // 필수 파라미터 누락
-                        response_body.Result_Code = "ES004";
-                        response_body.Message = "Internal Server Error";
+                        message.set_result_message(response_body, "ES004");
                         break;
                     }
                     case "ES001": {
                         // account server 오류
-                        response_body.Result_Code = "ES001";
-                        response_body.Message = "Internal Server Error";
+                        message.set_result_message(response_body, "ES001");
                         break;
                     }
                     case "ES010": {
                         // user db 오류
-                        response_body.Result_Code = "ES011";
-                        response_body.Message = "User DataBase Server Error";
+                        message.set_result_message(response_body, "ES010");
                         break;
                     }
                 }
             }).catch(error_code => {
-                switch (error_code) {
-                    case "ES000": {
-                        //필수 파라미터 누락
-                        response_body.Result_Code = "ES000";
-                        response_body.Message = "Internal Server Error";
-                        break;
-                    }
-                }
+                message.set_result_message(response_body, error_code);
             })
 
             await new Promise((resolve, reject) => {
@@ -440,38 +384,27 @@ router.get('/AnalyzeImage', (req, res) => {
                 switch (response.Result_Code) {
                     case "RS000": {
                         // 요청 성공
-                        response_body.Result_Code = "RS001";
-                        response_body.Message = "Bad Request";
+                        message.set_result_message(response_body,"RS001" , "Bas Request");
                         break;
                     }
                     case "EC001": {
                         // 필수 파라미터 누락
-                        response_body.Result_Code = "ES004";
-                        response_body.Message = "Internal Server Error";
+                        message.set_result_message(response_body, "ES004");
                         break;
                     }
                     case "ES001": {
                         // account server 오류
-                        response_body.Result_Code = "ES001";
-                        response_body.Message = "Internal Server Error";
+                        message.set_result_message(response_body, "ES001");
                         break;
                     }
                     case "ES010": {
                         // user db 오류
-                        response_body.Result_Code = "ES011";
-                        response_body.Message = "User DataBase Server Error";
+                        message.set_result_message(response_body, "ES010");
                         break;
                     }
                 }
             }).catch(error_code => {
-                switch (error_code) {
-                    case "ES000": {
-                        //필수 파라미터 누락
-                        response_body.Result_Code = "ES000";
-                        response_body.Message = "Internal Server Error";
-                        break;
-                    }
-                }
+                message.set_result_message(response_body, "ES000");
             })
         }
 
@@ -483,6 +416,7 @@ router.get('/AnalyzeImage', (req, res) => {
 
 
 //책 리스트 불러오기
+//미완성
 router.put('/UserBook', (req, res) => {
 
     const response_body = {};
@@ -498,7 +432,7 @@ router.put('/UserBook', (req, res) => {
         if (isbn && modify_isbn) {
             (async () => {
 
-                let isbn_check_result = "";
+                let isbn_check_result = null;
 
                 await new Promise((resolve, reject) => {
 
@@ -520,21 +454,7 @@ router.put('/UserBook', (req, res) => {
                 }).then(result => {
                     isbn_check_result = result;
                 }).catch(error_code => {
-                    switch (error_code) {
-                        case "ES010": {
-                            //User DB 서버 오류
-                            response_body.Result_Code = "ES010";
-                            response_body.Message = "iDataBase Server Error";
-                            break;
-                        }
-                        case "EC005": {
-                            //일치하는 isbn 없음.
-                            response_body.Result_Code = "EC005";
-                            response_body.Message = "Not Exist ISBN Parameter Info";
-                            break;
-                        }
-                    }
-                    isbn_check_result = null;
+                    message.set_result_message(response_body, error_code);
                 });
 
                 if (!isbn_check_result) {

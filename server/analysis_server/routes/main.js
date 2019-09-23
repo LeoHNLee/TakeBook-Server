@@ -3,6 +3,8 @@ const router = express.Router();
 const domain = require('domain').create();
 const fs = require('fs')
 
+const message = require('../bin/message');
+
 const AWS = require('aws-sdk');
 AWS.config.region = 'ap-northeast-2'
 
@@ -141,16 +143,14 @@ router.get('/UrlAnalyze', (req, res) => {
 
     if(!image_url){
         //필수 파라미터 누락
-        respone_body.Result_Code = "EC001";
-        respone_body.Message = "invalid parameter error";
+        message.set_result_message(respone_body, "EC001");
         res.json(respone_body)
         return;
     }
 
     getresult(image_url, 'url').then(analyze_result => {
         if(!analyze_result.code){
-            respone_body.Result_Code = "RS000";
-            respone_body.Message = "Response Success";
+            message.set_result_message(respone_body, "RS001");
             respone_body.Response = analyze_result;
             res.json(respone_body)
         }

@@ -7,6 +7,7 @@ const aws = require('aws-sdk');
 
 const mysql_connetion = require('../bin/mysql_connetion');
 const jwt_token = require("../bin/jwt_token");
+const message = require("../bin/message");
 
 const router = express.Router();
 const internal_server_address = `http://127.0.0.1:5910`;
@@ -109,21 +110,18 @@ router.post('/CreaateUsers', (req, res) => {
                 switch (err.code) {
                     case "ER_DUP_ENTRY":
                         //해당 아이디 이미 존제
-                        response_body.Result_Code = "RS001";
-                        response_body.Message = "Same ID already exists";
+                        message.set_result_message(response_body, "RS001", "Same ID already exists")
                         break;
                     default:
                         //데이터 베이스 에러
-                        response_body.Result_Code = "ES010";
-                        response_body.Message = "DataBase Server Error";
+                        message.set_result_message(response_body, "ES010")
                         break;
                 }
                 console.log(err)
             }
             else {
                 //요청 성공
-                response_body.Result_Code = "RS000";
-                response_body.Message = "Response Success";
+                message.set_result_message(response_body, "RS000")
             }
             res.json(response_body)
         })
@@ -140,18 +138,15 @@ router.get('/CheckIDExists', (req, res) => {
         mysql_connetion.query(`select id from user where id = ?`, [user_id], (err, results, fields) => {
             if (err) {
                 console.log(err)
-                response_body.Result_Code = "ES010";
-                response_body.Message = "DataBase Server Error";
+                message.set_result_message(response_body, "ES010")
             }
             else {
                 if (results.length) {
                     //동일 아이디 존제
-                    response_body.Result_Code = "RS001";
-                    response_body.Message = "Same ID already exists";
+                    message.set_result_message(response_body, "RS001", "Same ID already exists")
                 } else {
                     //사용 가능한 아이디
-                    response_body.Result_Code = "RS000";
-                    response_body.Message = "Response Success";
+                    message.set_result_message(response_body, "RS000")
                 }
             }
             res.json(response_body)
@@ -159,8 +154,7 @@ router.get('/CheckIDExists', (req, res) => {
 
     } else {
         //필수 파라미터 누락
-        response_body.Result_Code = "EC001";
-        response_body.Message = "invalid parameter error";
+        message.set_result_message(response_body, "EC001")
         res.json(response_body)
     }
 
@@ -177,8 +171,7 @@ router.post('/UserLogin', (req, res) => {
         mysql_connetion.query(`select id, pw, name, signup_date, profile_url, update_date from user where id = ?`, [user_id], (err, results, fields) => {
             if (err) {
                 console.log(err)
-                response_body.Result_Code = "ES010";
-                response_body.Message = "DataBase Server Error";
+                message.set_result_message(response_body, "ES010")
             }
             else {
                 if (results.length) {
@@ -189,8 +182,7 @@ router.post('/UserLogin', (req, res) => {
                         let token = jwt_token.create_token({ id: results[0].id });
 
                         //로그인 성공.
-                        response_body.Result_Code = "RS001";
-                        response_body.Message = "Response Success";
+                        message.set_result_message(response_body, "RS001")
                         response_body.Response = {};
 
                         //유저 토큰
@@ -205,14 +197,12 @@ router.post('/UserLogin', (req, res) => {
                         response_body.Response.user_info.update_date = results[0].update_date;
                     } else {
                         // password 오류.
-                        response_body.Result_Code = "RS001";
-                        response_body.Message = "Incorrect User Information";
+                        message.set_result_message(response_body, "RS001", "Incorrect User Information")
                     }
 
                 } else {
                     // 아이디 불일치.
-                    response_body.Result_Code = "RS001";
-                    response_body.Message = "Incorrect User Information";
+                    message.set_result_message(response_body, "RS001", "Incorrect User Information")
                 }
             }
             res.json(response_body)
@@ -242,13 +232,11 @@ router.get('/UserInfo', (req, res) => {
             if (err) {
                 console.log(err)
                 //데이터베이스 오류
-                response_body.Result_Code = "ES010";
-                response_body.Message = "DataBase Server Error";
+                message.set_result_message(response_body, "ES010")
             }
             else {
                 //사용자 정보 요청 성공
-                response_body.Result_Code = "RS001";
-                response_body.Message = "Response Success";
+                message.set_result_message(response_body, "RS000")
                 response_body.Response = {};
 
                 //회원 정보
@@ -265,8 +253,7 @@ router.get('/UserInfo', (req, res) => {
 
     } else {
         //권한 없는 토큰.
-        response_body.Result_Code = "EC002";
-        response_body.Message = "Unauthorized token";
+        message.set_result_message(response_body, "EC002");
         res.send(response_body);
     }
 
@@ -287,8 +274,7 @@ router.put('/UserInfo', (req, res) => {
 
         if (!state_message) {
             //필수 파라미터 누락
-            response_body.Result_Code = "EC001";
-            response_body.Message = "invalid parameter error";
+            message.set_result_message(response_body, "EC001");
             res.json(response_body)
             return;
         }
@@ -297,13 +283,11 @@ router.put('/UserInfo', (req, res) => {
             if (err) {
                 console.log(err)
                 //데이터 베이스 오류
-                response_body.Result_Code = "ES010";
-                response_body.Message = "DataBase Server Error";
+                message.set_result_message(response_body, "ES010");
             }
             else {
                 //요청 성공
-                response_body.Result_Code = "RS001";
-                response_body.Message = "Response Success";
+                message.set_result_message(response_body, "RS000");
                 response_body.Response = {};
                 response_body.Response.state_message = state_message;
             }
@@ -311,8 +295,7 @@ router.put('/UserInfo', (req, res) => {
         });
     } else {
         //권한 없는 토큰.
-        response_body.Result_Code = "EC002";
-        response_body.Message = "Unauthorized token";
+        message.set_result_message(response_body, "EC002");
         res.send(response_body);
     }
 });
@@ -344,8 +327,7 @@ router.put('/UserProfile', (req, res) => {
         user_file_upload(req, res, (err) => {
             if (err) {
                 //필수 파라미터 누락
-                response_body.Result_Code = "EC001";
-                response_body.Message = "invalid parameter error";
+                message.set_result_message(response_body, "EC001");
                 res.json(response_body);
             }
             else {
@@ -356,13 +338,11 @@ router.put('/UserProfile', (req, res) => {
                         if (err) {
                             console.log(err)
                             //데이터 베이스 오류
-                            response_body.Result_Code = "ES010";
-                            response_body.Message = "DataBase Server Error";
+                            message.set_result_message(response_body, "ES010");
                         }
                         else {
                             //요청 성공.
-                            response_body.Result_Code = "RS000";
-                            response_body.Message = "Response Success";
+                            message.set_result_message(response_body, "RS000");
                             response_body.Response = {};
                             response_body.Response.profile_url = req.file.location;
                         }
@@ -371,8 +351,7 @@ router.put('/UserProfile', (req, res) => {
                 }
                 else {
                     //필수 파라미터 누락
-                    response_body.Result_Code = "EC001";
-                    response_body.Message = "invalid parameter error";
+                    message.set_result_message(response_body, "EC001");
                     res.json(response_body);
                 }
             }
@@ -380,8 +359,7 @@ router.put('/UserProfile', (req, res) => {
         });
     } else {
         //권한 없는 토큰.
-        response_body.Result_Code = "EC002";
-        response_body.Message = "Unauthorized token";
+        message.set_result_message(response_body, "EC002");
         res.send(response_body);
     }
 });
@@ -406,8 +384,7 @@ router.delete('/UserProfile', (req, res) => {
             if (err) {
                 console.log(err)
                 //S3 서버 오류
-                response_body.Result_Code = "ES011";
-                response_body.Message = "S3 Server Error";
+                message.set_result_message(response_body, "ES013");
                 res.send(response_body);
             } else {
                 //정보 수정
@@ -415,13 +392,11 @@ router.delete('/UserProfile', (req, res) => {
                     if (err) {
                         console.log(err)
                         //데이터 베이스 오류
-                        response_body.Result_Code = "ES010";
-                        response_body.Message = "DataBase Server Error";
+                        message.set_result_message(response_body, "ES010");
                     }
                     else {
                         //요청 성공.
-                        response_body.Result_Code = "RS000";
-                        response_body.Message = "Response Success";
+                        message.set_result_message(response_body, "RS000");
                     }
                     res.send(response_body);
                 });
@@ -429,8 +404,7 @@ router.delete('/UserProfile', (req, res) => {
         });
     } else {
         //권한 없는 토큰.
-        response_body.Result_Code = "EC002";
-        response_body.Message = "Unauthorized token";
+        message.set_result_message(response_body, "EC002");
         res.send(response_body);
     }
 });
@@ -486,8 +460,7 @@ router.get('/UserBook', (req, res) => {
 
         if (check_result) {
             //파라미터 값 오류
-            response_body.Result_Code = "EC001";
-            response_body.Message = `${check_result} parameter error`;
+            message.set_result_message(response_body, "EC001", `${check_result} parameter error`);
             res.send(response_body);
             return;
         }
@@ -508,8 +481,7 @@ router.get('/UserBook', (req, res) => {
             if (err) {
                 console.log(err);
                 //데이터 베이스 오류
-                response_body.Result_Code = "ES010";
-                response_body.Message = "DataBase Server Error";
+                message.set_result_message(response_body, "ES010");
                 res.send(response_body);
                 return;
             }
@@ -550,8 +522,7 @@ router.get('/UserBook', (req, res) => {
             request.get(internal_server_request_form, (err, httpResponse, response) => {
                 if (err) {
                     //내부 서버 오류
-                    response_body.Result_Code = "ES004";
-                    response_body.Message = "Internal Server Error";
+                    message.set_result_message(response_body, "ES004");
                     res.send(response_body);
                     return;
                 }
@@ -569,8 +540,7 @@ router.get('/UserBook', (req, res) => {
                         }
 
                         //요청 성공.
-                        response_body.Result_Code = response.Result_Code;
-                        response_body.Message = "Response Success";
+                        message.set_result_message(response_body, "RS000");
                         response_body.Response = {
                             count: book_join_list.length,
                             item: book_join_list
@@ -578,8 +548,7 @@ router.get('/UserBook', (req, res) => {
                         break;
                     }
                     case "ES011": {
-                        response_body.Result_Code = response.Result_Code;
-                        response_body.Message = "Book DataBase Server Error";
+                        message.set_result_message(response_body, "ES011");
                         break;
                     }
                 }
@@ -590,8 +559,7 @@ router.get('/UserBook', (req, res) => {
 
     } else {
         //권한 없는 토큰.
-        response_body.Result_Code = "EC002";
-        response_body.Message = "Unauthorized token";
+        message.set_result_message(response_body, "EC002");
         res.send(response_body);
     }
 });
@@ -634,20 +602,7 @@ router.put('/UserBook', (req, res) => {
                 }).then(result => {
                     isbn_check_result = result;
                 }).catch(error_code => {
-                    switch (error_code) {
-                        case "ES010": {
-                            //User DB 서버 오류
-                            response_body.Result_Code = "ES010";
-                            response_body.Message = "DataBase Server Error";
-                            break;
-                        }
-                        case "EC005": {
-                            //일치하는 isbn 없음.
-                            response_body.Result_Code = "EC005";
-                            response_body.Message = "Not Exist ISBN Parameter Info";
-                            break;
-                        }
-                    }
+                    message.set_result_message(response_body, error_code);
                 });
 
                 if (!isbn_check_result) {
@@ -684,38 +639,24 @@ router.put('/UserBook', (req, res) => {
                         }
                         case "EC005": {
                             // 존재하지 않는 정보, 일치하는 isbn 없음.
-                            response_body.Result_Code = "EC005";
-                            response_body.Message = "Not Exist modify_isbn Parameter Info";
+                            message.set_result_message(response_body, "EC005", "Not Exist modify_isbn Parameter Info");
                             break;
                         }
-                        case "EC001": {
-                            // 필수 파라미터 누락 및 입력오류
-                            response_body.Result_Code = "ES002";
-                            response_body.Message = "Internal Server Error";
-                            break;
-                        }
+                        case "EC001": // 필수 파라미터 누락 및 입력오류
                         case "ES002": {
                             // 책 서버 오류
-                            response_body.Result_Code = "ES002";
-                            response_body.Message = "Internal Server Error";
+                            message.set_result_message(response_body, "ES002");
                             break;
                         }
                         case "ES011": {
                             // Book DB 서버 오류
-                            response_body.Result_Code = "ES011";
-                            response_body.Message = "Book DataBase Server Error";
+                            message.set_result_message(response_body, "ES011");
                             break;
                         }
                     }
 
                 }).catch(error_code => {
-                    switch (error_code) {
-                        case "ES004": {
-                            response_body.Result_Code = "ES004";
-                            response_body.Message = "Internal Server Error";
-                            break;
-                        }
-                    }
+                    message.set_result_message(response_body, error_code);
                 });
 
                 if (!modify_isbn_check_result) {
@@ -738,29 +679,9 @@ router.put('/UserBook', (req, res) => {
                         }
                     })
                 }).then(result => {
-                    switch (result) {
-                        case "EC001": {
-                            //요청 성공
-                            response_body.Result_Code = "EC001";
-                            response_body.Message = "Response Success";
-                            break;
-                        }
-                    }
+                    message.set_result_message(response_body, result);
                 }).catch(error_code => {
-                    switch (error_code) {
-                        case "RS002": {
-                            //수정하려는 isbn이 이미 존재 함.
-                            response_body.Result_Code = "RS002";
-                            response_body.Message = "ISBN to be modified already exists";
-                            break;
-                        }
-                        case "ES010": {
-                            //User DB 서버 오류
-                            response_body.Result_Code = "ES010";
-                            response_body.Message = "DataBase Server Error";
-                            break;
-                        }
-                    }
+                    message.set_result_message(response_body, error_code);
                 });
                 res.json(response_body);
 
@@ -768,14 +689,12 @@ router.put('/UserBook', (req, res) => {
 
         } else {
             //필수 파라미터 누락
-            response_body.Result_Code = "EC001";
-            response_body.Message = "invalid parameter error";
+            message.set_result_message(response_body, "EC001");
             res.json(response_body);
         }
     } else {
         //권한 없는 토큰.
-        response_body.Result_Code = "EC002";
-        response_body.Message = "Unauthorized token";
+        message.set_result_message(response_body, "EC002");
         res.send(response_body);
     }
 });
@@ -817,20 +736,7 @@ router.delete('/UserBook', (req, res) => {
                 }).then(result => {
                     isbn_check_result = result;
                 }).catch(error_code => {
-                    switch (error_code) {
-                        case "ES010": {
-                            //User DB 서버 오류
-                            response_body.Result_Code = "ES010";
-                            response_body.Message = "DataBase Server Error";
-                            break;
-                        }
-                        case "EC005": {
-                            //일치하는 isbn 없음.
-                            response_body.Result_Code = "EC005";
-                            response_body.Message = "Not Exist ISBN Parameter Info";
-                            break;
-                        }
-                    }
+                    message.set_result_message(response_body, error_code);
                 });
 
                 if (!isbn_check_result) {
@@ -851,17 +757,9 @@ router.delete('/UserBook', (req, res) => {
                     });
                 }).then(result => {
                     //요청 성공!.
-                    response_body.Result_Code = "RS000";
-                    response_body.Message = "Response Success";
+                    message.set_result_message(response_body, "RS000");
                 }).catch(error_code => {
-                    switch (error_code) {
-                        case "ES010": {
-                            //User DB 서버 오류
-                            response_body.Result_Code = "ES010";
-                            response_body.Message = "DataBase Server Error";
-                            break;
-                        }
-                    }
+                    message.set_result_message(response_body, error_code);
                 });
 
                 req.json(response_body);
@@ -870,14 +768,12 @@ router.delete('/UserBook', (req, res) => {
 
         } else {
             //필수 파라미터 누락
-            response_body.Result_Code = "EC001";
-            response_body.Message = "invalid parameter error";
+            message.set_result_message(response_body, "EC001");
             res.json(response_body);
         }
     } else {
         //권한 없는 토큰.
-        response_body.Result_Code = "EC002";
-        response_body.Message = "Unauthorized token";
+        message.set_result_message(response_body, "EC002");
         res.send(response_body);
     }
 });
@@ -907,8 +803,7 @@ router.post('/AnalyzeImage', (req, res) => {
         user_file_upload(req, res, (err) => {
             if (err) {
                 //필수 파라미터 누락
-                response_body.Result_Code = "EC001";
-                response_body.Message = "invalid parameter error";
+                message.set_result_message(response_body, "EC001");
                 res.json(response_body);
                 return;
             }
@@ -918,8 +813,8 @@ router.post('/AnalyzeImage', (req, res) => {
             mysql_connetion.query(`insert into registered_image values (?, ?, ?, ?)`, [image_name, user_id, new Date(), false], (err, results, fields) => {
                 if (err) {
                     console.log(err)
-                    response_body.Result_Code = "ES010";
-                    response_body.Message = "DataBase Server Error";
+                    //user db 오류
+                    message.set_result_message(response_body, "ES010");
 
                     //s3 업로드된 파일 삭제
                     var params = {
@@ -934,8 +829,7 @@ router.post('/AnalyzeImage', (req, res) => {
                     });
 
                 } else {
-                    response_body.Result_Code = "RS000";
-                    response_body.Message = "Response Success";
+                    message.set_result_message(response_body, "RS000");
 
                     //book 정보 가져오기
                     let internal_server_request_form = {
@@ -960,8 +854,7 @@ router.post('/AnalyzeImage', (req, res) => {
         })
     } else {
         //권한 없는 토큰.
-        response_body.Result_Code = "EC002";
-        response_body.Message = "Unauthorized token";
+        message.set_result_message(response_body, "EC002");
         res.send(response_body);
     }
 });
@@ -990,25 +883,21 @@ router.post('/AddUserBook', (req, res) => {
                     //User DB 서버 오류
                     if (err.code == "ER_DUP_ENTRY") {
                         //데이터 중복
-                        response_body.Result_Code = "RS000";
-                        response_body.Message = "Response Success";
+                        message.set_result_message(response_body, "RS000");
                     }
                     else {
-                        response_body.Result_Code = "ES010";
-                        response_body.Message = "DataBase Server Error";
+                        message.set_result_message(response_body, "ES010");
                     }
                 } else {
                     //등록 성공
-                    response_body.Result_Code = "RS000";
-                    response_body.Message = "Response Success";
+                    message.set_result_message(response_body, "RS000");
                 }
                 res.json(response_body);
             });
 
     } else {
         //필수 파라미터 누락
-        response_body.Result_Code = "EC001";
-        response_body.Message = "invalid parameter error";
+        message.set_result_message(response_body, "EC001");
         res.json(response_body);
     }
 
@@ -1026,22 +915,21 @@ router.put('/RegisteredImage', (req, res) => {
 
         mysql_connetion.query(`update registered_image set state = ? where user_id = ? and file_name = ?;`,
             [true, user_id, file_name], (err, results, fields) => {
+                let result_code = "";
                 if (err) {
                     //User DB 서버 오류
-                    response_body.Result_Code = "ES010";
-                    response_body.Message = "DataBase Server Error";
+                    result_code = "ES010";
                 } else {
                     //등록 성공
-                    response_body.Result_Code = "RS000";
-                    response_body.Message = "Response Success";
+                    result_code = "RS000";
                 }
+                message.set_result_message(response_body, result_code);
                 res.json(response_body);
             });
 
     } else {
         //필수 파라미터 누락
-        response_body.Result_Code = "EC001";
-        response_body.Message = "invalid parameter error";
+        message.set_result_message(response_body, "EC001");
         res.json(response_body);
     }
 
@@ -1060,15 +948,15 @@ router.delete('/RegisteredImage', (req, res) => {
         // delete from user where id
         mysql_connetion.query(`delete from registered_image where user_id = ? and file_name = ?;`,
             [user_id, file_name], (err, results, fields) => {
+                let result_code = "";
                 if (err) {
                     //User DB 서버 오류
-                    response_body.Result_Code = "ES010";
-                    response_body.Message = "DataBase Server Error";
+                    result_code = "ES010";
                 } else {
                     //등록 성공
-                    response_body.Result_Code = "RS000";
-                    response_body.Message = "Response Success";
+                    result_code = "RS000";
                 }
+                message.set_result_message(response_body, result_code);
                 res.json(response_body);
             });
 
