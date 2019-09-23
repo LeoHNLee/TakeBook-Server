@@ -576,6 +576,12 @@ router.post('/UserBook', (req, res) => {
         let user_id = decoded.id;
         let isbn = req.body.isbn;
 
+        if (!isbn) {
+            // 필수 파라미터 누락.
+            message.set_result_message(response_body, "EC001");
+            return;
+        }
+
         let second_isbn = (req.body.second_isbn) ? req.body.second_isbn : null;
         let third_isbn = (req.body.third_isbn) ? req.body.third_isbn : null;
         let fourth_isbn = (req.body.fourth_isbn) ? req.body.fourth_isbn : null;
@@ -592,7 +598,7 @@ router.post('/UserBook', (req, res) => {
                         result_code = "RS000";
                     }
                     else {
-                        //서버 오류
+                        //유저 db 오류
                         result_code = "ES010";
                     }
                 } else {
@@ -855,8 +861,9 @@ router.post('/AnalyzeImage', (req, res) => {
             }
 
             let image_name = req.file.originalname;
+            let image_url = req.file.location;
 
-            mysql_connetion.query(`insert into registered_image values (?, ?, ?, ?)`, [image_name, user_id, new Date(), false], (err, results, fields) => {
+            mysql_connetion.query(`insert into registered_image values (?, ?, ?, ?, ?)`, [image_name, user_id, new Date(), false, image_url], (err, results, fields) => {
                 if (err) {
                     console.log(err)
                     //user db 오류
@@ -905,6 +912,85 @@ router.post('/AnalyzeImage', (req, res) => {
     }
 });
 
+//등록중인 이미지 리스트 요청
+router.get('/ImageList', (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+
+        mysql_connetion.query(`select file_name, registration_date, state, image_url from registered_image where user_id = ?`, [user_id], (err, results, fields) => {
+            if (err) {
+                //User DB 서버 오류
+                message.set_result_message(response_body, "ES010");
+            } else {
+                message.set_result_message(response_body, "RS000");
+                response_body.Response={
+                    count: results.length,
+                    item:[]
+                }
+
+                for(let i in results){
+                    response_body.Response.item.push(results[i]);
+                }
+            }
+            res.json(response_body)
+
+        });
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        res.send(response_body);
+    }
+});
+
+//등록중인 이미지 리스트 요청
+router.delete('/ImageList', (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let file_name = req.body.file_name;
+
+        if(!file_name){
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001");
+            res.send(response_body);
+            return;
+        }
+
+        mysql_connetion.query(`delete from registered_image where user_id = ? and file_name = ?`, [user_id, file_name], (err, results, fields) => {
+            let result_code = null;
+            if (err) {
+                //User DB 서버 오류
+                result_code = "ES010";
+            } else {
+                if(results.affectedRows){
+                    result_code = "RS000";
+                }else{
+                    result_code = "EC005";
+                }
+            }
+            message.set_result_message(response_body,result_code);
+            res.json(response_body)
+
+        });
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        res.send(response_body);
+    }
+});
 
 //internal api
 
