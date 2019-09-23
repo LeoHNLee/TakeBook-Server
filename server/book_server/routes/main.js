@@ -1,12 +1,9 @@
 const express = require('express');
 const fs = require('fs');
-const postrequest = require('request');
+const request = require('request');
 
 const mysql_connetion = require('../bin/mysql_connetion');
 const message = require('../bin/message');
-
-const es_address = 'http://localhost:9200'
-const anlysis_server_address = 'http://54.180.49.131:5901'
 
 const router = express.Router();
 
@@ -233,81 +230,81 @@ router.get('/CheckISBNExists', (req, res) => {
 
 
 
-router.get('/Query', (req, res) => {
+// router.get('/Query', (req, res) => {
 
-    let response_body = {}
+//     let response_body = {}
 
-    let query = `SELECT isbn FROM innodb.book where published_date like '2017051%' limit 400;`;
+//     let query = `SELECT isbn FROM innodb.book where published_date like '2017051%' limit 400;`;
 
-    database.query(query, (err, results, fields) => {
+//     database.query(query, (err, results, fields) => {
 
-        if (err) {
-            //db 오류
-            console.log(err)
-            message.set_result_message(response_body,"ES011");
-        }
-        else {
-            if (results.length) {
+//         if (err) {
+//             //db 오류
+//             console.log(err)
+//             message.set_result_message(response_body,"ES011");
+//         }
+//         else {
+//             if (results.length) {
 
-                message.set_result_message(response_body,"RS000");
-                response_body.Response = {};
-                response_body.Response.isbn = [];
+//                 message.set_result_message(response_body,"RS000");
+//                 response_body.Response = {};
+//                 response_body.Response.isbn = [];
 
-                for (let key in results) {
-                    response_body.Response.isbn.push(results[key].isbn);
-                }
+//                 for (let key in results) {
+//                     response_body.Response.isbn.push(results[key].isbn);
+//                 }
 
-            }
-            else {
-                // 일치하는 isbn 없음.
-                message.set_result_message(response_body,"EC005");
-            }
-        }
-        res.send(response_body)
+//             }
+//             else {
+//                 // 일치하는 isbn 없음.
+//                 message.set_result_message(response_body,"EC005");
+//             }
+//         }
+//         res.send(response_body)
 
-    })
+//     })
 
-});
+// });
 
-router.post('/save', (req, res) => {
+// router.post('/save', (req, res) => {
 
-    let title = req.body.title;
-    let isbn = req.body.isbn;
-    let fileurl = req.body.fileurl;
+//     let title = req.body.title;
+//     let isbn = req.body.isbn;
+//     let fileurl = req.body.fileurl;
 
-    //다른 서버에 요청을 보낼 request form
-    const form = {
-        method: 'POST',
-        uri: `${anlysis_server_address}/es`,
-        body: {
-            'fileurl': fileurl,
-        },
-        json: true
-    }
+//     //다른 서버에 요청을 보낼 request form
+//     const form = {
+//         method: 'POST',
+//         uri: `${anlysis_server_address}/es`,
+//         body: {
+//             'fileurl': fileurl,
+//         },
+//         json: true
+//     }
 
-    const esform = {
-        method: 'POST',
-        uri: `${es_address}/red/book`,
-        body: {
-        },
-        json: true
-    }
+//     const esform = {
+//         method: 'POST',
+//         uri: `${es_address}/red/book`,
+//         body: {
+//         },
+//         json: true
+//     }
 
 
-    //도서 분석 요청
-    postrequest.post(form, (err, httpResponse, response) => {
-        if (err) {
-            return console.error('response failed:', err);
-        }
-        esform.body.title = title;
-        esform.body.isbn = isbn;
-        esform.body.result = response.result;
+//     //도서 분석 요청
+//     postrequest.post(form, (err, httpResponse, response) => {
+//         if (err) {
+//             return console.error('response failed:', err);
+//         }
+//         esform.body.title = title;
+//         esform.body.isbn = isbn;
+//         esform.body.result = response.result;
 
-        postrequest.post(esform, (err, httpResponse, response) => {
-            res.json(response)
-        })
-    })
-});
+//         postrequest.post(esform, (err, httpResponse, response) => {
+//             res.json(response)
+//         })
+//     })
+// });
 
 
 
