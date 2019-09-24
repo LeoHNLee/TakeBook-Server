@@ -25,19 +25,11 @@ function email_parser(user_id) {
 router.get('/UserBook', (req, res) => {
 
     let isbn_list = req.query.isbn_list;
-    let keyword = (req.query.keyword) ? req.query.keyword : null;
-    let category = (req.query.category) ? req.query.category : null;
-    let max_count = (req.query.max_count) ? req.query.max_count : null;
-    let sort_key = (req.query.sort_key) ? req.query.sort_key : null;
-    let sort_method = (req.query.sort_method) ? req.query.sort_method : null;
-
-    let query_key = {
-        keyword: keyword,
-        category: category,
-        max_count: max_count,
-        sort_key: sort_key,
-        sort_method: sort_method
-    }
+    let keyword = req.query.keyword;
+    let category = req.query.category;
+    let max_count = req.query.max_count;
+    let sort_key = req.query.sort_key;
+    let sort_method = req.query.sort_method;
 
     //book 정보 가져오기
     let internal_server_request_form = {
@@ -47,6 +39,14 @@ router.get('/UserBook', (req, res) => {
             isbn_list: isbn_list
         },
         json: true
+    }
+
+    let query_key = {
+        keyword: keyword,
+        category: category,
+        max_count: max_count,
+        sort_key: sort_key,
+        sort_method: sort_method
     }
 
     for (let key in query_key) {

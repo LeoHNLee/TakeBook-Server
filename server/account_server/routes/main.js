@@ -22,28 +22,6 @@ const image_bucket = 'takebook-book-image';
 mysql_connetion.connect();
 
 
-function params_check(params, check_list) {
-    let result = null;
-    for (let param in params) {
-        if (params[param]) {
-            if (!check_list[param].includes(params[param])) {
-                result = param;
-                break;
-            }
-        }
-    }
-    return result;
-}
-
-function email_parser(user_id) {
-    let text = user_id;
-
-    if (text.indexOf('@') !== -1) {
-        text = text.substring(0, text.indexOf('@'))
-    }
-    return text;
-}
-
 // let user_file_upload = multer({
 //     storage: multers3({
 //         s3: s3,
@@ -58,6 +36,34 @@ function email_parser(user_id) {
 //         }
 //     })
 // }).single('profile_image');
+
+
+function params_check(params, check_list) {
+    let result = null;
+    for (let param in params) {
+        if (params[param]) {
+            if (!check_list[param].includes(params[param])) {
+                result = param;
+                break;
+            }
+        }
+    }
+    return result;
+}
+
+function trim_date(datetime) {
+    return datetime.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+function email_parser(user_id) {
+    let text = user_id;
+
+    if (text.indexOf('@') !== -1) {
+        text = text.substring(0, text.indexOf('@'))
+    }
+    return text;
+}
+
 
 function join_json_list(join_key, list1, list2) {
 
@@ -115,31 +121,31 @@ router.post('/CreaateUsers', (req, res) => {
 router.get('/CheckIDExists', (req, res) => {
     const response_body = {};
 
-    let user_id = req.query.user_id
+    let user_id = req.query.user_id;
 
-    if (user_id) {
-        mysql_connetion.query(`select id from user where id = ?`, [user_id], (err, results, fields) => {
-            if (err) {
-                console.log(err)
-                message.set_result_message(response_body, "ES010")
-            }
-            else {
-                if (results.length) {
-                    //동일 아이디 존제
-                    message.set_result_message(response_body, "RS001", "Same ID already exists")
-                } else {
-                    //사용 가능한 아이디
-                    message.set_result_message(response_body, "RS000")
-                }
-            }
-            res.json(response_body)
-        })
-
-    } else {
-        //필수 파라미터 누락
+    if(!user_id||typeof(user_id)==='object'){
+        //필수 파라미터 누락 및 입력오류
         message.set_result_message(response_body, "EC001")
         res.json(response_body)
+        return;
     }
+
+    mysql_connetion.query(`select id from user where id = ?`, [user_id], (err, results, fields) => {
+        if (err) {
+            console.log(err)
+            message.set_result_message(response_body, "ES010")
+        }
+        else {
+            if (results.length) {
+                //동일 아이디 존제
+                message.set_result_message(response_body, "RS001", "Same ID already exists")
+            } else {
+                //사용 가능한 아이디
+                message.set_result_message(response_body, "RS000")
+            }
+        }
+        res.json(response_body)
+    });
 
 });
 
@@ -150,53 +156,54 @@ router.post('/UserLogin', (req, res) => {
     let user_id = req.body.user_id;
     let user_password = req.body.user_password;
 
-    if (user_id && user_password) {
-        mysql_connetion.query(`select id, pw, name, signup_date, profile_url, update_date from user where id = ?`, [user_id], (err, results, fields) => {
-            if (err) {
-                console.log(err)
-                message.set_result_message(response_body, "ES010")
-            }
-            else {
-                if (results.length) {
-
-                    if (results[0].pw === user_password) {
-
-                        // jwt 토큰 생성
-                        let token = jwt_token.create_token({ id: results[0].id });
-
-                        //로그인 성공.
-                        message.set_result_message(response_body, "RS000")
-                        response_body.Response = {};
-
-                        //유저 토큰
-                        response_body.Response.user_token = token;
-
-                        //회원 정보
-                        response_body.Response.user_info = {};
-                        response_body.Response.user_info.id = results[0].id;
-                        response_body.Response.user_info.name = results[0].name;
-                        response_body.Response.user_info.signup_date = results[0].signup_date.toISOString().slice(0, 19).replace('T', ' ');
-                        response_body.Response.user_info.profile_url = results[0].profile_url;
-                        response_body.Response.user_info.update_date = results[0].update_date;
-                    } else {
-                        // password 오류.
-                        message.set_result_message(response_body, "RS001", "Incorrect User Information")
-                    }
-
-                } else {
-                    // 아이디 불일치.
-                    message.set_result_message(response_body, "RS001", "Incorrect User Information")
-                }
-            }
-            res.json(response_body)
-        })
-
-    } else {
+    if(!user_id || !user_password){
         //필수 파라미터 누락
         response_body.Result_Code = "EC001";
         response_body.Message = "invalid parameter error";
         res.json(response_body)
+        return;
     }
+
+    mysql_connetion.query(`select id, pw, name, signup_date, profile_url, update_date from user where id = ?`, [user_id], (err, results, fields) => {
+        if (err) {
+            console.log(err);
+            message.set_result_message(response_body, "ES010");
+        }
+        else {
+            if (results.length) {
+
+                if (results[0].pw === user_password) {
+
+                    // jwt 토큰 생성
+                    let token = jwt_token.create_token({ id: results[0].id });
+
+                    //로그인 성공.
+                    message.set_result_message(response_body, "RS000")
+                    response_body.Response = {};
+
+                    //유저 토큰
+                    response_body.Response.user_token = token;
+
+                    // //회원 정보
+                    // response_body.Response.user_info = {};
+                    // response_body.Response.user_info.id = results[0].id;
+                    // response_body.Response.user_info.name = results[0].name;
+                    // response_body.Response.user_info.signup_date = results[0].signup_date.toISOString().slice(0, 19).replace('T', ' ');
+                    // response_body.Response.user_info.profile_url = results[0].profile_url;
+                    // response_body.Response.user_info.update_date = results[0].update_date;
+                } else {
+                    // password 오류.
+                    message.set_result_message(response_body, "RS001", "Incorrect User Password");
+                }
+
+            } else {
+                // 아이디 불일치.
+                message.set_result_message(response_body, "RS001", "Incorrect User ID");
+            }
+        }
+        res.json(response_body)
+    })
+
 
 });
 
@@ -211,7 +218,7 @@ router.get('/UserInfo', (req, res) => {
     if (decoded) {
         let user_id = decoded.id;
 
-        mysql_connetion.query(`select id, name, signup_date, profile_url, update_date from user where id = ?`, [user_id], (err, results, fields) => {
+        mysql_connetion.query(`select id, name, signup_date, profile_url, update_date, state_message from user where id = ?`, [user_id], (err, results, fields) => {
             if (err) {
                 console.log(err)
                 //데이터베이스 오류
@@ -228,8 +235,8 @@ router.get('/UserInfo', (req, res) => {
                     response_body.Response.user_info[value] = results[0][value];
                 }
                 //날짜 데이터 다듬기
-                response_body.Response.user_info.update_date = response_body.Response.user_info.update_date.toISOString().slice(0, 19).replace('T', ' ');
-                response_body.Response.user_info.signup_date = response_body.Response.user_info.signup_date.toISOString().slice(0, 19).replace('T', ' ');
+                response_body.Response.user_info.update_date = trim_date(response_body.Response.user_info.update_date);
+                response_body.Response.user_info.signup_date = trim_date(response_body.Response.user_info.signup_date);
             }
             res.send(response_body);
         });
@@ -299,18 +306,26 @@ router.put('/UserProfile', (req, res) => {
                 s3: s3,
                 bucket: user_bucket,
                 metadata: function (req, file, cb) {
-                    cb(null, { fieldName: `${email_parser(user)}-profile.jpg` });
+                    cb(null, { fieldName: `${email_parser(user_id)}-profile.jpg` });
                 },
                 key: function (req, file, cb) {
-                    cb(null, `${email_parser(user)}-profile.jpg`);
+                    cb(null, `${email_parser(user_id)}-profile.jpg`);
                 }
             })
         }).single('profile_image');
 
         user_file_upload(req, res, (err) => {
             if (err) {
-                //필수 파라미터 누락
-                message.set_result_message(response_body, "EC001");
+                switch(err.code){
+                    case "LIMIT_UNEXPECTED_FILE":{
+                        //파라메터 잘못 입력.
+                        message.set_result_message(response_body, "EC001");
+                    }
+                    default:{
+                        message.set_result_message(response_body, "EC001");
+                    }
+                }
+                
                 res.json(response_body);
             }
             else {
@@ -474,7 +489,7 @@ router.get('/UserBook', (req, res) => {
             for (let result in results) {
                 book_list.push({
                     isbn: results[result].isbn,
-                    registration_date: results[result].registration_date.toISOString().slice(0, 19).replace('T', ' '),
+                    registration_date: trim_date(results[result].registration_date),
                     bookmark: results[result].bookmark
                 });
                 isbn_list.push(results[result].isbn);
