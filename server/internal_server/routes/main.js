@@ -11,14 +11,7 @@ const user_bucket = 'takebook-user-bucket';
 const image_bucket = 'takebook-book-image';
 
 const message = require("../bin/message");
-
-const account_server_address = 'http://127.0.0.1:5900';
-const analysis_server_address = 'http://127.0.0.1:5901';
-const es_server_address = 'http://127.0.0.1:5902';
-const book_server_address = 'http://127.0.0.1:5903';
-
-const es_address = 'http://54.180.49.131:9200';
-
+const host = require('../config/host');
 
 function email_parser(user_id) {
     let text = user_id;
@@ -49,7 +42,7 @@ router.get('/UserBook', (req, res) => {
     //book 정보 가져오기
     let internal_server_request_form = {
         method: 'GET',
-        uri: `${book_server_address}/SearchInISBN`,
+        uri: `${host.book_server}/SearchInISBN`,
         qs: {
             isbn_list: isbn_list
         },
@@ -83,7 +76,7 @@ router.get('/CheckISBNExists', (req, res) => {
         //isbn 존제 여부 확인.
         let internal_server_request_form = {
             method: 'GET',
-            uri: `${book_server_address}/CheckISBNExists`,
+            uri: `${host.book_server}/CheckISBNExists`,
             qs: {
                 isbn: isbn
             },
@@ -130,7 +123,7 @@ router.get('/AnalyzeImage', (req, res) => {
             //book 정보 가져오기
             let analysis_server_request_form = {
                 method: 'GET',
-                uri: `${analysis_server_address}/UrlAnalyze`,
+                uri: `${host.analysis_server}/UrlAnalyze`,
                 qs: {
                     image_url: image_url
                 },
@@ -172,7 +165,7 @@ router.get('/AnalyzeImage', (req, res) => {
                 //book 정보 가져오기
                 let es_server_request_form = {
                     method: 'POST',
-                    uri: `${es_server_address}/SeacrhFeature`,
+                    uri: `${host.es_server}/SeacrhFeature`,
                     body: {
                         img_feature: analysis_result.image,
                         text_feature: analysis_result.text
@@ -227,7 +220,7 @@ router.get('/AnalyzeImage', (req, res) => {
                 //book 정보 가져오기
                 let account_server_request_form = {
                     method: 'POST',
-                    uri: `${account_server_address}/AddUserBook`,
+                    uri: `${host.account_server}/AddUserBook`,
                     body: {
                         user_id: user_id
                     },
@@ -289,7 +282,7 @@ router.get('/AnalyzeImage', (req, res) => {
                 //등록이미지 삭제 requset_form
                 let account_server_request_form = {
                     method: 'DELETE',
-                    uri: `${account_server_address}/RegisteredImage`,
+                    uri: `${host.account_server}/RegisteredImage`,
                     body: {
                         user_id: user_id,
                         file_name: file_name
@@ -362,7 +355,7 @@ router.get('/AnalyzeImage', (req, res) => {
                 //등록이미지 수정 requset_form
                 let account_server_request_form = {
                     method: 'PUT',
-                    uri: `${account_server_address}/RegisteredImage`,
+                    uri: `${host.account_server}/RegisteredImage`,
                     body: {
                         user_id: user_id,
                         file_name: file_name
@@ -466,7 +459,7 @@ router.put('/UserBook', (req, res) => {
                     //modify_isbn 존제 여부 확인.
                     let internal_server_request_form = {
                         method: 'GET',
-                        uri: `${internal_server_address}/CheckISBNExists`,
+                        uri: `${host.internal_server}/CheckISBNExists`,
                         qs: {
                             isbn: modify_isbn
                         },

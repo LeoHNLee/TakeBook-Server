@@ -4,6 +4,7 @@ const request = require('request');
 
 const mysql_connetion = require('../bin/mysql_connetion');
 const message = require('../bin/message');
+const host = require('../config/host');
 
 const router = express.Router();
 

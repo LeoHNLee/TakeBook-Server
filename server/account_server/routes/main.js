@@ -8,9 +8,9 @@ const aws = require('aws-sdk');
 const mysql_connetion = require('../bin/mysql_connetion');
 const jwt_token = require("../bin/jwt_token");
 const message = require("../bin/message");
+const host = require('../config/host')
 
 const router = express.Router();
-const internal_server_address = `http://127.0.0.1:5910`;
 
 //aws region 설정, s3설정
 aws.config.region = 'ap-northeast-2';
@@ -165,7 +165,7 @@ router.post('/UserLogin', (req, res) => {
                         let token = jwt_token.create_token({ id: results[0].id });
 
                         //로그인 성공.
-                        message.set_result_message(response_body, "RS001")
+                        message.set_result_message(response_body, "RS000")
                         response_body.Response = {};
 
                         //유저 토큰
@@ -175,7 +175,7 @@ router.post('/UserLogin', (req, res) => {
                         response_body.Response.user_info = {};
                         response_body.Response.user_info.id = results[0].id;
                         response_body.Response.user_info.name = results[0].name;
-                        response_body.Response.user_info.signup_date = results[0].signup_date;
+                        response_body.Response.user_info.signup_date = results[0].signup_date.toISOString().slice(0, 19).replace('T', ' ');
                         response_body.Response.user_info.profile_url = results[0].profile_url;
                         response_body.Response.user_info.update_date = results[0].update_date;
                     } else {
@@ -483,7 +483,7 @@ router.get('/UserBook', (req, res) => {
             //book 정보 가져오기
             let internal_server_request_form = {
                 method: 'GET',
-                uri: `${internal_server_address}/UserBook`,
+                uri: `${host.internal_server}/UserBook`,
                 qs: {
                     isbn_list: isbn_list
                 },
@@ -651,7 +651,7 @@ router.put('/UserBook', (req, res) => {
                     //modify_isbn 존제 여부 확인.
                     let internal_server_request_form = {
                         method: 'GET',
-                        uri: `${internal_server_address}/CheckISBNExists`,
+                        uri: `${host.internal_server}/CheckISBNExists`,
                         qs: {
                             isbn: modify_isbn
                         },
@@ -870,7 +870,7 @@ router.post('/AnalyzeImage', (req, res) => {
                     //book 정보 가져오기
                     let internal_server_request_form = {
                         method: 'GET',
-                        uri: `${internal_server_address}/AnalyzeImage`,
+                        uri: `${host.internal_server}/AnalyzeImage`,
                         qs: {
                             user_id: user_id,
                             file_name: req.file.originalname,
