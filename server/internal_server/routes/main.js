@@ -24,6 +24,8 @@ function email_parser(user_id) {
 
 router.get('/UserBook', (req, res) => {
 
+    let response_body = {}
+
     let isbn_list = req.query.isbn_list;
     let keyword = req.query.keyword;
     let category = req.query.category;
@@ -59,7 +61,7 @@ router.get('/UserBook', (req, res) => {
     request.get(internal_server_request_form, (err, httpResponse, response) => {
         if (err) {
             //내부 서버 오류
-            message.set_result_message(response_body,"ES011");
+            message.set_result_message(response_body,"ES002");
             res.json(response_body);
             return;
         }
@@ -89,9 +91,25 @@ router.get('/CheckISBNExists', (req, res) => {
                 //Book 서버 오류.
                 result_code = "ES002";
             } else {
-                result_code = "response.Result_Code";
+                switch(response.Result_Code){
+                    case "RS000":
+                    case "EC005":
+                    case "EC005":{
+                        result_code = response.Result_Code;
+                        break;
+                    }
+                    case "EC001":{
+                        result_code = "ES004";
+                        break;
+                    }
+                    default:{
+                        //error error
+                        result_code = "EE000";
+                        break;
+                    }
+                }
             }
-            message.set_result_message(response_body,"ES002");
+            message.set_result_message(response_body,result_code);
             res.json(response_body);
         });
     } else {

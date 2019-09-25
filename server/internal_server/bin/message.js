@@ -11,27 +11,27 @@ let message = {
                     response_body.Message = "Response Success";
                     break;
                 }
-                case ("EC001"): {
+                case "EC001": {
                     //필수 파라미터 누락
                     response_body.Message = "invalid parameter error";
                     break;
                 }
-                case ("EC002"): {
+                case "EC002": {
                     //권한 없는 토큰
                     response_body.Message = "Unauthorized token";
                     break;
                 }
-                case ("EC003"): {
+                case "EC003": {
                     //친구 권한 없음
                     response_body.Message = "Not Allowed Value";
                     break;
                 }
-                case ("EC004"): {
+                case "EC004": {
                     //필수 파라미터 누락
                     response_body.Message = "This Parms does not exist";
                     break;
                 }
-                case ("EC005"): {
+                case "EC005": {
                     //존재하지 않는 파라미터 정보
                     response_body.Message = "Not Exist Parameter Info";
                     break;

@@ -39,7 +39,13 @@ mysql_connetion.connect();
 
 
 function params_check(params, check_list) {
+    // 입력받은 파라미터가 옳바른지 채크
+    // @ param params: 채크하려는 파라미터
+    // @ param check_list: 채크하려는 정보.
+    // @ return 문제가 있는 param
+
     let result = null;
+
     for (let param in params) {
         if (params[param]) {
             if (!check_list[param].includes(params[param])) {
@@ -48,7 +54,19 @@ function params_check(params, check_list) {
             }
         }
     }
+
     return result;
+}
+
+function isnumber(value) {
+    // string 값이 숫자인지 아닌지 채크
+    // @ param value: 채크하려는 string 값
+    // @ return 숫자이면 true, 아니면 false
+
+    value += ''; // 문자열로 변환
+    value = value.replace(/^\s*|\s*$/g, ''); // 좌우 공백 제거
+    if (value == '' || isNaN(value)) return false;
+    return true;
 }
 
 function trim_date(datetime) {
@@ -69,9 +87,10 @@ function join_json_list(join_key, list1, list2) {
 
     let join_list = [];
     for (let i in list1) {
-        let result = Object.assign({}, list1[i]
-            , list2.find(item => item[join_key] == list1[i][join_key]))
-        join_list.push(result)
+        if (list2.find(item => item[join_key] == list1[i][join_key])) {
+            let result = Object.assign({}, list1[i], list2.find(item => item[join_key] == list1[i][join_key]))
+            join_list.push(result)
+        }
     }
 
     return join_list;
@@ -123,7 +142,7 @@ router.get('/CheckIDExists', (req, res) => {
 
     let user_id = req.query.user_id;
 
-    if(!user_id||typeof(user_id)==='object'){
+    if (!user_id || typeof (user_id) === 'object') {
         //필수 파라미터 누락 및 입력오류
         message.set_result_message(response_body, "EC001")
         res.json(response_body)
@@ -156,7 +175,7 @@ router.post('/UserLogin', (req, res) => {
     let user_id = req.body.user_id;
     let user_password = req.body.user_password;
 
-    if(!user_id || !user_password){
+    if (!user_id || !user_password) {
         //필수 파라미터 누락
         response_body.Result_Code = "EC001";
         response_body.Message = "invalid parameter error";
@@ -316,16 +335,16 @@ router.put('/UserProfile', (req, res) => {
 
         user_file_upload(req, res, (err) => {
             if (err) {
-                switch(err.code){
-                    case "LIMIT_UNEXPECTED_FILE":{
+                switch (err.code) {
+                    case "LIMIT_UNEXPECTED_FILE": {
                         //파라메터 잘못 입력.
                         message.set_result_message(response_body, "EC001");
                     }
-                    default:{
+                    default: {
                         message.set_result_message(response_body, "EC001");
                     }
                 }
-                
+
                 res.json(response_body);
             }
             else {
@@ -437,24 +456,16 @@ router.get('/UserBook', (req, res) => {
         let sort_key = (req.query.sort_key) ? req.query.sort_key : null;
         let sort_method = (req.query.sort_method) ? req.query.sort_method : "asc";
 
-        let query_key = {
-            keyword: keyword,
-            category: category,
-            max_count: max_count,
-            sort_key: sort_key,
-            sort_method: sort_method
-        }
 
-        //파라미터 값 확인.
+        //파라미터 옮바른 값 확인.
         let check_list = {
             category: ["title", "isbn", "author"],
             sort_key: ["isbn", "title", "author", "publisher", "registration_date"],
             sort_method: ["asc", "desc"]
         }
 
-        let params = { category, sort_key, sort_method }
-
-        let check_result = params_check(params, check_list)
+        let params = { category, sort_key, sort_method };
+        let check_result = params_check(params, check_list);
 
         if (check_result) {
             //파라미터 값 오류
@@ -463,8 +474,19 @@ router.get('/UserBook', (req, res) => {
             return;
         }
 
+
+        if (max_count && !isnumber(max_count)) {
+            //파라미터 타입 오류
+            message.set_result_message(response_body, "EC001", `max_count parameter error`);
+            res.send(response_body);
+            return;
+        }
+
+
+
+
         // query 구문 구성
-        let query = `select isbn, registration_date, bookmark from registered_book where user_id = ? `
+        let query = `select book_num, isbn, second_isbn, third_isbn, fourth_isbn, fifth_isbn, registration_date, bookmark from registered_book where user_id = ? `
 
         // sort_key==="registration_date" 인 경우에만 예외처리. 디비의 스키마가 다르기 떄문.
         if (sort_key === "registration_date") {
@@ -484,14 +506,14 @@ router.get('/UserBook', (req, res) => {
                 return;
             }
 
+            //책정보
             let book_list = [];
+            //isbn 리스트
             let isbn_list = [];
             for (let result in results) {
-                book_list.push({
-                    isbn: results[result].isbn,
-                    registration_date: trim_date(results[result].registration_date),
-                    bookmark: results[result].bookmark
-                });
+                results[result].registration_date = trim_date(results[result].registration_date);
+                book_list.push(results[result]);
+
                 isbn_list.push(results[result].isbn);
             }
 
@@ -503,6 +525,14 @@ router.get('/UserBook', (req, res) => {
                     isbn_list: isbn_list
                 },
                 json: true
+            }
+
+            let query_key = {
+                keyword: keyword,
+                category: category,
+                max_count: max_count,
+                sort_key: sort_key,
+                sort_method: sort_method
             }
 
             for (let key in query_key) {
@@ -545,8 +575,9 @@ router.get('/UserBook', (req, res) => {
                         };
                         break;
                     }
+                    case "ES002":
                     case "ES011": {
-                        message.set_result_message(response_body, "ES011");
+                        message.set_result_message(response_body, response.Result_Code);
                         break;
                     }
                 }
@@ -580,32 +611,110 @@ router.post('/UserBook', (req, res) => {
             return;
         }
 
-        let second_isbn = (req.body.second_isbn) ? req.body.second_isbn : null;
-        let third_isbn = (req.body.third_isbn) ? req.body.third_isbn : null;
-        let fourth_isbn = (req.body.fourth_isbn) ? req.body.fourth_isbn : null;
-        let fifth_isbn = (req.body.fifth_isbn) ? req.body.fifth_isbn : null;
         let bookmark = (req.body.bookmark) ? req.body.bookmark : false;
 
-        mysql_connetion.query(`insert into registered_book values (?, ?, ?, ?, ?, ?, ?, ?);`,
-            [user_id, isbn, new Date(), bookmark, second_isbn, third_isbn, fourth_isbn, fifth_isbn], (err, results, fields) => {
-                let result_code = null;
-                if (err) {
-                    //User DB 서버 오류
-                    if (err.code == "ER_DUP_ENTRY") {
-                        //데이터 중복
-                        result_code = "RS000";
+        (async () => {
+
+            let presence_check_result = null;
+
+            //isbn 존제 여부 확인.
+            let internal_server_request_form = {
+                method: 'GET',
+                uri: `${host.internal_server}/CheckISBNExists`,
+                qs: {
+                    isbn: isbn
+                },
+                json: true
+            }
+
+            await new Promise((resolve, reject) => {
+                request.get(internal_server_request_form, (err, httpResponse, response) => {
+                    if (err) {
+                        reject("ES004");
+                    } else {
+                        resolve(response);
                     }
-                    else {
-                        //유저 db 오류
-                        result_code = "ES010";
+                });
+            }).then(response => {
+                switch (response.Result_Code) {
+                    case "RS000": {
+                        presence_check_result = true;
+                        break;
                     }
-                } else {
-                    //등록 성공
-                    result_code = "RS000";
+                    case "EC005": {
+                        message.set_result_message(response_body, "EC005", "Not Exist isbn Parameter Info");
+                        break;
+                    }
+                    case "EC001": {
+                        message.set_result_message(response_body, "ES000");
+                        break;
+                    }
+                    default: {
+                        message.set_result_message(response_body, response.Result_Code);
+                        break;
+                    }
                 }
-                message.set_result_message(response_body, result_code);
+            }).catch(err_code => {
+                message.set_result_message(response_body, err_code);
+            })
+
+            if (!presence_check_result) {
+                console.log("presence check error");
                 res.json(response_body);
+                return;
+            }
+
+            let book_num = null;
+            //book_num 불러오기.
+            await new Promise((resolve, reject) => {
+
+                mysql_connetion.query(`select ifnull((select max(book_num) from registered_book where user_id = ?),0) as maxnum;`,
+                    [user_id], (err, results, fields) => {
+                        if (err) {
+                            reject("ES010");
+                        } else {
+                            //등록 성공
+                            resolve(results)
+                        }
+                });
+
+            }).then(results=>{
+                book_num = results[0].maxnum + 1;
+            }).catch(err_code=>{
+                message.set_result_message(response_body, err_code);
             });
+
+            if (!book_num) {
+                console.log('Load book_num error');
+                res.json(response_body);
+                return;
+            }
+
+            //책 저장.
+            await new Promise((resolve, reject) => {
+
+                mysql_connetion.query(`insert into registered_book(user_id, book_num, isbn, registration_date, bookmark) values(?, ?, ?, ?, ?);`,
+                    [user_id, book_num, isbn, new Date(), bookmark], (err, results, fields) => {
+                        if (err) {
+                            reject("ES010");
+                        } else {
+                            //등록 성공
+                            resolve("RS000");
+                        }
+                });
+
+            }).then(results=>{
+                console.log(results)
+                message.set_result_message(response_body, results);
+            }).catch(err_code=>{
+                console.log(err_code)
+                message.set_result_message(response_body, err_code);
+            });
+
+            res.json(response_body);
+
+        })(); //async exit
+
 
     } else {
         //권한 없는 토큰.
@@ -624,38 +733,49 @@ router.put('/UserBook', (req, res) => {
 
     if (decoded) {
         let user_id = decoded.id;
-        let isbn = req.body.isbn;
+        let book_num = req.body.book_num;
         let modify_isbn = req.body.modify_isbn;
 
-        if (isbn && modify_isbn) {
+        if (book_num && modify_isbn) {
             (async () => {
 
-                let isbn_check_result = null;
+                let book_num_check_result = null;
 
+                //사용자 책이 등록되어 있는지 확인.
                 await new Promise((resolve, reject) => {
 
-                    mysql_connetion.query(`select isbn from registered_book where user_id = ? and isbn = ?`, [user_id, isbn], (err, results, fields) => {
+                    mysql_connetion.query(`select book_num from registered_book where user_id = ? and book_num = ?`, [user_id, book_num], (err, results, fields) => {
                         if (err) {
                             //User DB 서버 오류
                             reject("ES010");
                         } else {
                             if (results.length) {
-                                //해당 isbn 존제
+                                //해당 책번호 존제
                                 resolve("success");
                             } else {
-                                //일치하는 isbn 없음.
+                                //일치하는 책 없음.
                                 reject("EC005");
                             }
                         }
 
                     });
                 }).then(result => {
-                    isbn_check_result = result;
+                    book_num_check_result = true;
                 }).catch(error_code => {
-                    message.set_result_message(response_body, error_code);
+                    switch(error_code){
+                        case "EC005":{
+                            message.set_result_message(response_body, "EC005", "Not Exist book_num Parameter Info");
+                            break;
+                        }
+                        default:{
+                            message.set_result_message(response_body, error_code);
+                            break;
+                        }
+                    } 
                 });
 
-                if (!isbn_check_result) {
+                if (!book_num_check_result) {
+                    console.log("book_num check error");
                     res.json(response_body);
                     return;
                 }
@@ -680,11 +800,12 @@ router.put('/UserBook', (req, res) => {
                             resolve(response);
                         }
                     });
+
                 }).then(response => {
                     switch (response.Result_Code) {
                         case "RS000": {
                             //해당 ISBN이 존제할 경우.
-                            modify_isbn_check_result = "success";
+                            modify_isbn_check_result = true;
                             break;
                         }
                         case "EC005": {
@@ -692,15 +813,13 @@ router.put('/UserBook', (req, res) => {
                             message.set_result_message(response_body, "EC005", "Not Exist modify_isbn Parameter Info");
                             break;
                         }
-                        case "EC001": // 필수 파라미터 누락 및 입력오류
-                        case "ES002": {
-                            // 책 서버 오류
-                            message.set_result_message(response_body, "ES002");
+                        case "EC001": {
+                            // 필수 파라미터 누락 및 입력오류
+                            message.set_result_message(response_body, "ES000");
                             break;
-                        }
-                        case "ES011": {
-                            // Book DB 서버 오류
-                            message.set_result_message(response_body, "ES011");
+                        }              
+                        default:{
+                            message.set_result_message(response_body, response.Result_Code);
                             break;
                         }
                     }
@@ -710,22 +829,19 @@ router.put('/UserBook', (req, res) => {
                 });
 
                 if (!modify_isbn_check_result) {
+                    console.log("modify_isbn check error");
                     res.json(response_body);
                     return;
                 }
 
 
+                //책 정보 수정
                 await new Promise((resolve, reject) => {
-
-                    mysql_connetion.query(`update registered_book set isbn = ? where user_id = ? and isbn = ? `, [modify_isbn, user_id, isbn], (err, results, fields) => {
+                    mysql_connetion.query(`update registered_book set isbn = ? where user_id = ? and book_num = ? `, [modify_isbn, user_id, book_num], (err, results, fields) => {
                         if (err) {
-                            if (err.code === "ER_DUP_ENTRY") {
-                                reject("RS002");
-                            } else {
-                                reject("ES010");
-                            }
+                            reject("ES010");
                         } else {
-                            resolve("EC001");
+                            resolve("RS000");
                         }
                     })
                 }).then(result => {
@@ -735,7 +851,7 @@ router.put('/UserBook', (req, res) => {
                 });
                 res.json(response_body);
 
-            })();
+            })(); // aysnc exit
 
         } else {
             //필수 파라미터 누락
@@ -759,68 +875,34 @@ router.delete('/UserBook', (req, res) => {
 
     if (decoded) {
         let user_id = decoded.id;
-        let isbn = req.body.isbn;
+        let book_num = req.body.book_num;
 
-        if (isbn) {
-            (async () => {
-
-                let isbn_check_result = null;
-
-                await new Promise((resolve, reject) => {
-
-                    mysql_connetion.query(`select isbn from registered_book where user_id = ? and isbn = ?`, [user_id, isbn], (err, results, fields) => {
-                        if (err) {
-                            //User DB 서버 오류
-                            reject("ES010");
-                        } else {
-                            if (results.length) {
-                                //해당 isbn 존제
-                                resolve("success");
-                            } else {
-                                //일치하는 isbn 없음.
-                                reject("EC005");
-                            }
-                        }
-
-                    });
-                }).then(result => {
-                    isbn_check_result = result;
-                }).catch(error_code => {
-                    message.set_result_message(response_body, error_code);
-                });
-
-                if (!isbn_check_result) {
-                    res.json(response_body);
-                    return;
-                }
-
-                await new Promise((resolve, reject) => {
-
-                    mysql_connetion.query(`delete from registered_book where user_id = ? and isbn = ?`, [user_id, isbn], (err, results, fields) => {
-                        if (err) {
-                            //User DB 서버 오류
-                            reject("ES010");
-                        } else {
-                            //해당 isbn 존제
-                            resolve("success");
-                        }
-                    });
-                }).then(result => {
-                    //요청 성공!.
-                    message.set_result_message(response_body, "RS000");
-                }).catch(error_code => {
-                    message.set_result_message(response_body, error_code);
-                });
-
-                req.json(response_body);
-
-            })();
-
-        } else {
+        if(!book_num){
             //필수 파라미터 누락
             message.set_result_message(response_body, "EC001");
             res.json(response_body);
+            return;
         }
+
+        mysql_connetion.query(`delete from registered_book where user_id = ? and book_num = ?`, [user_id, book_num], (err, results, fields) => {
+            if (err) {
+                //User DB 서버 오류
+                result_code = "ES010";
+                message.set_result_message(response_body, "ES010");
+            } else {
+                if(results.affectedRows){
+                    //해당 책번호 존재
+                    result_code = "RS000";
+                    message.set_result_message(response_body, "RS000");
+                }else{
+                    //해당 책번호 없음.
+                    result_code = "EC005";
+                    message.set_result_message(response_body, "EC005", "Not Exist book_num Parameter Info");
+                }
+            }
+            res.send(response_body);    
+        });
+
     } else {
         //권한 없는 토큰.
         message.set_result_message(response_body, "EC002");
@@ -927,12 +1009,12 @@ router.get('/ImageList', (req, res) => {
                 message.set_result_message(response_body, "ES010");
             } else {
                 message.set_result_message(response_body, "RS000");
-                response_body.Response={
+                response_body.Response = {
                     count: results.length,
-                    item:[]
+                    item: []
                 }
 
-                for(let i in results){
+                for (let i in results) {
                     response_body.Response.item.push(results[i]);
                 }
             }
@@ -947,7 +1029,7 @@ router.get('/ImageList', (req, res) => {
     }
 });
 
-//등록중인 이미지 리스트 요청
+//등록중인 이미지 삭제
 router.delete('/ImageList', (req, res) => {
 
     const response_body = {};
@@ -959,7 +1041,7 @@ router.delete('/ImageList', (req, res) => {
         let user_id = decoded.id;
         let file_name = req.body.file_name;
 
-        if(!file_name){
+        if (!file_name) {
             //필수 파라미터 누락
             message.set_result_message(response_body, "EC001");
             res.send(response_body);
@@ -970,15 +1052,16 @@ router.delete('/ImageList', (req, res) => {
             let result_code = null;
             if (err) {
                 //User DB 서버 오류
+                console.log(err)
                 result_code = "ES010";
             } else {
-                if(results.affectedRows){
+                if (results.affectedRows) {
                     result_code = "RS000";
-                }else{
+                } else {
                     result_code = "EC005";
                 }
             }
-            message.set_result_message(response_body,result_code);
+            message.set_result_message(response_body, result_code);
             res.json(response_body)
 
         });

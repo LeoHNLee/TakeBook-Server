@@ -17,7 +17,7 @@ router.get('/DetaillInfo', (req, res) => {
 
     if (!isbn) {
         //필수 파라미터 누락
-        message.set_result_message(response_body,"EC001");
+        message.set_result_message(response_body, "EC001");
         res.json(response_body)
         return;
     }
@@ -29,11 +29,11 @@ router.get('/DetaillInfo', (req, res) => {
         if (err) {
             //db 오류
             console.log(err)
-            message.set_result_message(response_body,"ES011");
+            message.set_result_message(response_body, "ES011");
         }
         else {
             if (results.length) {
-                message.set_result_message(response_body,"RS000");
+                message.set_result_message(response_body, "RS000");
                 response_body.Response = {};
 
                 for (let key in results[0]) {
@@ -43,7 +43,7 @@ router.get('/DetaillInfo', (req, res) => {
             }
             else {
                 // 일치하는 isbn 없음.
-                message.set_result_message(response_body,"EC005");
+                message.set_result_message(response_body, "EC005");
             }
         }
         res.send(response_body)
@@ -133,7 +133,7 @@ router.get('/SearchInISBN', (req, res) => {
 
     if (!isbn_list) {
         //필수 파라미터 누락
-        message.set_result_message(response_body,"EC001");
+        message.set_result_message(response_body, "EC001");
         res.json(response_body)
         return;
     }
@@ -166,17 +166,16 @@ router.get('/SearchInISBN', (req, res) => {
     if (max_count) {
         query += `limit ${max_count}`
     }
-    console.log(query)
 
     mysql_connetion.query(query, (err, results, fields) => {
 
         if (err) {
             //db 오류
             console.log(err)
-            message.set_result_message(response_body,"ES011");
+            message.set_result_message(response_body, "ES011");
         }
         else {
-            message.set_result_message(response_body,"RS000");
+            message.set_result_message(response_body, "RS000");
             response_body.Response = {
                 count: results.length,
                 item: []
@@ -201,7 +200,7 @@ router.get('/CheckISBNExists', (req, res) => {
 
     if (isbn) {
         let query = `select isbn from book where isbn = ?;`;
-        mysql_connetion.query(query,[isbn], (err, results, fields) => {
+        mysql_connetion.query(query, [isbn], (err, results, fields) => {
             let result_code = "";
             if (err) {
                 //db 오류
@@ -209,21 +208,20 @@ router.get('/CheckISBNExists', (req, res) => {
                 result_code = "ES011";
             }
             else {
-
                 if (results.length) {
-                    //동일 아이디 존제
+                    //동일 isbn 존제
                     result_code = "RS000";
                 } else {
                     //사용 가능한 아이디
                     result_code = "EC005";
                 }
             }
-            message.set_result_message(response_body,result_code);
+            message.set_result_message(response_body, result_code);
             res.send(response_body)
         })
     } else {
         //필수 파라미터 누락
-        message.set_result_message(response_body,"EC001");
+        message.set_result_message(response_body, "EC001");
         res.json(response_body)
     }
 
