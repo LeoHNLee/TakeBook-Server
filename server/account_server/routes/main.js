@@ -4,6 +4,7 @@ const request = require('request');
 const multer = require('multer');
 const multers3 = require('multer-s3');
 const aws = require('aws-sdk');
+const moment = require('moment-timezone');
 
 const mysql_connetion = require('../bin/mysql_connetion');
 const jwt_token = require("../bin/jwt_token");
@@ -20,6 +21,9 @@ const image_bucket = 'takebook-book-image';
 
 //mysql 연결
 mysql_connetion.connect();
+
+//시간설정
+moment.tz("Asia/Seoul");
 
 
 // let user_file_upload = multer({
@@ -70,7 +74,13 @@ function isnumber(value) {
 }
 
 function trim_date(datetime) {
-    return datetime.toISOString().slice(0, 19).replace('T', ' ');
+    let trim_text = datetime.toISOString().slice(0, 19).replace('T',' ');
+    return trim_text;
+}
+
+function current_time(){
+    //현재시간 표시
+    return moment().format('YYYY-MM-DD HH:mm:ss');
 }
 
 function email_parser(user_id) {
@@ -81,7 +91,6 @@ function email_parser(user_id) {
     }
     return text;
 }
-
 
 function join_json_list(join_key, list1, list2) {
 
@@ -96,6 +105,18 @@ function join_json_list(join_key, list1, list2) {
     return join_list;
 }
 
+function update_user_update_date(user_id) {
+
+    mysql_connetion.query(`update user set update_date = ? where id = ?`, [current_time(), user_id], (err, results, fields) => {
+        if (err) {
+            //User DB 서버 오류
+            console.log("update user update_date fail");
+        } else {
+            console.log("update user update_date success!");
+        }
+    });
+
+}
 router.post('/CreaateUsers', (req, res) => {
     response_body = {}
 
@@ -109,7 +130,7 @@ router.post('/CreaateUsers', (req, res) => {
         let user_id = req.body.user_id;
         let user_password = req.body.user_password;
         let user_name = req.body.user_name;
-        let signup_date = new Date();
+        let signup_date = current_time();
         let access_state = 0;
 
         mysql_connetion.query(`insert into user (id, pw, name, signup_date, update_date, access_state) 
@@ -676,11 +697,11 @@ router.post('/UserBook', (req, res) => {
                             //등록 성공
                             resolve(results)
                         }
-                });
+                    });
 
-            }).then(results=>{
+            }).then(results => {
                 book_num = results[0].maxnum + 1;
-            }).catch(err_code=>{
+            }).catch(err_code => {
                 message.set_result_message(response_body, err_code);
             });
 
@@ -694,20 +715,19 @@ router.post('/UserBook', (req, res) => {
             await new Promise((resolve, reject) => {
 
                 mysql_connetion.query(`insert into registered_book(user_id, book_num, isbn, registration_date, bookmark) values(?, ?, ?, ?, ?);`,
-                    [user_id, book_num, isbn, new Date(), bookmark], (err, results, fields) => {
+                    [user_id, book_num, isbn, current_time(), bookmark], (err, results, fields) => {
                         if (err) {
                             reject("ES010");
                         } else {
                             //등록 성공
                             resolve("RS000");
                         }
-                });
+                    });
 
-            }).then(results=>{
-                console.log(results)
+            }).then(results => {
                 message.set_result_message(response_body, results);
-            }).catch(err_code=>{
-                console.log(err_code)
+                update_user_update_date(user_id);
+            }).catch(err_code => {
                 message.set_result_message(response_body, err_code);
             });
 
@@ -736,128 +756,156 @@ router.put('/UserBook', (req, res) => {
         let book_num = req.body.book_num;
         let modify_isbn = req.body.modify_isbn;
 
-        if (book_num && modify_isbn) {
-            (async () => {
-
-                let book_num_check_result = null;
-
-                //사용자 책이 등록되어 있는지 확인.
-                await new Promise((resolve, reject) => {
-
-                    mysql_connetion.query(`select book_num from registered_book where user_id = ? and book_num = ?`, [user_id, book_num], (err, results, fields) => {
-                        if (err) {
-                            //User DB 서버 오류
-                            reject("ES010");
-                        } else {
-                            if (results.length) {
-                                //해당 책번호 존제
-                                resolve("success");
-                            } else {
-                                //일치하는 책 없음.
-                                reject("EC005");
-                            }
-                        }
-
-                    });
-                }).then(result => {
-                    book_num_check_result = true;
-                }).catch(error_code => {
-                    switch(error_code){
-                        case "EC005":{
-                            message.set_result_message(response_body, "EC005", "Not Exist book_num Parameter Info");
-                            break;
-                        }
-                        default:{
-                            message.set_result_message(response_body, error_code);
-                            break;
-                        }
-                    } 
-                });
-
-                if (!book_num_check_result) {
-                    console.log("book_num check error");
-                    res.json(response_body);
-                    return;
-                }
-
-                let modify_isbn_check_result = null;
-
-                await new Promise((resolve, reject) => {
-                    //modify_isbn 존제 여부 확인.
-                    let internal_server_request_form = {
-                        method: 'GET',
-                        uri: `${host.internal_server}/CheckISBNExists`,
-                        qs: {
-                            isbn: modify_isbn
-                        },
-                        json: true
-                    }
-
-                    request.get(internal_server_request_form, (err, httpResponse, response) => {
-                        if (err) {
-                            reject("ES004");
-                        } else {
-                            resolve(response);
-                        }
-                    });
-
-                }).then(response => {
-                    switch (response.Result_Code) {
-                        case "RS000": {
-                            //해당 ISBN이 존제할 경우.
-                            modify_isbn_check_result = true;
-                            break;
-                        }
-                        case "EC005": {
-                            // 존재하지 않는 정보, 일치하는 isbn 없음.
-                            message.set_result_message(response_body, "EC005", "Not Exist modify_isbn Parameter Info");
-                            break;
-                        }
-                        case "EC001": {
-                            // 필수 파라미터 누락 및 입력오류
-                            message.set_result_message(response_body, "ES000");
-                            break;
-                        }              
-                        default:{
-                            message.set_result_message(response_body, response.Result_Code);
-                            break;
-                        }
-                    }
-
-                }).catch(error_code => {
-                    message.set_result_message(response_body, error_code);
-                });
-
-                if (!modify_isbn_check_result) {
-                    console.log("modify_isbn check error");
-                    res.json(response_body);
-                    return;
-                }
-
-
-                //책 정보 수정
-                await new Promise((resolve, reject) => {
-                    mysql_connetion.query(`update registered_book set isbn = ? where user_id = ? and book_num = ? `, [modify_isbn, user_id, book_num], (err, results, fields) => {
-                        if (err) {
-                            reject("ES010");
-                        } else {
-                            resolve("RS000");
-                        }
-                    })
-                }).then(result => {
-                    message.set_result_message(response_body, result);
-                }).catch(error_code => {
-                    message.set_result_message(response_body, error_code);
-                });
-                res.json(response_body);
-
-            })(); // aysnc exit
-
-        } else {
-            //필수 파라미터 누락
-            message.set_result_message(response_body, "EC001");
-            res.json(response_body);
+        if (!book_num || !isnumber(book_num)) {
+            //파라미터 타입 오류 및 누락
+            message.set_result_message(response_body, "EC001", `book_num parameter error`);
+            res.send(response_body);
+            return;
         }
+
+        if (!modify_isbn) {
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001", `modify_isbn parameter error`);
+            res.json(response_body);
+            return;
+        }
+
+        (async () => {
+
+            let book_num_check_result = null;
+
+            //사용자 책이 등록되어 있는지 확인.
+            await new Promise((resolve, reject) => {
+
+                mysql_connetion.query(`select book_num from registered_book where user_id = ? and book_num = ?`, [user_id, book_num], (err, results, fields) => {
+                    if (err) {
+                        //User DB 서버 오류
+                        reject("ES010");
+                    } else {
+                        if (results.length) {
+                            //해당 책번호 존제
+                            resolve("success");
+                        } else {
+                            //일치하는 책 없음.
+                            reject("EC005");
+                        }
+                    }
+
+                });
+            }).then(result => {
+                book_num_check_result = true;
+            }).catch(error_code => {
+                switch (error_code) {
+                    case "EC005": {
+                        message.set_result_message(response_body, "EC005", "Not Exist book_num Parameter Info");
+                        break;
+                    }
+                    default: {
+                        message.set_result_message(response_body, error_code);
+                        break;
+                    }
+                }
+            });
+
+            if (!book_num_check_result) {
+                console.log("book_num check error");
+                res.json(response_body);
+                return;
+            }
+
+            let modify_isbn_check_result = null;
+
+            await new Promise((resolve, reject) => {
+                //modify_isbn 존제 여부 확인.
+                let internal_server_request_form = {
+                    method: 'GET',
+                    uri: `${host.internal_server}/CheckISBNExists`,
+                    qs: {
+                        isbn: modify_isbn
+                    },
+                    json: true
+                }
+
+                request.get(internal_server_request_form, (err, httpResponse, response) => {
+                    if (err) {
+                        reject("ES004");
+                    } else {
+                        resolve(response);
+                    }
+                });
+
+            }).then(response => {
+                switch (response.Result_Code) {
+                    case "RS000": {
+                        //해당 ISBN이 존제할 경우.
+                        modify_isbn_check_result = true;
+                        break;
+                    }
+                    case "EC005": {
+                        // 존재하지 않는 정보, 일치하는 isbn 없음.
+                        message.set_result_message(response_body, "EC005", "Not Exist modify_isbn Parameter Info");
+                        break;
+                    }
+                    case "EC001": {
+                        // 필수 파라미터 누락 및 입력오류
+                        message.set_result_message(response_body, "ES000");
+                        break;
+                    }
+                    default: {
+                        message.set_result_message(response_body, response.Result_Code);
+                        break;
+                    }
+                }
+
+            }).catch(error_code => {
+                message.set_result_message(response_body, error_code);
+            });
+
+            if (!modify_isbn_check_result) {
+                console.log("modify_isbn check error");
+                res.json(response_body);
+                return;
+            }
+
+
+            //책 정보 수정
+            await new Promise((resolve, reject) => {
+                let query = `update registered_book set isbn = ?, second_isbn = null, third_isbn = null, fourth_isbn = null, fifth_isbn = null where user_id = ? and book_num = ? `
+                mysql_connetion.query(query, [modify_isbn, user_id, book_num], (err, results, fields) => {
+                    if (err) {
+                        reject("ES010");
+                    } else {
+                        resolve("RS000");
+                    }
+                })
+            }).then(result => {
+                message.set_result_message(response_body, result);
+            }).catch(error_code => {
+                message.set_result_message(response_body, error_code);
+            });
+
+            //책 정보 수정
+            await new Promise((resolve, reject) => {
+                let query = `update registered_book set isbn = ?, second_isbn = null, third_isbn = null, fourth_isbn = null, fifth_isbn = null where user_id = ? and book_num = ? `
+                mysql_connetion.query(query, [modify_isbn, user_id, book_num], (err, results, fields) => {
+                    if (err) {
+                        reject("ES010");
+                    } else {
+                        resolve("RS000");
+                    }
+                })
+            }).then(result => {
+                message.set_result_message(response_body, result);
+                update_user_update_date(user_id);
+            }).catch(error_code => {
+                message.set_result_message(response_body, error_code);
+            });
+            res.json(response_body);
+
+
+
+        })(); // aysnc exit
+
     } else {
         //권한 없는 토큰.
         message.set_result_message(response_body, "EC002");
@@ -877,10 +925,10 @@ router.delete('/UserBook', (req, res) => {
         let user_id = decoded.id;
         let book_num = req.body.book_num;
 
-        if(!book_num){
-            //필수 파라미터 누락
-            message.set_result_message(response_body, "EC001");
-            res.json(response_body);
+        if (!book_num || !isnumber(book_num)) {
+            //파라미터 타입 오류 및 누락
+            message.set_result_message(response_body, "EC001", `book_num parameter error`);
+            res.send(response_body);
             return;
         }
 
@@ -890,17 +938,18 @@ router.delete('/UserBook', (req, res) => {
                 result_code = "ES010";
                 message.set_result_message(response_body, "ES010");
             } else {
-                if(results.affectedRows){
+                if (results.affectedRows) {
                     //해당 책번호 존재
                     result_code = "RS000";
                     message.set_result_message(response_body, "RS000");
-                }else{
+                    update_user_update_date(user_id);
+                } else {
                     //해당 책번호 없음.
                     result_code = "EC005";
                     message.set_result_message(response_body, "EC005", "Not Exist book_num Parameter Info");
                 }
             }
-            res.send(response_body);    
+            res.send(response_body);
         });
 
     } else {
@@ -918,69 +967,86 @@ router.post('/AnalyzeImage', (req, res) => {
     let decoded = jwt_token.token_check(token);
     if (decoded) {
         let user_id = decoded.id;
+        let registration_date = current_time();
 
         let user_file_upload = multer({
             storage: multers3({
                 s3: s3,
                 bucket: image_bucket,
                 metadata: function (req, file, cb) {
-                    cb(null, { fieldName: `${email_parser(user_id)}-${file.originalname}` });
+                    cb(null, { fieldName: `${email_parser(user_id)}-${registration_date}.jpg` });
                 },
                 key: function (req, file, cb) {
-                    cb(null, `${email_parser(user_id)}-${file.originalname}`);
+                    cb(null, `${email_parser(user_id)}-${registration_date}.jpg`);
                 }
             })
         }).single('book_image');
 
         user_file_upload(req, res, (err) => {
             if (err) {
+                switch (err.code) {
+                    case "LIMIT_UNEXPECTED_FILE": {
+                        //파라메터 잘못 입력.
+                        message.set_result_message(response_body, "EC001");
+                    }
+                    default: {
+                        message.set_result_message(response_body, "EC001");
+                    }
+                }
+
+                res.json(response_body);
+                return;
+            }
+
+            if (!req.file) {
                 //필수 파라미터 누락
                 message.set_result_message(response_body, "EC001");
                 res.json(response_body);
                 return;
             }
 
-            let image_name = req.file.originalname;
             let image_url = req.file.location;
 
-            mysql_connetion.query(`insert into registered_image values (?, ?, ?, ?, ?)`, [image_name, user_id, new Date(), false, image_url], (err, results, fields) => {
+            mysql_connetion.query(`insert into registered_image values (?, ?, ?, ?)`, [user_id, registration_date, image_url, 0], (err, results, fields) => {
                 if (err) {
-                    console.log(err)
                     //user db 오류
                     message.set_result_message(response_body, "ES010");
 
                     //s3 업로드된 파일 삭제
                     var params = {
                         Bucket: image_bucket,
-                        Key: `${user_id}-${image_name}`
+                        Key: `${user_id}-${registration_date}.jpg`
                     };
 
                     s3.deleteObject(params, function (err, data) {
                         if (err) {
-                            console.log(err)
+                            console.log("s3 file delete error");
+                            message.set_result_message(response_body, "ES013");
                         }
+                        res.json(response_body);
                     });
 
-                } else {
-                    message.set_result_message(response_body, "RS000");
-
-                    //book 정보 가져오기
-                    let internal_server_request_form = {
-                        method: 'GET',
-                        uri: `${host.internal_server}/AnalyzeImage`,
-                        qs: {
-                            user_id: user_id,
-                            file_name: req.file.originalname,
-                            image_url: req.file.location
-                        },
-                        json: true
-                    }
-
-                    request.get(internal_server_request_form, (err, httpResponse, response) => {
-                        console.log(response)
-                    });
-
+                    return;
                 }
+
+                message.set_result_message(response_body, "RS000");
+
+                //book 정보 가져오기
+                let internal_server_request_form = {
+                    method: 'GET',
+                    uri: `${host.internal_server}/AnalyzeImage`,
+                    qs: {
+                        user_id: user_id,
+                        registration_date: registration_date,
+                        image_url: req.file.location
+                    },
+                    json: true
+                }
+
+                request.get(internal_server_request_form, (err, httpResponse, response) => {
+                    console.log(response)
+                });
+
                 res.json(response_body);
             });
 
@@ -1015,6 +1081,7 @@ router.get('/ImageList', (req, res) => {
                 }
 
                 for (let i in results) {
+                    results[i].registration_date = trim_date(results[i].registration_date);
                     response_body.Response.item.push(results[i]);
                 }
             }
@@ -1090,23 +1157,46 @@ router.post('/AddUserBook', (req, res) => {
         let fifth_isbn = (req.body.fifth_isbn) ? req.body.fifth_isbn : null;
         let bookmark = (req.body.bookmark) ? req.body.bookmark : false;
 
-        mysql_connetion.query(`insert into registered_book values (?, ?, ?, ?, ?, ?, ?, ?);`,
-            [user_id, isbn, new Date(), bookmark, second_isbn, third_isbn, fourth_isbn, fifth_isbn], (err, results, fields) => {
-                if (err) {
-                    //User DB 서버 오류
-                    if (err.code == "ER_DUP_ENTRY") {
-                        //데이터 중복
-                        message.set_result_message(response_body, "RS000");
-                    }
-                    else {
-                        message.set_result_message(response_body, "ES010");
-                    }
-                } else {
-                    //등록 성공
-                    message.set_result_message(response_body, "RS000");
-                }
-                res.json(response_body);
+        (async () => {
+            let book_num = null;
+            //book_num 불러오기.
+            await new Promise((resolve, reject) => {
+
+                mysql_connetion.query(`select ifnull((select max(book_num) from registered_book where user_id = ?),0) as maxnum;`,
+                    [user_id], (err, results, fields) => {
+                        if (err) {
+                            reject("ES010");
+                        } else {
+                            //등록 성공
+                            resolve(results)
+                        }
+                    });
+
+            }).then(results => {
+                book_num = results[0].maxnum + 1;
+            }).catch(err_code => {
+                message.set_result_message(response_body, err_code);
             });
+
+            await new Promise((resolve, reject) => {
+                mysql_connetion.query(`insert into registered_book values (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+                    [user_id, isbn, current_time(), bookmark, second_isbn, third_isbn, fourth_isbn, fifth_isbn, book_num], (err, results, fields) => {
+                        if (err) {
+                            reject("ES010");
+                        } else {
+                            //등록 성공
+                            resolve("RS000");
+                        }
+                    });
+            }).then(results => {
+                message.set_result_message(response_body, results);
+            }).catch(err_code => {
+                message.set_result_message(response_body, err_code);
+            });;
+
+            res.json(response_body);
+
+        })();
 
     } else {
         //필수 파라미터 누락
@@ -1122,12 +1212,13 @@ router.put('/RegisteredImage', (req, res) => {
     const response_body = {};
 
     let user_id = req.body.user_id;
-    let file_name = req.body.file_name;
+    let registration_date = req.body.registration_date;
 
-    if (user_id && file_name) {
+    if (user_id && registration_date) {
 
-        mysql_connetion.query(`update registered_image set state = ? where user_id = ? and file_name = ?;`,
-            [true, user_id, file_name], (err, results, fields) => {
+        console.log(registration_date)
+        mysql_connetion.query(`update registered_image set state = ? where user_id = ? and registration_date = ?;`,
+            [1, user_id, registration_date], (err, results, fields) => {
                 let result_code = "";
                 if (err) {
                     //User DB 서버 오류
@@ -1154,13 +1245,13 @@ router.delete('/RegisteredImage', (req, res) => {
     const response_body = {};
 
     let user_id = req.body.user_id;
-    let file_name = req.body.file_name;
+    let registration_date = req.body.registration_date;
 
-    if (user_id && file_name) {
+    if (user_id && registration_date) {
 
         // delete from user where id
-        mysql_connetion.query(`delete from registered_image where user_id = ? and file_name = ?;`,
-            [user_id, file_name], (err, results, fields) => {
+        mysql_connetion.query(`delete from registered_image where user_id = ? and registration_date = ?;`,
+            [user_id, registration_date], (err, results, fields) => {
                 let result_code = "";
                 if (err) {
                     //User DB 서버 오류

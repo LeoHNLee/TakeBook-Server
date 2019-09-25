@@ -179,116 +179,116 @@ router.post('/SaveFeature', (req, res) => {
 
 });
 
-router.post('/SearchFeature', (req, res) => {
+// router.post('/SearchFeature', (req, res) => {
 
-    let respone_body = {}
+//     let respone_body = {}
 
-    let isbn = req.body.isbn;
+//     let isbn = req.body.isbn;
 
-    if (!isbn) {
-        //필수 파라미터 누락
-        respone_form.Result_Code = "EC001";
-        respone_form.Message = "invalid parameter error";
-        res.json(respone_form)
-        return;
-    }
+//     if (!isbn) {
+//         //필수 파라미터 누락
+//         respone_form.Result_Code = "EC001";
+//         respone_form.Message = "invalid parameter error";
+//         res.json(respone_form)
+//         return;
+//     }
 
-    //비동기적 실행
-    (async () => {
-        //book 정보 가져오기
-        let book_server_request_form = {
-            method: 'GET',
-            uri: `${book_server_address}/DetaillInfo`,
-            qs: {
-                isbn: isbn
-            },
-            json: true
-        }
+//     //비동기적 실행
+//     (async () => {
+//         //book 정보 가져오기
+//         let book_server_request_form = {
+//             method: 'GET',
+//             uri: `${book_server_address}/DetaillInfo`,
+//             qs: {
+//                 isbn: isbn
+//             },
+//             json: true
+//         }
 
-        let book_server_response = "";
-        await new Promise((resolve, reject) => {
-            //도서 분석 요청
-            request(book_server_request_form, (err, httpResponse, response) => {
-                if (err) {
-                    console.log(err)
-                    reject("book server error.");
-                    return;
-                }
+//         let book_server_response = "";
+//         await new Promise((resolve, reject) => {
+//             //도서 분석 요청
+//             request(book_server_request_form, (err, httpResponse, response) => {
+//                 if (err) {
+//                     console.log(err)
+//                     reject("book server error.");
+//                     return;
+//                 }
 
-                book_server_response = response;
-                resolve("book server response success");
-                return;
-            })
-        }).catch((err) => {
-            respone_body.Result_Code = "ES002";
-        })
+//                 book_server_response = response;
+//                 resolve("book server response success");
+//                 return;
+//             })
+//         }).catch((err) => {
+//             respone_body.Result_Code = "ES002";
+//         })
 
-        if (book_server_response.Result_Code != "RS000") {
+//         if (book_server_response.Result_Code != "RS000") {
 
-            switch (book_server_response.Result_Code) {
-                case "EC005":
-                    //일치하는 isbn 없음.
-                    respone_body.Result_Code = "EC005";
-                    respone_body.Message = "Not Exist Parameter Info";
-                    break;
-                case "ES011":
-                    //book db 서버 오류
-                    respone_body.Result_Code = "ES011";
-                    respone_body.Message = "Book DataBase Server Error";
-                    break;
-                case "ES002":
-                    respone_body.Message = "Book Server Error";
-                    break;
-            }
-            res.json(respone_body);
-            return;
-        }
+//             switch (book_server_response.Result_Code) {
+//                 case "EC005":
+//                     //일치하는 isbn 없음.
+//                     respone_body.Result_Code = "EC005";
+//                     respone_body.Message = "Not Exist Parameter Info";
+//                     break;
+//                 case "ES011":
+//                     //book db 서버 오류
+//                     respone_body.Result_Code = "ES011";
+//                     respone_body.Message = "Book DataBase Server Error";
+//                     break;
+//                 case "ES002":
+//                     respone_body.Message = "Book Server Error";
+//                     break;
+//             }
+//             res.json(respone_body);
+//             return;
+//         }
 
-        //book url분석하기
-        let analysis_server_request_form = {
-            method: 'post',
-            uri: `${analysis_server_address}/UrlAnalyze`,
-            qs: {
-                image_url: book_server_response.Response.image_url
-            },
-            json: true
-        }
+//         //book url분석하기
+//         let analysis_server_request_form = {
+//             method: 'post',
+//             uri: `${analysis_server_address}/UrlAnalyze`,
+//             qs: {
+//                 image_url: book_server_response.Response.image_url
+//             },
+//             json: true
+//         }
 
-        let analysis_server_response = "";
+//         let analysis_server_response = "";
 
-        await new Promise((resolve, reject) => {
-            //도서 분석 요청
-            request(analysis_server_request_form, (err, httpResponse, response) => {
-                if (err) {
-                    console.log(err)
-                    reject("analysis server error.");
-                    return;
-                }
+//         await new Promise((resolve, reject) => {
+//             //도서 분석 요청
+//             request(analysis_server_request_form, (err, httpResponse, response) => {
+//                 if (err) {
+//                     console.log(err)
+//                     reject("analysis server error.");
+//                     return;
+//                 }
 
-                analysis_server_response = response;
-                resolve("analysis server response success");
-                return;
-            })
-        }).catch((err) => {
-            respone_body.Result_Code = "ES001";
-        })
+//                 analysis_server_response = response;
+//                 resolve("analysis server response success");
+//                 return;
+//             })
+//         }).catch((err) => {
+//             respone_body.Result_Code = "ES001";
+//         })
 
-        if (analysis_server_response.Result_Code != "RS000") {
+//         if (analysis_server_response.Result_Code != "RS000") {
 
-            switch (analysis_server_response.Result_Code) {
-                case "ES001":
-                    respone_body.Message = "Analysis Server Error";
-                    break;
-            }
-            res.json(respone_body);
-            return;
-        }
+//             switch (analysis_server_response.Result_Code) {
+//                 case "ES001":
+//                     respone_body.Message = "Analysis Server Error";
+//                     break;
+//             }
+//             res.json(respone_body);
+//             return;
+//         }
 
-        res.json(analysis_server_response)
+//         res.json(analysis_server_response)
 
-    })();
+//     })();
 
-});
+// });
 
 
 router.get('/InsertData', (req, res) => {
@@ -448,7 +448,6 @@ router.post('/SeacrhFeature', (req, res) => {
     if (img_feature && text_feature) {
 
         setTimeout(() => {
-            //필수 파라미터 누락
             message.set_result_message(response_body, "RS000")
             response_body.Response ={
                 isbn: "9788967497385",
@@ -458,16 +457,13 @@ router.post('/SeacrhFeature', (req, res) => {
                 fifth_isbn: "9791186665435"
             };
             res.json(response_body);
-        }, 10000);
+        }, 15000);
 
     } else {
         //필수 파라미터 누락
         message.set_result_message(response_body, "EC001")
         res.json(response_body);
     }
-
-
-
 });
 
 module.exports = router;

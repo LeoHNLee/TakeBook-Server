@@ -61,7 +61,7 @@ router.get('/UserBook', (req, res) => {
     request.get(internal_server_request_form, (err, httpResponse, response) => {
         if (err) {
             //내부 서버 오류
-            message.set_result_message(response_body,"ES002");
+            message.set_result_message(response_body, "ES002");
             res.json(response_body);
             return;
         }
@@ -91,25 +91,25 @@ router.get('/CheckISBNExists', (req, res) => {
                 //Book 서버 오류.
                 result_code = "ES002";
             } else {
-                switch(response.Result_Code){
+                switch (response.Result_Code) {
                     case "RS000":
                     case "EC005":
-                    case "EC005":{
+                    case "EC005": {
                         result_code = response.Result_Code;
                         break;
                     }
-                    case "EC001":{
+                    case "EC001": {
                         result_code = "ES004";
                         break;
                     }
-                    default:{
+                    default: {
                         //error error
                         result_code = "EE000";
                         break;
                     }
                 }
             }
-            message.set_result_message(response_body,result_code);
+            message.set_result_message(response_body, result_code);
             res.json(response_body);
         });
     } else {
@@ -123,14 +123,38 @@ router.get('/AnalyzeImage', (req, res) => {
     let response_body = {};
 
     let user_id = req.query.user_id;
-    let file_name = req.query.file_name;
+    let registration_date = req.query.registration_date;
     let image_url = req.query.image_url;
 
 
-    if (!(user_id && file_name && image_url)) {
+    if (!(user_id && registration_date && image_url)) {
         message.set_result_message(response_body, "EC001");
         res.json(response_body);
         return;
+    }
+
+    function update_registered_image_state() {
+
+        //등록이미지 수정 requset_form
+        let account_server_request_form = {
+            method: 'PUT',
+            uri: `${host.account_server}/RegisteredImage`,
+            body: {
+                user_id: user_id,
+                registration_date: registration_date
+            },
+            json: true
+        }
+
+        //도서 정보 요청
+        request.put(account_server_request_form, (err, httpResponse, response) => {
+            if (err) {
+                //유저 서버 오류
+                console.log("account server error");
+                return;
+            }
+            console.log("update registered image state success");
+        })
     }
 
     (async () => {
@@ -165,7 +189,7 @@ router.get('/AnalyzeImage', (req, res) => {
                 }
                 default: {
                     //분석 서버 오류
-                    message.set_result_message(response_body,"ES001");
+                    message.set_result_message(response_body, "ES001");
                     break;
                 }
             }
@@ -174,254 +198,218 @@ router.get('/AnalyzeImage', (req, res) => {
         });
 
 
+        if (!analysis_result) {
+            //분석 실패
+            console.log("analysis fail");
+            update_registered_image_state();
+            res.json(response_body);
+            return;
+        }
+
+
         //특성 매칭 결과.
-        let feature_analysis_result = null;
+        let feature_matching_result = null;
 
-        //특성 매칭
-        if (analysis_result) {
-            await new Promise((resolve, reject) => {
-                //book 정보 가져오기
-                let es_server_request_form = {
-                    method: 'POST',
-                    uri: `${host.es_server}/SeacrhFeature`,
-                    body: {
-                        img_feature: analysis_result.image,
-                        text_feature: analysis_result.text
-                    },
-                    json: true
-                }
+        //특성 분석이 성공한 경우에만 매칭 실시
+        await new Promise((resolve, reject) => {
 
-                //도서 정보 요청
-                request.post(es_server_request_form, (err, httpResponse, response) => {
-                    if (err) {
-                        //내부 서버 오류
-                        reject("ES001")
-                        return;
-                    }
-                    resolve(response)
-                })
+            let es_server_request_form = {
+                method: 'POST',
+                uri: `${host.es_server}/SeacrhFeature`,
+                body: {
+                    img_feature: analysis_result.image,
+                    text_feature: analysis_result.text
+                },
+                json: true
+            }
 
-            }).then(response => {
-                switch (response.Result_Code) {
-                    case "RS000": {
-                        feature_analysis_result = response.Response;
-                        break;
-                    }
-                    default: {
-                        //특성 매칭 서버 오류
-                        message.set_result_message(response_body, "ES003");
-                        break;
-                    }
+
+            request.post(es_server_request_form, (err, httpResponse, response) => {
+                if (err) {
+                    //내부 서버 오류
+                    reject("ES001")
+                    return;
                 }
-            }).catch(error_code => {
-                switch (error_code) {
-                    case "EC001": //필수 파라미터 누락
-                    case "ES012": {//es 데이터 서버 오류
-                        message.set_result_message(response_body, "ES001");
-                        break;
-                    }
-                    default: {
-                        //무슨 에러인지 모른경우.
-                        message.set_result_message(response_body, error_code);
-                        console.log(error_code)
-                    }
+                resolve(response)
+            })
+
+        }).then(response => {
+            switch (response.Result_Code) {
+                case "RS000": {
+                    feature_matching_result = response.Response;
+                    break;
                 }
-            });
+                default: {
+                    //특성 매칭 서버 오류
+                    message.set_result_message(response_body, "ES003");
+                    break;
+                }
+            }
+        }).catch(error_code => {
+            switch (error_code) {
+                case "EC001": //필수 파라미터 누락
+                case "ES012": {//es 데이터 서버 오류
+                    message.set_result_message(response_body, "ES002");
+                    break;
+                }
+                default: {
+                    //무슨 에러인지 모른경우.
+                    message.set_result_message(response_body, error_code);
+                    console.log(error_code)
+                }
+            }
+        });
+
+
+        if (!feature_matching_result) {
+            //매칭 실패
+            console.log("feature matching fail");
+            update_registered_image_state();
+            res.json(response_body);
+            return;
         }
 
         let account_server_result = null;
 
-        //데이터 저장
-        if (feature_analysis_result) {
+        //특성 매칭이 성공한 경우에만 책 정보 등록.
+        await new Promise((resolve, reject) => {
 
-            await new Promise((resolve, reject) => {
-                //book 정보 가져오기
-                let account_server_request_form = {
-                    method: 'POST',
-                    uri: `${host.account_server}/AddUserBook`,
-                    body: {
-                        user_id: user_id
-                    },
-                    json: true
+            let account_server_request_form = {
+                method: 'POST',
+                uri: `${host.account_server}/AddUserBook`,
+                body: {
+                    user_id: user_id
+                },
+                json: true
+            }
+
+
+            for (let value in feature_matching_result) {
+                account_server_request_form.body[value] = feature_matching_result[value];
+            }
+
+            //책 저장
+            request.post(account_server_request_form, (err, httpResponse, response) => {
+                if (err) {
+                    //유저 서버 오류
+                    reject("ES000")
+                    return;
                 }
-
-
-                for (let value in feature_analysis_result) {
-                    account_server_request_form.body[value] = feature_analysis_result[value];
-                }
-
-                //도서 정보 요청
-                request.post(account_server_request_form, (err, httpResponse, response) => {
-                    if (err) {
-                        //유저 서버 오류
-                        reject("ES000")
-                        return;
-                    }
-                    resolve(response)
-                })
-
-            }).then(response => {
-                switch (response.Result_Code) {
-                    case "RS000": {
-                        // 요청 성공
-                        account_server_result = "success";
-                        break;
-                    }
-                    case "EC001": {
-                        // 필수 파라미터 누락
-                        response_body.Result_Code = "ES004";
-                        response_body.Message = "Internal Server Error";
-                        break;
-                    }
-                    case "ES010": {
-                        // user db 오류
-                        response_body.Result_Code = "ES011";
-                        response_body.Message = "User DataBase Server Error";
-                        break;
-                    }
-                }
-            }).catch(error_code => {
-                switch (error_code) {
-                    case "ES000": {
-                        //필수 파라미터 누락
-                        response_body.Result_Code = "ES000";
-                        response_body.Message = "Internal Server Error";
-                        break;
-                    }
-                }
+                resolve(response)
             })
+
+        }).then(response => {
+            switch (response.Result_Code) {
+                case "RS000": {
+                    // 요청 성공
+                    account_server_result = true;
+                    break;
+                }
+                case "EC001": {
+                    // 필수 파라미터 누락
+                    message.set_result_message(response_body, "ES004");
+                    break;
+                }
+                case "ES010": {
+                    // user db 오류
+                    message.set_result_message(response_body, "ES011");
+                    break;
+                }
+            }
+        }).catch(error_code => {
+            switch (error_code) {
+                case "ES000": {
+                    //account server 오류
+                    message.set_result_message(response_body, "ES000");
+                    break;
+                }
+            }
+        })
+
+        if (!account_server_result) {
+            //데이터 저장 실패
+            console.log("save book data fail");
+            update_registered_image_state();
+            res.json(response_body);
+            return;
         }
 
-        // 등록중인 이미지 삭제
-        if (account_server_result) {
-            //검색 완료된 등록이미지 삭제
-            await new Promise((resolve, reject) => {
+        //등록이미지 삭제.
+        await new Promise((resolve, reject) => {
+            //등록이미지 삭제 requset_form
+            let account_server_request_form = {
+                method: 'DELETE',
+                uri: `${host.account_server}/RegisteredImage`,
+                body: {
+                    user_id: user_id,
+                    registration_date: registration_date
+                },
+                json: true
+            }
 
-                //등록이미지 삭제 requset_form
-                let account_server_request_form = {
-                    method: 'DELETE',
-                    uri: `${host.account_server}/RegisteredImage`,
-                    body: {
-                        user_id: user_id,
-                        file_name: file_name
-                    },
-                    json: true
+            //도서 정보 요청
+            request.delete(account_server_request_form, (err, httpResponse, response) => {
+                if (err) {
+                    //유저 서버 오류
+                    reject("ES000")
+                    return;
                 }
-
-                //도서 정보 요청
-                request.delete(account_server_request_form, (err, httpResponse, response) => {
-                    if (err) {
-                        //유저 서버 오류
-                        reject("ES000")
-                        return;
-                    }
-                    resolve(response)
-                })
-
-            }).then(response => {
-                switch (response.Result_Code) {
-                    case "RS000": {
-                        // 요청 성공
-                        message.set_result_message(response_body, "RS000");
-                        break;
-                    }
-                    case "EC001": {
-                        // 필수 파라미터 누락
-                        message.set_result_message(response_body, "ES004");
-                        break;
-                    }
-                    case "ES001": {
-                        // account server 오류
-                        message.set_result_message(response_body, "ES001");
-                        break;
-                    }
-                    case "ES010": {
-                        // user db 오류
-                        message.set_result_message(response_body, "ES010");
-                        break;
-                    }
-                }
-            }).catch(error_code => {
-                message.set_result_message(response_body, error_code);
+                resolve(response)
             })
 
-            await new Promise((resolve, reject) => {
+        }).then(response => {
+            switch (response.Result_Code) {
+                case "RS000": {
+                    // 요청 성공
+                    message.set_result_message(response_body, "RS000");
+                    break;
+                }
+                case "EC001": {
+                    // 필수 파라미터 누락
+                    message.set_result_message(response_body, "ES004");
+                    break;
+                }
+                case "ES001": {
+                    // account server 오류
+                    message.set_result_message(response_body, "ES001");
+                    break;
+                }
+                case "ES010": {
+                    // user db 오류
+                    message.set_result_message(response_body, "ES010");
+                    break;
+                }
+            }
+        }).catch(error_code => {
+            message.set_result_message(response_body, error_code);
+        })
 
-                var params = {
-                    Bucket: image_bucket,
-                    Key: `${email_parser(user_id)}-${file_name}`
-                };
-    
-                s3.deleteObject(params, function (err, data) {
-                    if (err) {
-                        
-                        reject(err)
-                        //S3 서버 오류
-                    } else {
-                        resolve("success")
-                    }
-                });
-            }).catch(err=>{
-                console.log(err)
+        //s3 분석 이미지 삭제.
+        await new Promise((resolve, reject) => {
+
+            var params = {
+                Bucket: image_bucket,
+                Key: `${email_parser(user_id)}-${registration_date}.jpg`
+            };
+            console.log(params.Key)
+
+            s3.deleteObject(params, function (err, data) {
+                if (err) {
+                    reject(err)
+                    //S3 서버 오류
+                } else {
+                    resolve("success")
+                }
             });
-            
-        }
-        else {
-            //검색 실패된 등록이미지 수정
-            await new Promise((resolve, reject) => {
+        }).catch(err => {
+            console.log(err)
+        });
 
-                //등록이미지 수정 requset_form
-                let account_server_request_form = {
-                    method: 'PUT',
-                    uri: `${host.account_server}/RegisteredImage`,
-                    body: {
-                        user_id: user_id,
-                        file_name: file_name
-                    },
-                    json: true
-                }
-
-                //도서 정보 요청
-                request.put(account_server_request_form, (err, httpResponse, response) => {
-                    if (err) {
-                        //유저 서버 오류
-                        reject("ES000")
-                        return;
-                    }
-                    resolve(response)
-                })
-
-            }).then(response => {
-                switch (response.Result_Code) {
-                    case "RS000": {
-                        // 요청 성공
-                        message.set_result_message(response_body,"RS001" , "Bad Request");
-                        break;
-                    }
-                    case "EC001": {
-                        // 필수 파라미터 누락
-                        message.set_result_message(response_body, "ES004");
-                        break;
-                    }
-                    case "ES001": {
-                        // account server 오류
-                        message.set_result_message(response_body, "ES001");
-                        break;
-                    }
-                    case "ES010": {
-                        // user db 오류
-                        message.set_result_message(response_body, "ES010");
-                        break;
-                    }
-                }
-            }).catch(error_code => {
-                message.set_result_message(response_body, "ES000");
-            })
-        }
-
+        console.log("success")
         res.json(response_body);
 
-    })();
+
+    })(); //async exit
 
 })
 
