@@ -1069,7 +1069,7 @@ router.get('/ImageList', (req, res) => {
     if (decoded) {
         let user_id = decoded.id;
 
-        mysql_connetion.query(`select file_name, registration_date, state, image_url from registered_image where user_id = ?`, [user_id], (err, results, fields) => {
+        mysql_connetion.query(`select registration_date, state, image_url from registered_image where user_id = ?`, [user_id], (err, results, fields) => {
             if (err) {
                 //User DB 서버 오류
                 message.set_result_message(response_body, "ES010");
@@ -1081,7 +1081,6 @@ router.get('/ImageList', (req, res) => {
                 }
 
                 for (let i in results) {
-                    results[i].registration_date = trim_date(results[i].registration_date);
                     response_body.Response.item.push(results[i]);
                 }
             }
@@ -1106,16 +1105,16 @@ router.delete('/ImageList', (req, res) => {
 
     if (decoded) {
         let user_id = decoded.id;
-        let file_name = req.body.file_name;
+        let registration_date = req.body.registration_date;
 
-        if (!file_name) {
+        if (!registration_date) {
             //필수 파라미터 누락
             message.set_result_message(response_body, "EC001");
             res.send(response_body);
             return;
         }
 
-        mysql_connetion.query(`delete from registered_image where user_id = ? and file_name = ?`, [user_id, file_name], (err, results, fields) => {
+        mysql_connetion.query(`delete from registered_image where user_id = ? and registration_date = ?`, [user_id, registration_date], (err, results, fields) => {
             let result_code = null;
             if (err) {
                 //User DB 서버 오류
