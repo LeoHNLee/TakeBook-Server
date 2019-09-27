@@ -75,11 +75,11 @@ function isnumber(value) {
 }
 
 function trim_date(datetime) {
-    let trim_text = datetime.toISOString().slice(0, 19).replace('T',' ');
+    let trim_text = datetime.toISOString().slice(0, 19).replace('T', ' ');
     return trim_text;
 }
 
-function current_time(){
+function current_time() {
     //현재시간 표시
     return moment().format('YYYY-MM-DD HH:mm:ss');
 }
@@ -112,14 +112,14 @@ function outjoin_json_list(join_key, list1, list2) {
 
     let join_list = [];
     for (let i in list1) {
-        while(true){
+        while (true) {
             let find_index = list2.findIndex(item => item[join_key] == list1[i][join_key])
-            if(find_index === -1){
+            if (find_index === -1) {
                 break;
-            }else{
+            } else {
                 let result = Object.assign({}, list1[i], list2[find_index])
                 join_list.push(result);
-                list2.splice(find_index,1)
+                list2.splice(find_index, 1)
             }
         }
     }
@@ -529,7 +529,7 @@ router.get('/UserBook', (req, res) => {
         // query 구문 구성
         let query = `select book_num, isbn, second_isbn, third_isbn, fourth_isbn, fifth_isbn, registration_date, bookmark from registered_book where user_id = ? `
 
-        // sort_key==="registration_date" 인 경우에만 예외처리. 디비의 스키마가 다르기 떄문.
+        // sort_key==="registration_date" 인 경우에만 예외처리. 각 db가 가진 스키마가 다르기 떄문.
         if (sort_key === "registration_date") {
             query += `order by ${sort_key} ${sort_method} `;
 
@@ -573,7 +573,6 @@ router.get('/UserBook', (req, res) => {
             let query_key = {
                 keyword: keyword,
                 category: category,
-                max_count: max_count,
                 sort_key: sort_key,
                 sort_method: sort_method
             }
@@ -586,7 +585,6 @@ router.get('/UserBook', (req, res) => {
 
             if (sort_key === "registration_date") {
                 internal_server_request_form.body.sort_key = null;
-                internal_server_request_form.body.max_count = null;
             }
 
             //도서 정보 요청
@@ -601,14 +599,18 @@ router.get('/UserBook', (req, res) => {
                 switch (response.Result_Code) {
                     case "RS000": {
                         let book_join_list = [];
-                        
+
                         if (sort_key === "registration_date") {
                             // isbn을 통한 join
                             // registration_date 인경우 예외처리.
                             book_join_list = injoin_json_list("isbn", book_list, response.Response.item);
                         } else {
                             //isbn을 통한 join
-                            book_join_list = outjoin_json_list("isbn", response.Response.item, book_list)
+                            book_join_list = outjoin_json_list("isbn", response.Response.item, book_list);
+                            
+                            if (max_count) {
+                                book_join_list = book_join_list.slice(0, max_count)
+                            }
                         }
 
                         //요청 성공.

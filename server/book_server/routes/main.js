@@ -139,7 +139,6 @@ router.post('/SearchInISBN', (req, res) => {
     }
     let keyword = (req.body.keyword) ? req.body.keyword : null;
     let category = (req.body.category) ? req.body.category : "title";
-    let max_count = (req.body.max_count) ? req.body.max_count : null;
     let sort_key = (req.body.sort_key) ? req.body.sort_key : "title";
     let sort_method = (req.body.sort_method) ? req.body.sort_method : "asc";
 
@@ -162,10 +161,6 @@ router.post('/SearchInISBN', (req, res) => {
     query += `isbn in (${isbn_list.join()}) `
 
     query += `order by ${sort_key} ${sort_method} `
-
-    if (max_count) {
-        query += `limit ${max_count}`
-    }
 
     mysql_connetion.query(query, (err, results, fields) => {
 

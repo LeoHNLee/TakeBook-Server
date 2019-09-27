@@ -29,7 +29,6 @@ router.post('/UserBookList', (req, res) => {
     let isbn_list = req.body.isbn_list;
     let keyword = req.body.keyword;
     let category = req.body.category;
-    let max_count = req.body.max_count;
     let sort_key = req.body.sort_key;
     let sort_method = req.body.sort_method;
 
@@ -46,7 +45,6 @@ router.post('/UserBookList', (req, res) => {
     let body_key = {
         keyword: keyword,
         category: category,
-        max_count: max_count,
         sort_key: sort_key,
         sort_method: sort_method
     }
