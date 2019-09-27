@@ -61,7 +61,7 @@ function params_check(params, check_list) {
 }
 
 function isnumber(value) {
-    // string 값이 숫자인지 아닌지 채크
+    // value 값이 숫자인지 아닌지 채크
     // @ param value: 채크하려는 string 값
     // @ return 숫자이면 true, 아니면 false
 
@@ -136,6 +136,7 @@ function update_user_update_date(user_id) {
     });
 
 }
+
 router.post('/CreaateUsers', (req, res) => {
     response_body = {}
 
@@ -277,7 +278,7 @@ router.get('/UserInfo', (req, res) => {
     if (decoded) {
         let user_id = decoded.id;
 
-        mysql_connetion.query(`select id, name, signup_date, profile_url, update_date, state_message from user where id = ?`, [user_id], (err, results, fields) => {
+        mysql_connetion.query(`select id, name, signup_date, profile_url, update_date, access_state, state_message from user where id = ?`, [user_id], (err, results, fields) => {
             if (err) {
                 console.log(err)
                 //데이터베이스 오류
@@ -654,7 +655,8 @@ router.post('/UserBook', (req, res) => {
             return;
         }
 
-        let bookmark = (req.body.bookmark) ? req.body.bookmark : false;
+        let bookmark = (req.body.bookmark) ? true : false;
+        
 
         (async () => {
 
