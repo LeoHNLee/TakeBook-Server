@@ -22,28 +22,28 @@ function email_parser(user_id) {
     return text;
 }
 
-router.get('/UserBook', (req, res) => {
+router.post('/UserBookList', (req, res) => {
 
     let response_body = {}
 
-    let isbn_list = req.query.isbn_list;
-    let keyword = req.query.keyword;
-    let category = req.query.category;
-    let max_count = req.query.max_count;
-    let sort_key = req.query.sort_key;
-    let sort_method = req.query.sort_method;
+    let isbn_list = req.body.isbn_list;
+    let keyword = req.body.keyword;
+    let category = req.body.category;
+    let max_count = req.body.max_count;
+    let sort_key = req.body.sort_key;
+    let sort_method = req.body.sort_method;
 
     //book 정보 가져오기
     let internal_server_request_form = {
-        method: 'GET',
+        method: 'POST',
         uri: `${host.book_server}/SearchInISBN`,
-        qs: {
+        body: {
             isbn_list: isbn_list
         },
         json: true
     }
 
-    let query_key = {
+    let body_key = {
         keyword: keyword,
         category: category,
         max_count: max_count,
@@ -51,14 +51,14 @@ router.get('/UserBook', (req, res) => {
         sort_method: sort_method
     }
 
-    for (let key in query_key) {
-        if (query_key[key]) {
-            internal_server_request_form.qs[key] = query_key[key];
+    for (let key in body_key) {
+        if (body_key[key]) {
+            internal_server_request_form.body[key] = body_key[key];
         }
     }
 
     //도서 정보 요청
-    request.get(internal_server_request_form, (err, httpResponse, response) => {
+    request.post(internal_server_request_form, (err, httpResponse, response) => {
         if (err) {
             //내부 서버 오류
             message.set_result_message(response_body, "ES002");

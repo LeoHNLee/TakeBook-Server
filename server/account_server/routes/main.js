@@ -4,6 +4,7 @@ const request = require('request');
 const multer = require('multer');
 const multers3 = require('multer-s3');
 const aws = require('aws-sdk');
+
 const moment = require('moment-timezone');
 
 const mysql_connetion = require('../bin/mysql_connetion');
@@ -92,13 +93,34 @@ function email_parser(user_id) {
     return text;
 }
 
-function join_json_list(join_key, list1, list2) {
+function injoin_json_list(join_key, list1, list2) {
 
     let join_list = [];
     for (let i in list1) {
-        if (list2.find(item => item[join_key] == list1[i][join_key])) {
-            let result = Object.assign({}, list1[i], list2.find(item => item[join_key] == list1[i][join_key]))
-            join_list.push(result)
+        // if (list2.find(item => item[join_key] == list1[i][join_key])) {
+        //     let result = Object.assign({}, list1[i], list2.find(item => item[join_key] == list1[i][join_key]))
+        //     join_list.push(result)
+        // }
+        let result = Object.assign({}, list1[i], list2.find(item => item[join_key] == list1[i][join_key]))
+        join_list.push(result)
+    }
+
+    return join_list;
+}
+
+function outjoin_json_list(join_key, list1, list2) {
+
+    let join_list = [];
+    for (let i in list1) {
+        while(true){
+            let find_index = list2.findIndex(item => item[join_key] == list1[i][join_key])
+            if(find_index === -1){
+                break;
+            }else{
+                let result = Object.assign({}, list1[i], list2[find_index])
+                join_list.push(result);
+                list2.splice(find_index,1)
+            }
         }
     }
 
@@ -504,8 +526,6 @@ router.get('/UserBook', (req, res) => {
         }
 
 
-
-
         // query 구문 구성
         let query = `select book_num, isbn, second_isbn, third_isbn, fourth_isbn, fifth_isbn, registration_date, bookmark from registered_book where user_id = ? `
 
@@ -530,19 +550,21 @@ router.get('/UserBook', (req, res) => {
             //책정보
             let book_list = [];
             //isbn 리스트
-            let isbn_list = [];
+            let isbn_list = new Set(); // 중복제거
             for (let result in results) {
                 results[result].registration_date = trim_date(results[result].registration_date);
                 book_list.push(results[result]);
 
-                isbn_list.push(results[result].isbn);
+                isbn_list.add(results[result].isbn);
             }
+
+            isbn_list = Array.from(isbn_list)
 
             //book 정보 가져오기
             let internal_server_request_form = {
-                method: 'GET',
-                uri: `${host.internal_server}/UserBook`,
-                qs: {
+                method: 'POST',
+                uri: `${host.internal_server}/UserBookList`,
+                body: {
                     isbn_list: isbn_list
                 },
                 json: true
@@ -558,17 +580,17 @@ router.get('/UserBook', (req, res) => {
 
             for (let key in query_key) {
                 if (query_key[key]) {
-                    internal_server_request_form.qs[key] = query_key[key];
+                    internal_server_request_form.body[key] = query_key[key];
                 }
             }
 
             if (sort_key === "registration_date") {
-                internal_server_request_form.qs.sort_key = null;
-                internal_server_request_form.qs.max_count = null;
+                internal_server_request_form.body.sort_key = null;
+                internal_server_request_form.body.max_count = null;
             }
 
             //도서 정보 요청
-            request.get(internal_server_request_form, (err, httpResponse, response) => {
+            request.post(internal_server_request_form, (err, httpResponse, response) => {
                 if (err) {
                     //내부 서버 오류
                     message.set_result_message(response_body, "ES004");
@@ -579,13 +601,14 @@ router.get('/UserBook', (req, res) => {
                 switch (response.Result_Code) {
                     case "RS000": {
                         let book_join_list = [];
+                        
                         if (sort_key === "registration_date") {
                             // isbn을 통한 join
                             // registration_date 인경우 예외처리.
-                            book_join_list = join_json_list("isbn", book_list, response.Response.item);
+                            book_join_list = injoin_json_list("isbn", book_list, response.Response.item);
                         } else {
                             //isbn을 통한 join
-                            book_join_list = join_json_list("isbn", response.Response.item, book_list)
+                            book_join_list = outjoin_json_list("isbn", response.Response.item, book_list)
                         }
 
                         //요청 성공.

@@ -125,11 +125,11 @@ router.get('/List', (req, res) => {
 //internal API
 
 
-router.get('/SearchInISBN', (req, res) => {
+router.post('/SearchInISBN', (req, res) => {
 
     let response_body = {}
 
-    let isbn_list = req.query.isbn_list;
+    let isbn_list = req.body.isbn_list;
 
     if (!isbn_list) {
         //필수 파라미터 누락
@@ -137,14 +137,14 @@ router.get('/SearchInISBN', (req, res) => {
         res.json(response_body)
         return;
     }
-    let keyword = (req.query.keyword) ? req.query.keyword : null;
-    let category = (req.query.category) ? req.query.category : "title";
-    let max_count = (req.query.max_count) ? req.query.max_count : null;
-    let sort_key = (req.query.sort_key) ? req.query.sort_key : "title";
-    let sort_method = (req.query.sort_method) ? req.query.sort_method : "asc";
+    let keyword = (req.body.keyword) ? req.body.keyword : null;
+    let category = (req.body.category) ? req.body.category : "title";
+    let max_count = (req.body.max_count) ? req.body.max_count : null;
+    let sort_key = (req.body.sort_key) ? req.body.sort_key : "title";
+    let sort_method = (req.body.sort_method) ? req.body.sort_method : "asc";
 
 
-    let query = `SELECT title, isbn, author, publisher FROM book WHERE `;
+    let query = `SELECT title, isbn, author, publisher, image_url FROM book WHERE `;
 
     if (keyword) {
         if (category === 'isbn') {
