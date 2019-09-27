@@ -23,9 +23,6 @@ const image_bucket = 'takebook-book-image';
 //mysql 연결
 mysql_connetion.connect();
 
-//시간설정
-moment.tz("Asia/Seoul");
-
 
 // let user_file_upload = multer({
 //     storage: multers3({
@@ -81,7 +78,7 @@ function trim_date(datetime) {
 
 function current_time() {
     //현재시간 표시
-    return moment().format('YYYY-MM-DD HH:mm:ss');
+    return moment().tz("Asia/Seoul").format('YYYY-MM-DD HH:mm:ss');
 }
 
 function email_parser(user_id) {

@@ -170,6 +170,7 @@ router.post('/SearchInISBN', (req, res) => {
             message.set_result_message(response_body, "ES011");
         }
         else {
+            console.log(results)
             message.set_result_message(response_body, "RS000");
             response_body.Response = {
                 count: results.length,
