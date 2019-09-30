@@ -45,3 +45,6 @@ class ImageError(Exception):
 
 class ArgumentError(Exception):
     pass
+
+class LoggingError(Exception):
+    pass
