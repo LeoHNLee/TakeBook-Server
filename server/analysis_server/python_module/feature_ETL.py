@@ -30,10 +30,10 @@ def main(args):
                     ret["message"] = str(e)
                     return ret
             start_log = int(end_log)
-            end_log = int(end_log) + 300
+            end_log = int(end_log) + args["mount_of_job"]
 
         # get url
-        url_df = pd.read_csv(args["read_path"], header=None)
+        url_df = pd.read_csv(args["read_path"])
         isbns = url_df.iloc[start_log:end_log,0].values.tolist()
         urls = url_df.iloc[start_log:end_log,1].values.tolist()
         if len(isbns) == 0:
@@ -42,7 +42,12 @@ def main(args):
             features = {}
             model = BookRecognizer()
             for isbn, url in zip(isbns, urls):
+                # get image from url
                 image = ImageHandler(img_path = url, path_type = "url")
+                ###########################################
+                # 이부분에서 S3에 이미지 던지는 코드 작성할 것
+                ###########################################
+                # get image features
                 surf = model.predict_SURF_features(image.image)
                 orb = model.predict_ORB_features(image.image)
                 text_feature = model.predict_text(image.image, lang = "kor+eng")
@@ -55,6 +60,9 @@ def main(args):
                     "text": image_feature,
                 }
                 features[isbn] = feature
+                ###########################
+                # time sleep code 조정할 것
+                ###########################
                 time.sleep(random.uniform(0.5,1))
 
     except TextError as e:
@@ -84,6 +92,9 @@ if __name__ == "__main__":
         import time
         import argparse
         import json
+        ########################################################################
+        # pandas는 이번 프로젝트에서 한 번도 안 쓴 비표준 라이브러리임. 설치 확인 필요
+        ########################################################################
         import pandas as pd
         import numpy as np
         from datetime import datetime
@@ -96,9 +107,13 @@ if __name__ == "__main__":
         error_returner = ErrorReturner()
     # construct the argument parser and parse the arguments
         ap = argparse.ArgumentParser()
-        ap.add_argument("-r", "--read_path", type=str, help="path to input image")
-        ap.add_argument("-w", "--write_path", type=str, help="path to output model")
-        ap.add_argument("-log", "--log_path", type=str, help="path to log")
+        #######################
+        # default 값 꼭 고칠 것
+        #######################
+        ap.add_argument("-r", "--read_path", type=str, default="URL CSV 파일 경로.csv", help="path to input image")
+        ap.add_argument("-w", "--write_path", type=str, default="특성 JSON 디렉토리 경로/", help="path to output model")
+        ap.add_argument("-log", "--log_path", type=str, default="로그 파일 경로.txt", help="path to log")
+        ap.add_argument("-job", "--mount_of_job", type=int, default=300, help="mount of job")
         args = vars(ap.parse_args())
     except Exception as e:
         ret = error_returner.get("ArgumentError")
@@ -112,7 +127,8 @@ if __name__ == "__main__":
         else:
             result_log = ret["error"]
         with open(args["write_path"], "w") as fp:
-            json.dump(features, fp)
+            fn = str(start_log)+"_"+str(end_log)+".json"
+            json.dump(features, fp+fn)
         with open(args["log_path"], "a") as logs:
             latest_log = " ".join([date_log, result_log, str(start_log), str(end_log)])+"\n"
             logs.write(latest_log)
