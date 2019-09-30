@@ -53,6 +53,7 @@ router.get('/DetaillInfo', (req, res) => {
 });
 
 
+//전체검색 미구현
 router.get('/List', (req, res) => {
 
     let response_body = {}
@@ -125,11 +126,11 @@ router.get('/List', (req, res) => {
 //internal API
 
 
-router.post('/SearchInISBN', (req, res) => {
+router.get('/SearchInISBN', (req, res) => {
 
     let response_body = {}
 
-    let isbn_list = req.body.isbn_list;
+    let isbn_list = req.query.isbn_list;
 
     if (!isbn_list) {
         //필수 파라미터 누락
@@ -137,11 +138,11 @@ router.post('/SearchInISBN', (req, res) => {
         res.json(response_body)
         return;
     }
-    let keyword = (req.body.keyword) ? req.body.keyword : null;
-    let category = (req.body.category) ? req.body.category : "title";
-    let sort_key = (req.body.sort_key) ? req.body.sort_key : "title";
-    let sort_method = (req.body.sort_method) ? req.body.sort_method : "asc";
-
+    let keyword = (req.query.keyword) ? req.query.keyword : null;
+    let category = (req.query.category) ? req.query.category : "title";
+    let sort_key = (req.query.sort_key) ? req.query.sort_key : "title";
+    let sort_method = (req.query.sort_method) ? req.query.sort_method : "asc";
+    
 
     let query = `SELECT title, isbn, author, publisher, image_url FROM book WHERE `;
 
@@ -170,7 +171,6 @@ router.post('/SearchInISBN', (req, res) => {
             message.set_result_message(response_body, "ES011");
         }
         else {
-            console.log(results)
             message.set_result_message(response_body, "RS000");
             response_body.Response = {
                 count: results.length,
