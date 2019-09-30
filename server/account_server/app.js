@@ -1,16 +1,18 @@
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 
 //router
-const mainRouter = require('./routes/main');
+const mainRouter = require('./routes/main')
 
 
 app.use(logger('dev'));
 app.use('/uploads', express.static('uploads'));
 app.use(bodyParser.json())
-// app.use(bodyParser.urlencoded())
+app.use(bodyParser.urlencoded({extended : true}));
+app.use(cookieParser());
 
 //router 경로추가
 app.use('/', mainRouter);
