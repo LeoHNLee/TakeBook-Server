@@ -22,6 +22,7 @@ router.get('/DetaillInfo', (req, res) => {
         return;
     }
 
+    
     let query = `SELECT * FROM book WHERE isbn=${isbn};`;
 
     mysql_connetion.query(query, (err, results, fields) => {
