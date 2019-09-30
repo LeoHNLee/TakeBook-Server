@@ -14,6 +14,11 @@ __error_schemas__ = {
         "error":"ImageError",
         "message":None,
     },
+    "LoggingError":{
+        "code":800,
+        "error":"LoggingError",
+        "message":None,
+    },
     "PythonError":{
         "code":900,
         "error":"PythonError",
