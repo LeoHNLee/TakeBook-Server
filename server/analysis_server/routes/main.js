@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const domain = require('domain').create();
+const path = require('path');
 const fs = require('fs')
+
+const message = require('../bin/message');
 
 const AWS = require('aws-sdk');
 AWS.config.region = 'ap-northeast-2'
@@ -19,9 +21,9 @@ function pytojs(img_path, path_type, response, response_body) {
     let options = {
         mode: 'text',
         // pythonPath: '/usr/local/bin/python3', // local python 설치 경로
-        pythonPath: '/Users/bsh/Documents/git_directory/p1039_red/server/analysis_server/venv/bin/python3', // venv python 설치 경로
+        pythonPath: path.normalize(__dirname+'/../venv/bin/python3'), // venv python 설치 경로
         pythonOptions: ['-u'],
-        scriptPath: '/Users/bsh/Documents/git_directory/p1039_red/server/analysis_server/python_module', // 실행할 python 파일 경로
+        scriptPath: path.normalize(__dirname+'/../python_module'), // 실행할 python 파일 경로
         args: ['-p', img_path, '-t', path_type]
     };
 
@@ -39,7 +41,6 @@ function pytojs(img_path, path_type, response, response_body) {
             return this.split(org).join(dest);
         }
 
-        console.log(data.replaceAll('\'', '\"'));
         data = JSON.parse(data)
         response.json(data);
         // response.json(data);
@@ -58,16 +59,16 @@ async function getresult(img_path, path_type) {
     var options = {
         mode: 'text',
         // pythonPath: '/usr/local/bin/python3', // local python 설치 경로
-        pythonPath: '/Users/bsh/Documents/git_directory/p1039_red/server/analysis_server/venv/bin/python3', // venv python 설치 경로
+        pythonPath: path.normalize(__dirname+'/../venv/bin/python3'), // venv python 설치 경로
         pythonOptions: ['-u'],
-        scriptPath: '/Users/bsh/Documents/git_directory/p1039_red/server/analysis_server/python_module', // 실행할 python 파일 경로
+        scriptPath: path.normalize(__dirname+'/../python_module'), // 실행할 python 파일 경로
         args: ['-p', img_path, '-t', path_type]
     };
 
     let analyze_result = '';
     await new Promise((resolve, reject) => {
         PythonShell.run('node_book_predict.py', options, function (err, results) {
-
+            
             if (err) {
                 console.log(`에러발생: ${err}`)
                 reject("python error");
@@ -141,18 +142,18 @@ router.get('/UrlAnalyze', (req, res) => {
 
     if(!image_url){
         //필수 파라미터 누락
-        respone_form.Result_Code = "EC001";
-        respone_form.Message = "invalid parameter error";
-        res.json(respone_form)
+        message.set_result_message(respone_body, "EC001");
+        res.json(respone_body)
         return;
     }
 
     getresult(image_url, 'url').then(analyze_result => {
         if(!analyze_result.code){
-            respone_body.Result_Code = "RS000";
-            respone_body.Message = "Response Success";
+            message.set_result_message(respone_body, "RS000");
             respone_body.Response = analyze_result;
             res.json(respone_body)
+        }else{
+            res.json(analyze_result);
         }
     });
 
