@@ -38,12 +38,10 @@ def construct_viz_vocab(total_feature, write_path):
     return H
 
 def predict_viz_vocab(feature):
-    i = 0
     pred = ""
     while 1:
         try:
             temp = globals()["kmeans"+str(pred)].predict(feature)[0]
             pred += str(temp+1)
-            i += 1
         except KeyError:
-            return int(pred)
+            return pred
