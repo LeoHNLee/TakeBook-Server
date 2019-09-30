@@ -19,6 +19,11 @@ __error_schemas__ = {
         "error":"PythonError",
         "message":None,
     },
+    "SuccessCode":{
+        "code":999,
+        "error": "OK",
+        "message": None,
+    }
 }
 class ErrorReturner():
     def __init__(self):

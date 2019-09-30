@@ -338,7 +338,7 @@ class BookRecognizer(object):
     def train(self):
         pass
 
-    def predict(self, img, east=None, lang='kor', features="text"):
+    def predict(self, img, features, east=None, lang='kor'):
         ret = {}
         for feature in features:
             if feature == "text":
@@ -378,7 +378,7 @@ class BookRecognizer(object):
         '''
         # Create SURF Algorithm and set to 128-dim
         surf = cv2.xfeatures2d.SURF_create(500)
-        surf.setExtended(True)
+        # surf.setExtended(True)
 
         # extract descriptor
         _, descriptors = surf.detectAndCompute(img, None)
