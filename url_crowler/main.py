@@ -1,6 +1,8 @@
 import pandas as pd
 import boto3
+import random
 import requests
+import time 
 import os
 import time
 from datetime import datetime
@@ -14,7 +16,7 @@ args = {
     'read_path': f'{path}/file/ImageURL.csv',
     'log_path': f'{path}/file/log.txt',
     'image_path': f'{path}/file/image',
-    'mount_of_job': 20000
+    'mount_of_job': 2000
 }
 
 with open(args["log_path"], "r") as logs:
@@ -49,10 +51,11 @@ for isbn, url in zip(isbns, urls):
 
         print(f"{isbn} success!!")
         state_index += 1
-        time.sleep(1)
+        time.sleep(random.uniform(1,1.7))
     except Exception as e:
         print(f"{isbn} fail...")
         result_log = str(e)
+        result_log = result_log.replace(' ', '_')
         end_log = start_log+state_index -1
         break
 
