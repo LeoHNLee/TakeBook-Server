@@ -368,6 +368,24 @@ class BookRecognizer(object):
         descriptors = descriptors.tolist()
         return descriptors
 
+    def predict_ORB_features(self, img):
+        '''
+        -Description: extract image descriptors using ORB method
+        -Input
+            -img: resized image
+        -Output
+            -descriptors: image descriptors ((n,32) dim list)
+        '''
+        # gray scale
+        img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+
+        # Create ORB Algorithm, Find keypoints and Compute descripotrs
+        ORB = cv2.ORB_create()
+        keypoints = ORB.detect(img,None)
+        keypoints, descriptors = ORB.compute(img, keypoints)
+        descriptors = descriptors.tolist()
+        return descriptors
+
     def predict_SURF_features(self, img):
         '''
         -Description: extract image descriptors using SURF method
