@@ -558,35 +558,37 @@ router.get('/UserBook', (req, res) => {
 
             isbn_list = Array.from(isbn_list)
 
+            //책이 없는 경우.
+            if (!(isbn_list.length)) {
+                message.set_result_message(response_body, "RS000");
+                response_body.Response = {
+                    count: 0,
+                    item: []
+                };
+                res.json(response_body);
+                return;
+            }
+
             //book 정보 가져오기
             let internal_server_request_form = {
-                method: 'POST',
-                uri: `${host.internal_server}/UserBookList`,
-                body: {
-                    isbn_list: isbn_list
+                method: 'GET',
+                uri: `${host.internal_server}/UserBook`,
+                qs: {
+                    isbn_list: isbn_list,
+                    keyword: keyword,
+                    category: category,
+                    sort_key: sort_key,
+                    sort_method: sort_method
                 },
                 json: true
             }
 
-            let query_key = {
-                keyword: keyword,
-                category: category,
-                sort_key: sort_key,
-                sort_method: sort_method
-            }
-
-            for (let key in query_key) {
-                if (query_key[key]) {
-                    internal_server_request_form.body[key] = query_key[key];
-                }
-            }
-
             if (sort_key === "registration_date") {
-                internal_server_request_form.body.sort_key = null;
+                internal_server_request_form.qs.sort_key = null;
             }
 
             //도서 정보 요청
-            request.post(internal_server_request_form, (err, httpResponse, response) => {
+            request.get(internal_server_request_form, (err, httpResponse, response) => {
                 if (err) {
                     //내부 서버 오류
                     message.set_result_message(response_body, "ES004");
@@ -605,7 +607,7 @@ router.get('/UserBook', (req, res) => {
                         } else {
                             //isbn을 통한 join
                             book_join_list = outjoin_json_list("isbn", response.Response.item, book_list);
-                            
+
                             if (max_count) {
                                 book_join_list = book_join_list.slice(0, max_count)
                             }
@@ -656,7 +658,7 @@ router.post('/UserBook', (req, res) => {
         }
 
         let bookmark = (req.body.bookmark) ? true : false;
-        
+
 
         (async () => {
 

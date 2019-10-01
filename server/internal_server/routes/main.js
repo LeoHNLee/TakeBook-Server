@@ -22,41 +22,33 @@ function email_parser(user_id) {
     return text;
 }
 
-router.post('/UserBookList', (req, res) => {
+router.get('/UserBook', (req, res) => {
 
     let response_body = {}
 
-    let isbn_list = req.body.isbn_list;
-    let keyword = req.body.keyword;
-    let category = req.body.category;
-    let sort_key = req.body.sort_key;
-    let sort_method = req.body.sort_method;
+    let isbn_list = req.query.isbn_list;
+    let keyword = req.query.keyword;
+    let category = req.query.category;
+    let sort_key = req.query.sort_key;
+    let sort_method = req.query.sort_method;
+
 
     //book 정보 가져오기
-    let internal_server_request_form = {
-        method: 'POST',
+    let book_server_request_form = {
+        method: 'GET',
         uri: `${host.book_server}/SearchInISBN`,
-        body: {
-            isbn_list: isbn_list
+        qs: {
+            isbn_list: isbn_list,
+            keyword: keyword,
+            category: category,
+            sort_key: sort_key,
+            sort_method: sort_method
         },
         json: true
     }
 
-    let body_key = {
-        keyword: keyword,
-        category: category,
-        sort_key: sort_key,
-        sort_method: sort_method
-    }
-
-    for (let key in body_key) {
-        if (body_key[key]) {
-            internal_server_request_form.body[key] = body_key[key];
-        }
-    }
-
     //도서 정보 요청
-    request.post(internal_server_request_form, (err, httpResponse, response) => {
+    request.get(book_server_request_form, (err, httpResponse, response) => {
         if (err) {
             //내부 서버 오류
             message.set_result_message(response_body, "ES002");
