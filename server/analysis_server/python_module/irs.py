@@ -26,12 +26,12 @@ def construct_viz_vocab(total_feature, write_path):
         locals()["tails"+str(i)] = []
         for j in range(1,10):
             locals()["tails"+str(i)] += [k+str(j) for k in locals()["tails"+str(i-1)]]
-    locals()["kmeans"] = KMeans(n_clusters=9, random_state=666).fit(total_feature)
+    locals()["kmeans"] = KMeans(n_clusters=10, n_init=1, max_iter=20, random_state=666).fit(total_feature)
     joblib.dump(locals()["kmeans"], write_path+'kmeans.pkl')
     for i in range(1,H):
         for tail in locals()["tails"+str(i)]:
             locals()["total_feature"+tail] = locals()["total_feature"+tail[:-1]][locals()["kmeans"+tail[:-1]].labels_==(int(tail[-1])-1)]
-            locals()["kmeans"+tail] = KMeans(n_clusters=9, random_state=666).fit(locals()["total_feature"+tail])
+            locals()["kmeans"+tail] = KMeans(n_clusters=10, n_init=1, max_iter=20, random_state=666).fit(locals()["total_feature"+tail])
             joblib.dump(locals()["kmeans"+tail], write_path+'kmeans'+tail+'.pkl')
         for tail in locals()["tails"+str(i-1)]:
             del locals()["total_feature"+tail]

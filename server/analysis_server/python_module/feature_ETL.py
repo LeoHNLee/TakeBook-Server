@@ -62,7 +62,7 @@ def main(args):
             }
             feature = {
                 "image": image_feature,
-                "text": image_feature,
+                "text": text_feature,
             }
             features[isbn] = feature
             ###########################
@@ -148,9 +148,9 @@ if __name__ == "__main__":
             result_log = "_".join(ret["message"].split())
 
         # save feature json file
-        with open(args["write_path"], "w") as fp:
-            fn = str(start_log)+"_"+str(end_log)+".json"
-            json.dump(features, fp+fn)
+        fn = str(start_log)+"_"+str(end_log)+".json"
+        with open(args["write_path"]+fn, "w") as fp:
+            json.dump(features, fp)
 
         # update log file
         with open(args["log_path"], "a") as logs:
