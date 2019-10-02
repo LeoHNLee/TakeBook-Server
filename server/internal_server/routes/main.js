@@ -13,15 +13,6 @@ const image_bucket = 'takebook-book-image';
 const message = require("../bin/message");
 const host = require('../config/host');
 
-function email_parser(user_id) {
-    let text = user_id;
-
-    if (text.indexOf('@') !== -1) {
-        text = text.substring(0, text.indexOf('@'))
-    }
-    return text;
-}
-
 router.get('/UserBook', (req, res) => {
 
     let response_body = {}
@@ -113,11 +104,11 @@ router.get('/AnalyzeImage', (req, res) => {
     let response_body = {};
 
     let user_id = req.query.user_id;
-    let registration_date = req.query.registration_date;
+    let image_id = req.query.image_id;
     let image_url = req.query.image_url;
 
 
-    if (!(user_id && registration_date && image_url)) {
+    if (!(user_id && image_id && image_url)) {
         message.set_result_message(response_body, "EC001");
         res.json(response_body);
         return;
@@ -131,7 +122,7 @@ router.get('/AnalyzeImage', (req, res) => {
             uri: `${host.account_server}/RegisteredImage`,
             body: {
                 user_id: user_id,
-                registration_date: registration_date
+                image_id: image_id
             },
             json: true
         }
@@ -140,7 +131,7 @@ router.get('/AnalyzeImage', (req, res) => {
         request.put(account_server_request_form, (err, httpResponse, response) => {
             if (err) {
                 //유저 서버 오류
-                console.log("account server error");
+                console.log("update registered image state fail");
                 return;
             }
             console.log("update registered image state success");
@@ -207,8 +198,8 @@ router.get('/AnalyzeImage', (req, res) => {
                 method: 'POST',
                 uri: `${host.es_server}/SeacrhFeature`,
                 body: {
-                    img_feature: analysis_result.image,
-                    text_feature: analysis_result.text
+                    img_feature: 'dummy',
+                    text_feature: 'dummy'
                 },
                 json: true
             }
@@ -332,7 +323,7 @@ router.get('/AnalyzeImage', (req, res) => {
                 uri: `${host.account_server}/RegisteredImage`,
                 body: {
                     user_id: user_id,
-                    registration_date: registration_date
+                    image_id: image_id
                 },
                 json: true
             }
@@ -379,9 +370,8 @@ router.get('/AnalyzeImage', (req, res) => {
 
             var params = {
                 Bucket: image_bucket,
-                Key: `${email_parser(user_id)}-${registration_date}.jpg`
+                Key: `${image_id}.jpg`
             };
-            console.log(params.Key)
 
             s3.deleteObject(params, function (err, data) {
                 if (err) {

@@ -451,13 +451,13 @@ router.post('/SeacrhFeature', (req, res) => {
             message.set_result_message(response_body, "RS000")
             response_body.Response ={
                 isbn: "9788967497385",
-                second_isbn: "9791156931430",
-                third_isbn: "9791157529957",
-                fourth_isbn: "9791170280965",
-                fifth_isbn: "9791186665435"
+                second_candidate: "9791156931430",
+                third_candidate: "9791157529957",
+                fourth_candidate: "9791170280965",
+                fifth_candidate: "9791186665435"
             };
             res.json(response_body);
-        }, 15000);
+        }, 10000);
 
     } else {
         //필수 파라미터 누락
