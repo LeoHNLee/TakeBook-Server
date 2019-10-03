@@ -44,7 +44,7 @@ def get_library_book_info(published_date, page_no, cert_key, page_size=10, is_eb
 
 def get_aladin_book_info(isbn_no, ttbkey, output = "xml"):
     # isbn을 통하여 알라딘에 api를 검색하여 정보를 추출
-
+    
     url = f"http://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?ttbkey={ttbkey}&itemIdType=ISBN13&ItemId={isbn_no}&output={output}"
     html_source = requests.get(url = url)
     bs_obj = BeautifulSoup(html_source.content, "xml")
@@ -60,7 +60,7 @@ def get_aladin_book_info(isbn_no, ttbkey, output = "xml"):
     
     # 해당 아이템 링크
     link = bs_obj.find_all("link")
-    item_link = link[0].text
+    item_link = link[1].text
 
     author = bs_obj.select_one("author").text
     if author == '':
@@ -128,13 +128,22 @@ def get_aladin_book_info(isbn_no, ttbkey, output = "xml"):
 
     return book
 
+def get_kyobo_book_info(isbn_no):
 
-def get_kyobo_book_descriptions(item_id):
+    book = {}
     # 교보문고에서 책 본문 가져오기
-    url = f"http://www.kyobobook.co.kr/product/detailViewKor.laf?barcode={item_id}"
+    url = f"http://www.kyobobook.co.kr/product/detailViewKor.laf?barcode={isbn_no}"
 
     result = requests.get(url=url)
     bs_obj = BeautifulSoup(result.content, "html.parser")
+    empty_check = bs_obj.find("body")
+
+    if not empty_check:
+        book["kyobo_url"] = None
+        book["contents"] = None
+        return book
+    else:
+        book["kyobo_url"] = url
 
     # 도서 내용을 가지고 있는 container
     content_middle = bs_obj.findAll("div", {"class": "content_middle"})
@@ -153,11 +162,13 @@ def get_kyobo_book_descriptions(item_id):
         book_content = bs_obj.find("div", {"class": "box_detail_article"})
         book_content = str(book_content.text).strip()
 
-        return book_content
+        book["contents"] = book_content
     except IndexError:
-        return None
+        book["contents"] = None
     except Exception:
-        return None
+        book["contents"] = None
+
+    return book
 
 def processing_text(text, trash_text=('<BR>','<B>', '</B>', '<p>', '</p>', '&lt;', '&gt;', '<br />', '<b>','</b>')):
     # 텍스트에 불필요한 부분을 삭제

@@ -16,7 +16,7 @@ args = {
     'read_path': f'{path}/file/ImageURL.csv',
     'log_path': f'{path}/file/log.txt',
     'image_path': f'{path}/file/image',
-    'mount_of_job': 2000
+    'mount_of_job': 1800
 }
 
 with open(args["log_path"], "r") as logs:
@@ -26,8 +26,8 @@ with open(args["log_path"], "r") as logs:
 
 
 # set new index log
-start_log = int(end_log)
-end_log = int(end_log) + args["mount_of_job"] -1
+start_log = int(end_log) + 1
+end_log = start_log + args["mount_of_job"]
 
 # get urls and parse urls and isbns
 url_df = pd.read_csv(args["read_path"])
@@ -35,12 +35,14 @@ isbns = url_df.iloc[start_log:end_log,0].values.tolist()
 urls = url_df.iloc[start_log:end_log,1].values.tolist()
 state_index = 0
 
+result_log = "Success"
 
 for isbn, url in zip(isbns, urls):
     try:
         image_url = requests.get(url, allow_redirects=True)
 
         file_name = f'{args["image_path"]}/{isbn}.jpg'
+
 
         open(file_name, 'wb').write(image_url.content)
 

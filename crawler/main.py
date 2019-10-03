@@ -22,7 +22,7 @@ def insert_into_database(curs, book):
         curs.execute(sql, (book['isbn'], book['title'], book['author'],
                            book['publisher'],book['published_date'], book['category'], 
                            book['price'],book['image_url'], book['alladin_url'],
-                           None, None, book['contents'],
+                           book['kyobo_url'], None, book['contents'],
                            book['discriptions']))
         conn.commit()
         
@@ -35,7 +35,7 @@ def insert_into_database(curs, book):
         print(e)
 
 
-def combine_book_data(library_book, aladin_book):
+def combine_book_data(library_book, aladin_book, kyobo_book):
     book = {}
     book['isbn'] = library_book['isbn']
     book['title'] = library_book['title']
@@ -52,6 +52,11 @@ def combine_book_data(library_book, aladin_book):
     book['category'] = aladin_book['category']
     book['image_url'] = aladin_book['image_url']
     book['price'] = aladin_book['price']
+
+    if kyobo_book['kyobo_url'] is not None:
+        book['kyobo_url'] = kyobo_book['kyobo_url']
+    else:
+        book['kyobo_url'] = None
 
     return book
 
@@ -99,20 +104,21 @@ def main(system_parameters, page_size=10):
                 
                 aladin_book = crawler.get_aladin_book_info(
                     isbn_no=library_book['isbn'], ttbkey=system_parameters['aladin_key'])
+
+                kyobo_book = crawler.get_kyobo_book_info(isbn_no=library_book['isbn'])
                 
                 query_count += 1
                 # if aladin_book == 'daily_limt':
                 #     print(aladin_book)
                 #     return
                 if aladin_book is not None:
-                    book = combine_book_data(library_book,aladin_book)
+                    book = combine_book_data(library_book,aladin_book, kyobo_book)
                     insert_into_database(db_cursor, book)
 
                 else:
                     print(library_book['isbn'] + " is falid")
 
                 time.sleep(1)
-
 
                 if query_count > 95000:
                     print("daliy query limit")
