@@ -457,7 +457,7 @@ router.post('/SeacrhFeature', (req, res) => {
                 fifth_candidate: "9791186665435"
             };
             res.json(response_body);
-        }, 10000);
+        }, 1000*60);
 
     } else {
         //필수 파라미터 누락
