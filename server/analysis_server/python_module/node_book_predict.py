@@ -12,7 +12,7 @@ def main(args):
     try:
         img = ImageHandler(img_path=args["path"], path_type=args["type"])
         model = BookRecognizer()
-        ret = model.predict(img.image, lang=args["language"], east=args["east"], features=args["feature"].split("+"))
+        feature = model.predict(img.image, lang=args["language"], east=args["east"], features=args["feature"].split("+"))
     except TextError as e:
         ret = error_returner.get("TextError")
         ret["message"] = str(e)
@@ -22,6 +22,10 @@ def main(args):
     except Exception as e:
         ret = error_returner.get("PythonError")
         ret["message"] = str(e)
+    else:
+        ret = error_returner.get("SuccessCode")
+        ret["message"] = "Prediction is Complete"
+        ret["body"] = feature
     return ret
 
 if __name__ == "__main__":
