@@ -136,7 +136,7 @@ function outjoin_json_list(join_key, list1, list2) {
 
 function update_user_update_date(user_id) {
 
-    mysql_connetion.query(`update user set update_date = ? where id = ?`, [current_time(), user_id], (err, results, fields) => {
+    mysql_connetion.query(`update user set update_date = ? where user_id = ?`, [current_time(), user_id], (err, results, fields) => {
         if (err) {
             //User DB 서버 오류
             console.log("update user update_date fail");
@@ -163,7 +163,7 @@ router.post('/CreaateUsers', (req, res) => {
         let signup_date = current_time();
         let access_state = 0;
 
-        mysql_connetion.query(`insert into user (id, pw, name, signup_date, update_date, access_state) 
+        mysql_connetion.query(`insert into user (user_id, pw, name, signup_date, update_date, access_state) 
                                         values (?,?,?,?,?,?)`, [user_id, user_password, user_name, signup_date, signup_date, access_state], (err, results, fields) => {
             if (err) {
                 switch (err.code) {
@@ -200,7 +200,7 @@ router.get('/CheckIDExists', (req, res) => {
         return;
     }
 
-    mysql_connetion.query(`select id from user where id = ?`, [user_id], (err, results, fields) => {
+    mysql_connetion.query(`select user_id from user where id = ?`, [user_id], (err, results, fields) => {
         if (err) {
             console.log(err)
             message.set_result_message(response_body, "ES010")
@@ -234,7 +234,7 @@ router.post('/UserLogin', (req, res) => {
         return;
     }
 
-    mysql_connetion.query(`select id, pw, name, signup_date, profile_url, update_date from user where id = ?`, [user_id], (err, results, fields) => {
+    mysql_connetion.query(`select user_id, pw, name, signup_date, profile_url, update_date from user where user_id = ?`, [user_id], (err, results, fields) => {
         if (err) {
             console.log(err);
             message.set_result_message(response_body, "ES010");
@@ -245,7 +245,7 @@ router.post('/UserLogin', (req, res) => {
                 if (results[0].pw === user_password) {
 
                     // jwt 토큰 생성
-                    let token = jwt_token.create_token({ id: results[0].id });
+                    let token = jwt_token.create_token({ id: results[0].user_id });
 
                     //로그인 성공.
                     message.set_result_message(response_body, "RS000")
@@ -288,7 +288,7 @@ router.get('/UserInfo', (req, res) => {
     if (decoded) {
         let user_id = decoded.id;
 
-        mysql_connetion.query(`select id, name, signup_date, profile_url, update_date, access_state, state_message from user where id = ?`, [user_id], (err, results, fields) => {
+        mysql_connetion.query(`select user_id, name, signup_date, profile_url, update_date, access_state, state_message from user where user_id = ?`, [user_id], (err, results, fields) => {
             if (err) {
                 console.log(err)
                 //데이터베이스 오류
@@ -339,7 +339,7 @@ router.put('/UserInfo', (req, res) => {
             return;
         }
 
-        mysql_connetion.query(`update user set state_message = ? where id = ?;`, [state_message, user_id], (err, results, fields) => {
+        mysql_connetion.query(`update user set state_message = ? where user_id = ?;`, [state_message, user_id], (err, results, fields) => {
             if (err) {
                 console.log(err)
                 //데이터 베이스 오류
@@ -402,7 +402,7 @@ router.put('/UserProfile', (req, res) => {
                 if (req.file) {
 
                     //정보 수정
-                    mysql_connetion.query(`update user set profile_url = ? where id = ?;`, [req.file.location, user_id], (err, results, fields) => {
+                    mysql_connetion.query(`update user set profile_url = ? where user_id = ?;`, [req.file.location, user_id], (err, results, fields) => {
                         if (err) {
                             console.log(err)
                             //데이터 베이스 오류
@@ -456,7 +456,7 @@ router.delete('/UserProfile', (req, res) => {
                 res.send(response_body);
             } else {
                 //정보 수정
-                mysql_connetion.query(`update user set profile_url = null where id = ?;`, [user_id], (err, results, fields) => {
+                mysql_connetion.query(`update user set profile_url = null where user_id = ?;`, [user_id], (err, results, fields) => {
                     if (err) {
                         console.log(err)
                         //데이터 베이스 오류
