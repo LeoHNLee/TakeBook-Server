@@ -28,6 +28,7 @@ __error_schemas__ = {
         "code":999,
         "error": "OK",
         "message": None,
+        "body": None,
     }
 }
 class ErrorReturner():
