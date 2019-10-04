@@ -3,6 +3,8 @@ const fs = require('fs');
 const request = require('request');
 const aws = require('aws-sdk');
 const router = express.Router();
+const uuidv4 = require('uuid/v4');
+const moment = require('moment-timezone');
 
 //aws region 설정, s3설정
 aws.config.region = 'ap-northeast-2';
@@ -10,8 +12,44 @@ let s3 = new aws.S3();
 const user_bucket = 'takebook-user-bucket';
 const image_bucket = 'takebook-book-image';
 
+//dynamodb 연결
+let logdb = new aws.DynamoDB.DocumentClient();
+const log_table_name = "internal_log"
+
+
 const message = require("../bin/message");
 const host = require('../config/host');
+
+
+//현재시간 표시
+function current_time() {
+    return moment().tz("Asia/Seoul").format('YYYY-MM-DD HH:mm:ss');
+}
+
+//로그 데이터 저장.
+function recode_log(path, method, request, response) {
+
+    var params = {
+        TableName: log_table_name,
+        Item: {
+            id: uuidv4(),
+            path: path,
+            method: method,
+            request: request,
+            response: response,
+            log_date: current_time()
+        }
+    };
+
+
+    logdb.put(params, function (err, data) {
+        if (err) {
+            // console.log("recode_log_fail"); // an error occurred
+            console.log(err)
+        }
+        else console.log("recode_log_success");           // successful response
+    });
+}
 
 router.get('/UserBook', (req, res) => {
 
@@ -24,18 +62,27 @@ router.get('/UserBook', (req, res) => {
     let sort_method = req.query.sort_method;
 
 
+    let qs = {
+        keyword,
+        category,
+        sort_key,
+        sort_method
+    }
     //book 정보 가져오기
     let book_server_request_form = {
         method: 'GET',
         uri: `${host.book_server}/SearchInISBN`,
         qs: {
-            isbn_list: isbn_list,
-            keyword: keyword,
-            category: category,
-            sort_key: sort_key,
-            sort_method: sort_method
+            isbn_list: isbn_list
         },
         json: true
+    }
+
+    //url 값 담기
+    for (let i in qs) {
+        if (!(qs[i])) {
+            book_server_request_form[i] = qs[i];
+        }
     }
 
     //도서 정보 요청
@@ -43,10 +90,12 @@ router.get('/UserBook', (req, res) => {
         if (err) {
             //내부 서버 오류
             message.set_result_message(response_body, "ES002");
+            recode_log(req.route.path, req.method, req.query, response_body);
             res.json(response_body);
             return;
         }
         res.json(response)
+        recode_log(req.route.path, req.method, req.query, response);
     })
 
 });
@@ -91,11 +140,13 @@ router.get('/CheckISBNExists', (req, res) => {
                 }
             }
             message.set_result_message(response_body, result_code);
+            recode_log(req.route.path, req.method, req.query, response_body);
             res.json(response_body);
         });
     } else {
         //필수 파라미터 누락
         message.set_result_message(response_body, "EC001");
+        recode_log(req.route.path, req.method, req.query, response_body);
         res.json(response_body);
     }
 })
@@ -110,6 +161,7 @@ router.get('/AnalyzeImage', (req, res) => {
 
     if (!(user_id && image_id && image_url)) {
         message.set_result_message(response_body, "EC001");
+        recode_log(req.route.path, req.method, req.query, response_body);
         res.json(response_body);
         return;
     }
@@ -183,6 +235,7 @@ router.get('/AnalyzeImage', (req, res) => {
             //분석 실패
             console.log("analysis fail");
             update_registered_image_state();
+            recode_log(req.route.path, req.method, req.query, response_body);
             res.json(response_body);
             return;
         }
@@ -246,6 +299,7 @@ router.get('/AnalyzeImage', (req, res) => {
             //매칭 실패
             console.log("feature matching fail");
             update_registered_image_state();
+            recode_log(req.route.path, req.method, req.query, response_body);
             res.json(response_body);
             return;
         }
@@ -311,6 +365,7 @@ router.get('/AnalyzeImage', (req, res) => {
             //데이터 저장 실패
             console.log("save book data fail");
             update_registered_image_state();
+            recode_log(req.route.path, req.method, req.query, response_body);
             res.json(response_body);
             return;
         }
@@ -386,6 +441,7 @@ router.get('/AnalyzeImage', (req, res) => {
         });
 
         console.log("success")
+        recode_log(req.route.path, req.method, req.query, response_body);
         res.json(response_body);
 
 

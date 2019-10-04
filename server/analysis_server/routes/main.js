@@ -1,13 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const path = require('path');
-const fs = require('fs')
+const fs = require('fs');
+const aws = require('aws-sdk');
+const uuidv4 = require('uuid/v4');
+const moment = require('moment-timezone');
 
 const message = require('../bin/message');
 
-const AWS = require('aws-sdk');
-AWS.config.region = 'ap-northeast-2'
-
+//aws region 설정, dynamodb 연결
+aws.config.region = 'ap-northeast-2';
+const logdb = new aws.DynamoDB.DocumentClient();
+const log_table_name = "internal_log"
 
 // python 모듈 불러오기
 //
@@ -95,7 +99,7 @@ router.get('/result', (req, res) => {
 });
 
 router.post('/result', (req, res) => {
-    let s3 = new AWS.S3();
+    let s3 = new aws.S3();
     let filename = req.body.filename;
 
     let response_body = {}

@@ -1,12 +1,50 @@
 const express = require('express');
 const fs = require('fs');
 const request = require('request');
+const aws = require('aws-sdk');
+const uuidv4 = require('uuid/v4');
+const moment = require('moment-timezone');
 
 const mysql_connetion = require('../bin/mysql_connetion');
 const message = require('../bin/message');
 const host = require('../config/host');
 
 const router = express.Router();
+
+//aws region 설정, s3설정
+aws.config.region = 'ap-northeast-2';
+const logdb = new aws.DynamoDB.DocumentClient();
+const log_table_name = "book_log"
+
+//현재시간 표시
+function current_time() {
+    return moment().tz("Asia/Seoul").format('YYYY-MM-DD HH:mm:ss');
+}
+
+//로그 데이터 저장.
+function recode_log(path, method, request, response) {
+
+    var params = {
+        TableName: log_table_name,
+        Item: {
+            id: uuidv4(),
+            path: path,
+            method: method,
+            request: request,
+            response: response,
+            log_date: current_time()
+        }
+    };
+
+
+    logdb.put(params, function (err, data) {
+        if (err) {
+            // console.log("recode_log_fail"); // an error occurred
+            console.log(err)
+        }
+        else console.log("recode_log_success");           // successful response
+    });
+}
 
 
 router.get('/DetaillInfo', (req, res) => {
@@ -18,6 +56,7 @@ router.get('/DetaillInfo', (req, res) => {
     if (!isbn) {
         //필수 파라미터 누락
         message.set_result_message(response_body, "EC001");
+        recode_log(req.route.path, req.method, req.query, response_body);
         res.json(response_body)
         return;
     }
@@ -46,6 +85,7 @@ router.get('/DetaillInfo', (req, res) => {
                 message.set_result_message(response_body, "EC005");
             }
         }
+        recode_log(req.route.path, req.method, req.query, response_body);
         res.send(response_body)
 
     })
@@ -135,6 +175,7 @@ router.get('/SearchInISBN', (req, res) => {
     if (!isbn_list) {
         //필수 파라미터 누락
         message.set_result_message(response_body, "EC001");
+        recode_log(req.route.path, req.method, req.query, response_body);
         res.json(response_body)
         return;
     }
@@ -182,6 +223,7 @@ router.get('/SearchInISBN', (req, res) => {
             }
 
         }
+        recode_log(req.route.path, req.method, req.query, response_body);
         res.send(response_body)
 
     })
@@ -213,93 +255,18 @@ router.get('/CheckISBNExists', (req, res) => {
                 }
             }
             message.set_result_message(response_body, result_code);
+            recode_log(req.route.path, req.method, req.query, response_body);
             res.send(response_body)
         })
     } else {
         //필수 파라미터 누락
         message.set_result_message(response_body, "EC001");
+        recode_log(req.route.path, req.method, req.query, response_body);
         res.json(response_body)
     }
 
 });
 
-
-
-// router.get('/Query', (req, res) => {
-
-//     let response_body = {}
-
-//     let query = `SELECT isbn FROM innodb.book where published_date like '2017051%' limit 400;`;
-
-//     database.query(query, (err, results, fields) => {
-
-//         if (err) {
-//             //db 오류
-//             console.log(err)
-//             message.set_result_message(response_body,"ES011");
-//         }
-//         else {
-//             if (results.length) {
-
-//                 message.set_result_message(response_body,"RS000");
-//                 response_body.Response = {};
-//                 response_body.Response.isbn = [];
-
-//                 for (let key in results) {
-//                     response_body.Response.isbn.push(results[key].isbn);
-//                 }
-
-//             }
-//             else {
-//                 // 일치하는 isbn 없음.
-//                 message.set_result_message(response_body,"EC005");
-//             }
-//         }
-//         res.send(response_body)
-
-//     })
-
-// });
-
-// router.post('/save', (req, res) => {
-
-//     let title = req.body.title;
-//     let isbn = req.body.isbn;
-//     let fileurl = req.body.fileurl;
-
-//     //다른 서버에 요청을 보낼 request form
-//     const form = {
-//         method: 'POST',
-//         uri: `${anlysis_server_address}/es`,
-//         body: {
-//             'fileurl': fileurl,
-//         },
-//         json: true
-//     }
-
-//     const esform = {
-//         method: 'POST',
-//         uri: `${es_address}/red/book`,
-//         body: {
-//         },
-//         json: true
-//     }
-
-
-//     //도서 분석 요청
-//     postrequest.post(form, (err, httpResponse, response) => {
-//         if (err) {
-//             return console.error('response failed:', err);
-//         }
-//         esform.body.title = title;
-//         esform.body.isbn = isbn;
-//         esform.body.result = response.result;
-
-//         postrequest.post(esform, (err, httpResponse, response) => {
-//             res.json(response)
-//         })
-//     })
-// });
 
 
 
