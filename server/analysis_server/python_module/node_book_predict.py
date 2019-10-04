@@ -23,7 +23,14 @@ def main(args):
     try:
         img = ImageHandler(img_path=args["path"], path_type=args["type"])
         model = BookRecognizer()
-        feature = model.predict(img.image, lang=args["language"].split("+"), east=args["east"], features=args["feature"].split("+"))
+        try:
+            features=args["feature"].split("+")
+            text_lang=args["language"].split("+")
+            text_east=args["east"]
+            image_options=args["image_option"].split("+")
+        except:
+            raise ArgumentError(f"Arguments are not proper type: <{args}>")
+        feature = model.predict(img.image, features=features, text_lang=text_lang, text_east=text_east, image_options=image_options)
 
     # Exception Handling
     except ArgumentError as e:
@@ -65,6 +72,7 @@ if __name__ == "__main__":
         ap.add_argument("-l", "--language", type=str, default="kor+eng", help="select languge of book cover")
         ap.add_argument("-e", "--east", type=str, help="east algorithm path")
         ap.add_argument("-f", "--feature", type=str, default="image+text", help="select features")
+        ap.add_argument("-io", "--image_option", type=str, default="ORB", help="select features")
         args = vars(ap.parse_args())
     except Exception as e:
         ret = error_returner.get("ArgumentError")

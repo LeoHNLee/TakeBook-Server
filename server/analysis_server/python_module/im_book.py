@@ -338,7 +338,7 @@ class BookRecognizer(object):
     def train(self):
         pass
 
-    def predict(self, img=None, features=None, east=None, lang=None):
+    def predict(self, img=None, features=None, text_east=None, text_lang=None, image_options=None):
         '''
         - Description:
         - Input
@@ -358,9 +358,9 @@ class BookRecognizer(object):
         ret = {}
         for feature in features:
             if feature == "text":
-                extracted = self.predict_text(img=img, east=east, lang=lang)
+                extracted = self.predict_text(img=img, east=text_east, lang=text_lang)
             elif feature == "image":
-                extracted = self.predict_image(img=temp)
+                extracted = self.predict_image(img=temp, options=image_options)
             else:
                 raise ArgumentError(f"Not Found 'predict' Arguemnt 'features': <{feature}>")
             ret[feature] = extracted
