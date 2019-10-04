@@ -5,14 +5,30 @@
         ap.add_argument("-t", "--type", type=str, default="local", help="type of input image")
         ap.add_argument("-l", "--language", type=str, default="kor+eng", help="select languge of book cover")
         ap.add_argument("-e", "--east", type=str, help="east algorithm path")
--output: str predicted_img
+        ap.add_argument("-f", "--feature", type=str, default="image+text", help="select features")
+-output: print(str)
 '''
 
 def main(args):
+    '''
+    - Description:
+    - Input:
+        ap.add_argument("-p", "--path", type=str, help="path to input image")
+        ap.add_argument("-t", "--type", type=str, default="local", help="type of input image")
+        ap.add_argument("-l", "--language", type=str, default="kor+eng", help="select languge of book cover")
+        ap.add_argument("-e", "--east", type=str, help="east algorithm path")
+        ap.add_argument("-f", "--feature", type=str, default="image+text", help="select features")
+    - Output: Result Code like as json style that defined in exceptions
+    '''
     try:
         img = ImageHandler(img_path=args["path"], path_type=args["type"])
         model = BookRecognizer()
-        feature = model.predict(img.image, lang=args["language"], east=args["east"], features=args["feature"].split("+"))
+        feature = model.predict(img.image, lang=args["language"].split("+"), east=args["east"], features=args["feature"].split("+"))
+
+    # Exception Handling
+    except ArgumentError as e:
+        ret = error_returner.get("ArgumentError")
+        ret["message"] = str(e)
     except TextError as e:
         ret = error_returner.get("TextError")
         ret["message"] = str(e)
@@ -22,6 +38,8 @@ def main(args):
     except Exception as e:
         ret = error_returner.get("PythonError")
         ret["message"] = str(e)
+
+    # SuccessCode: 999
     else:
         ret = error_returner.get("SuccessCode")
         ret["message"] = "Prediction is Complete"
@@ -46,7 +64,7 @@ if __name__ == "__main__":
         ap.add_argument("-t", "--type", type=str, default="local", help="type of input image")
         ap.add_argument("-l", "--language", type=str, default="kor+eng", help="select languge of book cover")
         ap.add_argument("-e", "--east", type=str, help="east algorithm path")
-        ap.add_argument("-f", "--feature", type=str, default="img", help="select features")
+        ap.add_argument("-f", "--feature", type=str, default="image+text", help="select features")
         args = vars(ap.parse_args())
     except Exception as e:
         ret = error_returner.get("ArgumentError")

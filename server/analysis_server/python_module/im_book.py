@@ -333,40 +333,66 @@ class BookRecognizer(object):
         model.predict(img)
     '''
     def __init__(self):
-        self.vision = None
+        pass
 
     def train(self):
         pass
 
-    def predict(self, img, features, east=None, lang='kor'):
+    def predict(self, img=None, features=None, east=None, lang=None):
+        '''
+        - Description:
+        - Input
+        - Output
+        '''
+        if img is None:
+            raise ArgumentError(f"Not Found 'predict' Arguemnt 'img': <{img}>")
+        if features is None:
+            raise ArgumentError(f"Not Found 'predict' Arguemnt 'features': <{features}>")
+
+        # resize
+        y, x, *_ = img.shape
+        if x != 360 or y != 480:
+            img = cv2.resize(img, dsize=(360,480), interpolation=cv2.INTER_LINEAR)
+
+        # extract features
         ret = {}
         for feature in features:
             if feature == "text":
-                ret['text'] = self.predict_text(img=img, east=east, lang=lang)
-            elif feature == "img":
-                y, x, *_ = img.shape
-                if x != 360 or y != 480:
-                    temp = cv2.resize(img, dsize=(360,480), interpolation=cv2.INTER_LINEAR)
-                ret["image"] = self.predict_image(img=temp)
+                extracted = self.predict_text(img=img, east=east, lang=lang)
+            elif feature == "image":
+                extracted = self.predict_image(img=temp)
+            else:
+                raise ArgumentError(f"Not Found 'predict' Arguemnt 'features': <{feature}>")
+            ret[feature] = extracted
         return ret
 
-    def predict_image(self, img):
+    def predict_image(self, img, options=None):
         '''
-        -Description: extract image descriptors using ORB method
+        -Description: 
         -Input
             -img: resized image
+            - options:
+                - SURF
+                - ORB
+                - BGR: color histogram
         -Output
-            -descriptors: image descriptors ((n,32) dim list)
+            -ret: dictionary
         '''
-        # gray scale
-        img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-
-        # Create ORB Algorithm, Find keypoints and Compute descripotrs
-        ORB = cv2.ORB_create()
-        keypoints = ORB.detect(img,None)
-        keypoints, descriptors = ORB.compute(img, keypoints)
-        descriptors = descriptors.tolist()
-        return descriptors
+        ret = {}
+        if options is not None:
+            for option in options:
+                if option == "SURF":
+                    feature = self.predict_SURF_features(img=img)
+                elif option == "ORB":
+                    feature = self.predict_ORB_features(img=img)
+                elif option == "BGR":
+                    feature = self.predict_BGR_histogram(img=img)
+                else:
+                    raise ImageError(f"Not Found predict_image option: <{option}>")
+                ret[option] = feature
+        else:
+            raise ImageError(f"Not Found predict_image option: <{option}>")
+        return ret
 
     def predict_ORB_features(self, img):
         '''
@@ -395,11 +421,11 @@ class BookRecognizer(object):
             -descriptors: image descriptors ((n,128) dim list)
         '''
         # Create SURF Algorithm and set to 128-dim
-        surf = cv2.xfeatures2d.SURF_create(500)
+        SURF = cv2.xfeatures2d.SURF_create(500)
         # surf.setExtended(True)
 
         # extract descriptor
-        _, descriptors = surf.detectAndCompute(img, None)
+        _, descriptors = SURF.detectAndCompute(img, None)
         descriptors = descriptors.tolist()
         return descriptors
 
