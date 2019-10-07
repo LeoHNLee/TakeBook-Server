@@ -47,7 +47,7 @@ function recode_log(path, method, request, response) {
 }
 
 
-router.get('/DetaillInfo', (req, res) => {
+router.get('/Detail', (req, res) => {
 
     let response_body = {}
 
@@ -64,7 +64,6 @@ router.get('/DetaillInfo', (req, res) => {
     let query = `SELECT * FROM book WHERE isbn=${isbn};`;
 
     mysql_connetion.query(query, (err, results, fields) => {
-
         if (err) {
             //db 오류
             console.log(err)
@@ -76,7 +75,7 @@ router.get('/DetaillInfo', (req, res) => {
                 response_body.Response = {};
 
                 for (let key in results[0]) {
-                    response_body.Response[key] = results[response_body0][key];
+                    response_body.Response[key] = results[0][key];
                 }
 
             }
