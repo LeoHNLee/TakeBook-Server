@@ -35,12 +35,20 @@ class LogRegister{
     static log_count= log_config.log_count
     static save_cycle= log_config.save_cycle
 
-    constructor(){
+    constructor(){}
+
+    //log file 생성
+    create_log_file(){
 
     }
+    
+    //requset 요청 기록
+    regist_request_log(method, path, request_data){
+        // @ param method: 요청받은 method
+        // @ param path: 요청 받은 경로
+        // @ param request_data: 요청에 함께온 data
 
-
-
+    }
 }
 
 let log_register = {

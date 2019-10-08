@@ -24,26 +24,26 @@ function current_time() {
 //로그 데이터 저장.
 function recode_log(path, method, request, response) {
 
-    var params = {
-        TableName: log_table_name,
-        Item: {
-            id: uuidv4(),
-            path: path,
-            method: method,
-            request: request,
-            response: response,
-            log_date: current_time()
-        }
-    };
+    // var params = {
+    //     TableName: log_table_name,
+    //     Item: {
+    //         id: uuidv4(),
+    //         path: path,
+    //         method: method,
+    //         request: request,
+    //         response: response,
+    //         log_date: current_time()
+    //     }
+    // };
 
 
-    logdb.put(params, function (err, data) {
-        if (err) {
-            // console.log("recode_log_fail"); // an error occurred
-            console.log(err)
-        }
-        else console.log("recode_log_success");           // successful response
-    });
+    // logdb.put(params, function (err, data) {
+    //     if (err) {
+    //         // console.log("recode_log_fail"); // an error occurred
+    //         console.log(err)
+    //     }
+    //     else console.log("recode_log_success");           // successful response
+    // });
 }
 
 
