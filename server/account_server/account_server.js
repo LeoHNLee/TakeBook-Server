@@ -27,6 +27,9 @@ server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
 
+// make dir
+create_dir(`${__dirname}/config`);
+
 /**
  * Normalize a port into a number, string, or false.
  */
@@ -85,4 +88,13 @@ function onListening() {
     ? 'pipe ' + addr
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
+}
+
+
+//디렉토리 존제 확인, 없으면 생성
+function create_dir(path) {
+  let fs = require('fs');
+  if (!fs.existsSync(path)) {
+      fs.mkdirSync(path);
+  }
 }

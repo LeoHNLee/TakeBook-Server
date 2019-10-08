@@ -2,7 +2,7 @@ import pandas as pd
 import boto3
 import random
 import requests
-import time 
+import time
 import os
 import time
 from datetime import datetime
@@ -65,10 +65,19 @@ for isbn, url in zip(isbns, urls):
 # set date log
 date_log = datetime.today()
 date_log = str(date_log.year)+"-"+str(date_log.month)+"-"+str(date_log.day)+"-"+str(date_log.hour)+"-"+str(date_log.minute)+"-"+str(date_log.second)
-        
+
 
 # update log file
 with open(args["log_path"], "a") as logs:
     latest_log = " ".join([date_log, result_log, str(start_log), str(end_log)])+"\n"
     logs.write(latest_log)
 
+# url = 'https://image.aladin.co.kr/product/20865/46/cover500/897535766x_1.jpg'
+# image_url = requests.get(url, allow_redirects=True)
+# file_name = f'{args["image_path"]}/{9788975357664}.jpg'
+# open(file_name, 'wb').write(image_url.content)
+
+# with open(file_name, 'rb') as data:
+#     s3.upload_fileobj(data, bucket, f'{9788975357664}.jpg')
+
+# # os.remove(file_name)

@@ -28,7 +28,6 @@ const log_table_name = "account_log"
 //mysql 연결
 mysql_connetion.connect();
 
-
 function params_check(params, check_list) {
     // 입력받은 파라미터가 옳바른지 채크
     // @ param params: 채크하려는 파라미터
@@ -71,7 +70,7 @@ function trim_date(datetime) {
 
 function current_time() {
     //현재시간 표시
-    return moment().tz("Asia/Seoul").format('YYYY-MM-DD HH:mm:ss');
+    return moment().tz("Asia/Seoul").format('YYYY-MM-DD HH:mm:ss:SSS');
 }
 
 function email_parser(user_id) {
@@ -98,7 +97,7 @@ function create_key(user_id, datetime) {
         }
 
     } else {
-        time = moment().tz("Asia/Seoul").format('YYYYMMDDHHmmss');
+        time = moment().tz("Asia/Seoul").format('YYYYMMDDHHmmssSSS');
     }
 
     let key = `${email_parser(user_id)}-${time}`;
@@ -153,27 +152,26 @@ function update_user_update_date(user_id) {
 }
 
 function recode_log(path, method, request, response) {
+    // var params = {
+    //     TableName: log_table_name,
+    //     Item: {
+    //         id: uuidv4(),
+    //         path: path,
+    //         method: method,
+    //         request: request,
+    //         response: response,
+    //         log_date: current_time()
+    //     }
+    // };
 
-    var params = {
-        TableName: log_table_name,
-        Item: {
-            id: uuidv4(),
-            path: path,
-            method: method,
-            request: request,
-            response: response,
-            log_date: current_time()
-        }
-    };
 
-
-    logdb.put(params, function (err, data) {
-        if (err) {
-            // console.log("recode_log_fail"); // an error occurred
-            console.log(err)
-        }
-        else console.log("recode_log_success");           // successful response
-    });
+    // logdb.put(params, function (err, data) {
+    //     if (err) {
+    //         // console.log("recode_log_fail"); // an error occurred
+    //         console.log(err)
+    //     }
+    //     else console.log("recode_log_success");           // successful response
+    // });
 }
 
 router.post('/CreaateUsers', (req, res) => {
@@ -1274,7 +1272,7 @@ router.put('/RegisteredImage', (req, res) => {
         res.json(response_body);
     }
 
-    mysql_connetion.query(`update image_id set state = ? where user_id = ? and image_id = ?;`,
+    mysql_connetion.query(`update registered_image set state = ? where user_id = ? and image_id = ?;`,
         [1, user_id, image_id], (err, results, fields) => {
             let result_code = "";
             if (err) {

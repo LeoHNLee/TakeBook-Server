@@ -86,7 +86,6 @@ router.get('/Detail', (req, res) => {
         }
         recode_log(req.route.path, req.method, req.query, response_body);
         res.send(response_body)
-
     })
 
 });
@@ -194,12 +193,13 @@ router.get('/SearchInISBN', (req, res) => {
         }
     }
 
+    let search_isbn_list = []
     //string 으로 변환
     for (let i in isbn_list) {
-        isbn_list[i] = JSON.stringify(isbn_list[i]);
+        search_isbn_list.push(JSON.stringify(isbn_list[i]));
     }
 
-    query += `isbn in (${isbn_list.join()}) `
+    query += `isbn in (${search_isbn_list.join()}) `
 
     query += `order by ${sort_key} ${sort_method} `
 
