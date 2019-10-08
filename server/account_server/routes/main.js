@@ -202,10 +202,10 @@ router.post('/CreaateUsers', (req, res) => {
                     break;
                 default:
                     //데이터 베이스 에러
+                    console.log(err)
                     message.set_result_message(response_body, "ES010")
                     break;
             }
-            console.log(err)
         }
         else {
             //요청 성공
@@ -285,14 +285,6 @@ router.post('/UserLogin', (req, res) => {
 
                     //유저 토큰
                     response_body.Response.user_token = token;
-
-                    // //회원 정보
-                    // response_body.Response.user_info = {};
-                    // response_body.Response.user_info.id = results[0].id;
-                    // response_body.Response.user_info.name = results[0].name;
-                    // response_body.Response.user_info.signup_date = results[0].signup_date.toISOString().slice(0, 19).replace('T', ' ');
-                    // response_body.Response.user_info.profile_url = results[0].profile_url;
-                    // response_body.Response.user_info.update_date = results[0].update_date;
                 } else {
                     // password 오류.
                     message.set_result_message(response_body, "RS001", "Incorrect User Password");
@@ -362,12 +354,11 @@ router.put('/UserInfo', (req, res) => {
     let token = req.headers.authorization;
     let decoded = jwt_token.token_check(token);
 
-    let state_message = req.body.state_message;
-
     if (decoded) {
         let user_id = decoded.id;
+        let state_message = req.body.state_message;
 
-        if (!state_message) {
+        if (state_message == undefined) {
             //필수 파라미터 누락
             message.set_result_message(response_body, "EC001");
             recode_log(req.route.path, req.method, req.body, response_body);
@@ -430,6 +421,7 @@ router.put('/UserProfile', (req, res) => {
                         message.set_result_message(response_body, "EC001");
                     }
                     default: {
+                        console.log("s3 file upload error.")
                         message.set_result_message(response_body, "EC001");
                     }
                 }

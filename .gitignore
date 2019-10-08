@@ -93,7 +93,6 @@ node_modules
 .vscode
 uploads
 config
-log/
 
 # node file
 package-lock.json
