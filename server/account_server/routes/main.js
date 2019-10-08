@@ -538,7 +538,7 @@ router.get('/UserBook', (req, res) => {
         //
 
         let keyword = (req.query.keyword) ? req.query.keyword : null;
-        let category = ((req.query.category) && keyword) ? req.query.category : "isbn";
+        let category = ((req.query.category) && keyword) ? req.query.category : "title";
         let max_count = (req.query.max_count) ? req.query.max_count : null;
         let sort_key = (req.query.sort_key) ? req.query.sort_key : null;
         let sort_method = (req.query.sort_method) ? req.query.sort_method : "asc";
@@ -546,8 +546,8 @@ router.get('/UserBook', (req, res) => {
 
         //파라미터 옮바른 값 확인.
         let check_list = {
-            category: ["title", "isbn", "author"],
-            sort_key: ["isbn", "title", "author", "publisher", "registration_date"],
+            category: ["title", "author"],
+            sort_key: ["title", "author", "publisher", "registration_date"],
             sort_method: ["asc", "desc"]
         }
 
@@ -636,8 +636,8 @@ router.get('/UserBook', (req, res) => {
 
             //url 값 담기
             for(let i in qs){
-                if(!(qs[i])){
-                    internal_server_request_form[i] = qs[i];
+                if(qs[i]){
+                    internal_server_request_form.qs[i] = qs[i];
                 }
             }
 
@@ -664,7 +664,7 @@ router.get('/UserBook', (req, res) => {
                             // registration_date 인경우 예외처리.
                             book_join_list = injoin_json_list("isbn", book_list, response.Response.item);
                         } else {
-                            //isbn을 통한 join
+                            // isbn을 통한 join
                             book_join_list = outjoin_json_list("isbn", response.Response.item, book_list);
 
                             if (max_count) {
@@ -715,6 +715,7 @@ router.post('/UserBook', (req, res) => {
         if (!isbn) {
             // 필수 파라미터 누락.
             message.set_result_message(response_body, "EC001");
+            res.json(response_body);
             return;
         }
 

@@ -62,7 +62,6 @@ router.get('/UserBook', (req, res) => {
     let sort_key = req.query.sort_key;
     let sort_method = req.query.sort_method;
 
-
     let qs = {
         keyword,
         category,
@@ -81,8 +80,8 @@ router.get('/UserBook', (req, res) => {
 
     //url 값 담기
     for (let i in qs) {
-        if (!(qs[i])) {
-            book_server_request_form[i] = qs[i];
+        if (qs[i]) {
+            book_server_request_form.qs[i] = qs[i];
         }
     }
 
