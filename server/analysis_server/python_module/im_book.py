@@ -50,6 +50,9 @@ class ImageHandler(object):
 
     def get_image_from_url(self, img_path):
         img_from_url = requests.get(img_path)
+        status = img_from_url.status_code
+        if status > 299 and status < 200:
+            raise URLError(f"Not Found Proper URL.\nmethod:{get_image_from_url}\nurl={img_path}")
         img = np.asarray(bytearray(img_from_url.content), dtype="uint8")
         img = cv2.imdecode(img, cv2.IMREAD_COLOR)
         return img
@@ -345,9 +348,9 @@ class BookRecognizer(object):
         - Output
         '''
         if img is None:
-            raise ArgumentError(f"Not Found 'predict' Arguemnt 'img': <{img}>")
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict'\nargument:'img'={img}")
         if features is None:
-            raise ArgumentError(f"Not Found 'predict' Arguemnt 'features': <{features}>")
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict'\nargument:'features'={features}")
 
         # resize
         y, x, *_ = img.shape
@@ -366,7 +369,7 @@ class BookRecognizer(object):
             ret[feature] = extracted
         return ret
 
-    def predict_image(self, img, options=None):
+    def predict_image(self, img=None, options=None):
         '''
         -Description: 
         -Input
@@ -378,23 +381,25 @@ class BookRecognizer(object):
         -Output
             -ret: dictionary
         '''
+        if img is None:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_image'\nargument:'img'={img}")
+        if options is None:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_image'\nargument:'options'={options}")
+        
         ret = {}
-        if options is not None:
-            for option in options:
-                if option == "SURF":
-                    feature = self.predict_SURF_features(img=img)
-                elif option == "ORB":
-                    feature = self.predict_ORB_features(img=img)
-                elif option == "BGR":
-                    feature = self.predict_BGR_histogram(img=img)
-                else:
-                    raise ImageError(f"Not Found predict_image option: <{option}>")
-                ret[option] = feature
-        else:
-            raise ImageError(f"Not Found predict_image option: <{option}>")
+        for option in options:
+            if option == "SURF":
+                feature = self.predict_SURF_features(img=img)
+            elif option == "ORB":
+                feature = self.predict_ORB_features(img=img)
+            elif option == "BGR":
+                feature = self.predict_BGR_histogram(img=img)
+            else:
+                raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_image'\nargument:'options'={options}")
+            ret[option] = feature
         return ret
 
-    def predict_ORB_features(self, img):
+    def predict_ORB_features(self, img=None):
         '''
         -Description: extract image descriptors using ORB method
         -Input
@@ -402,6 +407,8 @@ class BookRecognizer(object):
         -Output
             -descriptors: image descriptors ((n,32) dim list)
         '''
+        if img is None:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_ORB_features'\nargument:'img'={img}")
         # gray scale
         img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 
@@ -412,7 +419,7 @@ class BookRecognizer(object):
         descriptors = descriptors.tolist()
         return descriptors
 
-    def predict_SURF_features(self, img):
+    def predict_SURF_features(self, img=None):
         '''
         -Description: extract image descriptors using SURF method
         -Input
@@ -420,6 +427,8 @@ class BookRecognizer(object):
         -Output
             -descriptors: image descriptors ((n,128) dim list)
         '''
+        if img is None:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_SURF_features'\nargument:'img'={img}")
         # Create SURF Algorithm and set to 128-dim
         SURF = cv2.xfeatures2d.SURF_create(500)
         # surf.setExtended(True)
@@ -429,7 +438,9 @@ class BookRecognizer(object):
         descriptors = descriptors.tolist()
         return descriptors
 
-    def predict_BGR_histogram(self, img):
+    def predict_BGR_histogram(self, img=None):
+        if img is None:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_BGR_histogram'\nargument:'img'={img}")
         ret = {}
         colors = ("blue", "green", "red")
         for i, color in enumerate(colors):
@@ -437,19 +448,28 @@ class BookRecognizer(object):
             ret[color] = color_histogram[:,0].astype("int").tolist()
         return ret
 
-    def predict_text(self, img, east=None, lang="kor"):
+    def predict_text(self, img=None, lang=None, east=None):
+        if img is None:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_test'\nargument:'img'={img}")
+        if lang is None:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_test'\nargument:'lang'={lang}")
         if east is None:
-            return self.ocr(img=img, lang=lang)
+            ret = self.ocr(img=img, lang=lang)
         else:
-            ocr_results = {}
+            ret = []
             text_areas = self.find_text_area(img=img, east_path=east)
             for area in text_areas:
                 x1, x2, y1, y2 = area
-                ocr_results[area] = self.ocr(img=img[y1:y2, x1:x2], lang=lang)
-            return ocr_results
+                ocr_result = self.ocr(img=img[y1:y2, x1:x2], lang=lang)
+                ret.append(ocr_result)
+            ret = " ".join(ret)
+        return ret
 
-    def ocr(self, img, lang="kor"):
-        langs = lang.split("+")
+    def ocr(self, img=None, lang=None):
+        if img is None:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_test'\nargument:'img'={img}")
+        if lang is None:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_test'\nargument:'lang'={lang}")
         ret = {}
         for lang in langs:
             text = pytesseract.image_to_string(img, lang=lang)

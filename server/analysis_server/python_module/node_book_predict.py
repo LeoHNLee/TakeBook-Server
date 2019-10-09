@@ -68,14 +68,14 @@ if __name__ == "__main__":
     # construct the argument parser and parse the arguments
         ap = argparse.ArgumentParser()
         ap.add_argument("-p", "--path", type=str, help="path to input image")
-        ap.add_argument("-t", "--type", type=str, default="local", help="type of input image")
+        ap.add_argument("-t", "--type", type=str, default="url", help="type of input image")
         ap.add_argument("-l", "--language", type=str, default="kor+eng", help="select languge of book cover")
         ap.add_argument("-e", "--east", type=str, help="east algorithm path")
         ap.add_argument("-f", "--feature", type=str, default="image+text", help="select features")
-        ap.add_argument("-io", "--image_option", type=str, default="ORB", help="select features")
+        ap.add_argument("-io", "--image_option", type=str, default="SURF", help="select features")
         args = vars(ap.parse_args())
     except Exception as e:
-        ret = error_returner.get("ArgumentError")
+        ret = error_returner.get("PythonError")
         ret["message"] = str(e)
     else:
         ret = main(args)
