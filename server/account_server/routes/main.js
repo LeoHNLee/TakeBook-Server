@@ -8,7 +8,7 @@ const uuidv4 = require('uuid/v4');
 
 const moment = require('moment-timezone');
 
-const mysql_connetion = require('../bin/mysql_connetion');
+const mysql_pool = require('../bin/mysql_pool');
 const jwt_token = require("../bin/jwt_token");
 const message = require("../bin/message");
 const host = require('../config/host')
@@ -21,12 +21,6 @@ aws.config.region = 'ap-northeast-2';
 let s3 = new aws.S3();
 const user_bucket = 'takebook-user-bucket';
 const image_bucket = 'takebook-book-image';
-
-let logdb = new aws.DynamoDB.DocumentClient();
-const log_table_name = "account_log"
-
-//mysql 연결
-mysql_connetion.connect();
 
 function params_check(params, check_list) {
     // 입력받은 파라미터가 옳바른지 채크
@@ -151,27 +145,56 @@ function update_user_update_date(user_id) {
 
 }
 
-function recode_log(path, method, request, response) {
-    // var params = {
-    //     TableName: log_table_name,
-    //     Item: {
-    //         id: uuidv4(),
-    //         path: path,
-    //         method: method,
-    //         request: request,
-    //         response: response,
-    //         log_date: current_time()
-    //     }
-    // };
+function get_db_query_results(query, values) {
+    if (values) {
+        return new Promise((resolve, reject) => {
 
+            mysql_pool.getConnection((err, conn) => {
+                if (err) {
+                    //db 오류
+                    conn.release();
+                    reject(err)
+                    return;
+                }
 
-    // logdb.put(params, function (err, data) {
-    //     if (err) {
-    //         // console.log("recode_log_fail"); // an error occurred
-    //         console.log(err)
-    //     }
-    //     else console.log("recode_log_success");           // successful response
-    // });
+                conn.query(query, values, (err, results, fields) => {
+                    if (err) {
+                        //db 오류
+                        reject(err)
+                    }
+                    else {
+                        resolve(results)
+                    }
+                    //connection pool 반환
+                    conn.release();
+                })
+            })
+        });
+    } else {
+        return new Promise((resolve, reject) => {
+            mysql_pool.getConnection((err, conn) => {
+                if (err) {
+                    //db 오류
+                    conn.release();
+                    reject(err)
+                }
+
+                conn.query(query, (err, results, fields) => {
+                    if (err) {
+                        //db 오류
+                        reject(err)
+                    }
+                    else {
+                        resolve(results)
+                    }
+                    //connection pool 반환
+                    conn.release();
+                })
+
+            });
+        });
+    }
+
 }
 
 router.post('/CreaateUsers', (req, res) => {
@@ -182,7 +205,6 @@ router.post('/CreaateUsers', (req, res) => {
         response_body.Result_Code = "EC001";
         response_body.Message = "invalid parameter error";
         res.json(response_body)
-        recode_log(req.route.path, req.method, req.body, response_body);
         return;
     }
 
@@ -192,28 +214,26 @@ router.post('/CreaateUsers', (req, res) => {
     let signup_date = current_time();
     let access_state = 0;
 
-    mysql_connetion.query(`insert into user (user_id, pw, name, signup_date, update_date, access_state) 
-                                        values (?,?,?,?,?,?)`, [user_id, user_password, user_name, signup_date, signup_date, access_state], (err, results, fields) => {
-        if (err) {
+    get_db_query_results(`insert into user (user_id, pw, name, signup_date, update_date, access_state) values (?,?,?,?,?,?)`
+        , [user_id, user_password, user_name, signup_date, signup_date, access_state])
+        .then(results => {
+            message.set_result_message(response_body, "RS000");
+            res.json(response_body);
+        })
+        .catch(err => {
             switch (err.code) {
                 case "ER_DUP_ENTRY":
                     //해당 아이디 이미 존제
-                    message.set_result_message(response_body, "RS001", "Same ID already exists")
+                    message.set_result_message(response_body, "RS001", "Same ID already exists");
                     break;
                 default:
                     //데이터 베이스 에러
                     console.log(err)
-                    message.set_result_message(response_body, "ES010")
+                    message.set_result_message(response_body, "ES010");
                     break;
             }
-        }
-        else {
-            //요청 성공
-            message.set_result_message(response_body, "RS000")
-        }
-        res.json(response_body)
-        recode_log(req.route.path, req.method, req.body, response_body);
-    })
+            res.json(response_body)
+        })
 
 });
 
@@ -230,12 +250,8 @@ router.get('/CheckIDExists', (req, res) => {
         return;
     }
 
-    mysql_connetion.query(`select user_id from user where user_id = ?`, [user_id], (err, results, fields) => {
-        if (err) {
-            console.log(err)
-            message.set_result_message(response_body, "ES010")
-        }
-        else {
+    get_db_query_results(`select user_id from user where user_id = ?`, [user_id])
+        .then(results => {
             if (results.length) {
                 //동일 아이디 존제
                 message.set_result_message(response_body, "RS001", "Same ID already exists")
@@ -243,10 +259,12 @@ router.get('/CheckIDExists', (req, res) => {
                 //사용 가능한 아이디
                 message.set_result_message(response_body, "RS000")
             }
-        }
-        recode_log(req.route.path, req.method, req.query, response_body);
-        res.json(response_body)
-    });
+            res.json(response_body)
+        })
+        .catch(err => {
+            message.set_result_message(response_body, "ES010")
+            res.json(response_body)
+        });
 
 });
 
@@ -266,12 +284,8 @@ router.post('/UserLogin', (req, res) => {
         return;
     }
 
-    mysql_connetion.query(`select user_id, pw, name, signup_date, profile_url, update_date from user where user_id = ?`, [user_id], (err, results, fields) => {
-        if (err) {
-            console.log(err);
-            message.set_result_message(response_body, "ES010");
-        }
-        else {
+    get_db_query_results(`select user_id, pw, name, signup_date, profile_url, update_date from user where user_id = ?`, [user_id])
+        .then(results => {
             if (results.length) {
 
                 if (results[0].pw === user_password) {
@@ -294,11 +308,12 @@ router.post('/UserLogin', (req, res) => {
                 // 아이디 불일치.
                 message.set_result_message(response_body, "RS001", "Incorrect User ID");
             }
-        }
-        recode_log(req.route.path, req.method, req.body, response_body);
-        res.json(response_body)
-    })
-
+            res.json(response_body)
+        })
+        .catch(err => {
+            message.set_result_message(response_body, "ES010");
+            res.json(response_body)
+        })
 
 });
 
@@ -313,13 +328,8 @@ router.get('/UserInfo', (req, res) => {
     if (decoded) {
         let user_id = decoded.id;
 
-        mysql_connetion.query(`select user_id, name, signup_date, profile_url, update_date, access_state, state_message from user where user_id = ?`, [user_id], (err, results, fields) => {
-            if (err) {
-                console.log(err)
-                //데이터베이스 오류
-                message.set_result_message(response_body, "ES010")
-            }
-            else {
+        get_db_query_results(`select user_id, name, signup_date, profile_url, update_date, access_state, state_message from user where user_id = ?`, [user_id])
+            .then(results => {
                 //사용자 정보 요청 성공
                 message.set_result_message(response_body, "RS000")
                 response_body.Response = {};
@@ -332,16 +342,18 @@ router.get('/UserInfo', (req, res) => {
                 //날짜 데이터 다듬기
                 response_body.Response.user_info.update_date = trim_date(response_body.Response.user_info.update_date);
                 response_body.Response.user_info.signup_date = trim_date(response_body.Response.user_info.signup_date);
-            }
-            recode_log(req.route.path, req.method, req.query, response_body);
-            res.send(response_body);
-        });
+                res.json(response_body);
+            })
+            .catch(err => {
+                console.log(err)
+                message.set_result_message(response_body, "ES010")
+                res.json(response_body);
+            })
 
     } else {
         //권한 없는 토큰.
         message.set_result_message(response_body, "EC002");
-        recode_log(req.route.path, req.method, req.query, response_body);
-        res.send(response_body);
+        res.json(response_body);
     }
 
 });
@@ -366,26 +378,25 @@ router.put('/UserInfo', (req, res) => {
             return;
         }
 
-        mysql_connetion.query(`update user set state_message = ? where user_id = ?;`, [state_message, user_id], (err, results, fields) => {
-            if (err) {
-                console.log(err)
-                //데이터 베이스 오류
-                message.set_result_message(response_body, "ES010");
-            }
-            else {
+        get_db_query_results(`update user set state_message = ? where user_id = ?;`, [state_message, user_id])
+            .then(results => {
                 //요청 성공
                 message.set_result_message(response_body, "RS000");
                 response_body.Response = {};
                 response_body.Response.state_message = state_message;
-            }
-            recode_log(req.route.path, req.method, req.body, response_body);
-            res.send(response_body);
-        });
+                res.json(response_body);
+            })
+            .catch(err => {
+                console.log(err)
+                //데이터 베이스 오류
+                message.set_result_message(response_body, "ES010");
+                res.json(response_body);
+            });
+
     } else {
         //권한 없는 토큰.
         message.set_result_message(response_body, "EC002");
-        recode_log(req.route.path, req.method, req.body, response_body);
-        res.send(response_body);
+        res.json(response_body);
     }
 });
 
@@ -432,26 +443,24 @@ router.put('/UserProfile', (req, res) => {
                 if (req.file) {
 
                     //정보 수정
-                    mysql_connetion.query(`update user set profile_url = ? where user_id = ?;`, [req.file.location, user_id], (err, results, fields) => {
-                        if (err) {
-                            console.log(err)
-                            //데이터 베이스 오류
-                            message.set_result_message(response_body, "ES010");
-                        }
-                        else {
+                    get_db_query_results(`update user set profile_url = ? where user_id = ?;`, [req.file.location, user_id])
+                        .then(results => {
                             //요청 성공.
                             message.set_result_message(response_body, "RS000");
                             response_body.Response = {};
                             response_body.Response.profile_url = req.file.location;
-                        }
-                        recode_log(req.route.path, req.method, req.body, response_body);
-                        res.send(response_body);
-                    });
+                            res.json(response_body);
+                        })
+                        .catch(err => {
+                            console.log(err)
+                            //데이터 베이스 오류
+                            message.set_result_message(response_body, "ES010");
+                            res.json(response_body);
+                        })
                 }
                 else {
                     //필수 파라미터 누락
                     message.set_result_message(response_body, "EC001");
-                    recode_log(req.route.path, req.method, req.body, response_body);
                     res.json(response_body);
                 }
             }
@@ -460,8 +469,7 @@ router.put('/UserProfile', (req, res) => {
     } else {
         //권한 없는 토큰.
         message.set_result_message(response_body, "EC002");
-        recode_log(req.route.path, req.method, req.body, response_body);
-        res.send(response_body);
+        res.json(response_body);
     }
 });
 
@@ -487,29 +495,26 @@ router.delete('/UserProfile', (req, res) => {
                 //S3 서버 오류
                 message.set_result_message(response_body, "ES013");
                 recode_log(req.route.path, req.method, req.body, response_body);
-                res.send(response_body);
+                res.json(response_body);
             } else {
-                //정보 수정
-                mysql_connetion.query(`update user set profile_url = null where user_id = ?;`, [user_id], (err, results, fields) => {
-                    if (err) {
+                get_db_query_results(`update user set profile_url = null where user_id = ?;`, [user_id])
+                    .then(results => {
+                        //요청 성공.
+                        message.set_result_message(response_body, "RS000");
+                        res.json(response_body);
+                    })
+                    .catch(err => {
                         console.log(err)
                         //데이터 베이스 오류
                         message.set_result_message(response_body, "ES010");
-                    }
-                    else {
-                        //요청 성공.
-                        message.set_result_message(response_body, "RS000");
-                    }
-                    recode_log(req.route.path, req.method, req.body, response_body);
-                    res.send(response_body);
-                });
+                        res.json(response_body);
+                    });
             }
         });
     } else {
         //권한 없는 토큰.
         message.set_result_message(response_body, "EC002");
-        recode_log(req.route.path, req.method, req.body, response_body);
-        res.send(response_body);
+        res.json(response_body);
     }
 });
 
@@ -558,7 +563,7 @@ router.get('/UserBook', (req, res) => {
             //파라미터 값 오류
             message.set_result_message(response_body, "EC001", `${check_result} parameter error`);
             recode_log(req.route.path, req.method, req.query, response_body);
-            res.send(response_body);
+            res.json(response_body);
             return;
         }
 
@@ -566,7 +571,7 @@ router.get('/UserBook', (req, res) => {
             //파라미터 타입 오류
             message.set_result_message(response_body, "EC001", `max_count parameter error`);
             recode_log(req.route.path, req.method, req.query, response_body);
-            res.send(response_body);
+            res.json(response_body);
             return;
         }
 
@@ -582,121 +587,118 @@ router.get('/UserBook', (req, res) => {
             }
         }
 
-        mysql_connetion.query(query, [user_id], (err, results, fields) => {
-            if (err) {
-                console.log(err);
-                //데이터 베이스 오류
-                message.set_result_message(response_body, "ES010");
-                recode_log(req.route.path, req.method, req.query, response_body);
-                res.send(response_body);
-                return;
-            }
+        get_db_query_results(query, [user_id])
+            .then(results => {
+                //책정보
+                let book_list = [];
+                //isbn 리스트
+                let isbn_list = new Set(); // 중복제거
+                for (let result in results) {
+                    results[result].registration_date = trim_date(results[result].registration_date);
+                    book_list.push(results[result]);
 
-            //책정보
-            let book_list = [];
-            //isbn 리스트
-            let isbn_list = new Set(); // 중복제거
-            for (let result in results) {
-                results[result].registration_date = trim_date(results[result].registration_date);
-                book_list.push(results[result]);
-
-                isbn_list.add(results[result].isbn);
-            }
-
-            isbn_list = Array.from(isbn_list)
-
-            //책이 없는 경우.
-            if (!(isbn_list.length)) {
-                message.set_result_message(response_body, "RS000");
-                response_body.Response = {
-                    count: 0,
-                    item: []
-                };
-                recode_log(req.route.path, req.method, req.query, response_body);
-                res.json(response_body);
-                return;
-            }
-
-            let qs = {
-                keyword,
-                category,
-                sort_key,
-                sort_method
-            }
-
-            //book 정보 가져오기
-            let internal_server_request_form = {
-                method: 'GET',
-                uri: `${host.internal_server}/UserBook`,
-                qs: {
-                    isbn_list: isbn_list
-                },
-                json: true
-            }
-
-            //url 값 담기
-            for(let i in qs){
-                if(qs[i]){
-                    internal_server_request_form.qs[i] = qs[i];
+                    isbn_list.add(results[result].isbn);
                 }
-            }
 
-            if (sort_key === "registration_date") {
-                internal_server_request_form.qs.sort_key = null;
-            }
+                isbn_list = Array.from(isbn_list)
 
-            //도서 정보 요청
-            request.get(internal_server_request_form, (err, httpResponse, response) => {
-                if (err) {
-                    //내부 서버 오류
-                    message.set_result_message(response_body, "ES004");
+                //책이 없는 경우.
+                if (!(isbn_list.length)) {
+                    message.set_result_message(response_body, "RS000");
+                    response_body.Response = {
+                        count: 0,
+                        item: []
+                    };
                     recode_log(req.route.path, req.method, req.query, response_body);
-                    res.send(response_body);
+                    res.json(response_body);
                     return;
                 }
 
-                switch (response.Result_Code) {
-                    case "RS000": {
-                        let book_join_list = [];
+                let qs = {
+                    keyword,
+                    category,
+                    sort_key,
+                    sort_method
+                }
 
-                        if (sort_key === "registration_date") {
-                            // isbn을 통한 join
-                            // registration_date 인경우 예외처리.
-                            book_join_list = injoin_json_list("isbn", book_list, response.Response.item);
-                        } else {
-                            // isbn을 통한 join
-                            book_join_list = outjoin_json_list("isbn", response.Response.item, book_list);
+                //book 정보 가져오기
+                let internal_server_request_form = {
+                    method: 'GET',
+                    uri: `${host.internal_server}/UserBook`,
+                    qs: {
+                        isbn_list: isbn_list
+                    },
+                    json: true
+                }
 
-                            if (max_count) {
-                                book_join_list = book_join_list.slice(0, max_count)
-                            }
-                        }
-
-                        //요청 성공.
-                        message.set_result_message(response_body, "RS000");
-                        response_body.Response = {
-                            count: book_join_list.length,
-                            item: book_join_list
-                        };
-                        break;
-                    }
-                    case "ES002":
-                    case "ES011": {
-                        message.set_result_message(response_body, response.Result_Code);
-                        break;
+                //url 값 담기
+                for (let i in qs) {
+                    if (qs[i]) {
+                        internal_server_request_form.qs[i] = qs[i];
                     }
                 }
-                recode_log(req.route.path, req.method, req.query, response_body);
-                res.json(response_body)
-            })
 
-        });
+                if (sort_key === "registration_date") {
+                    internal_server_request_form.qs.sort_key = null;
+                }
+
+                //도서 정보 요청
+                request.get(internal_server_request_form, (err, httpResponse, response) => {
+                    if (err) {
+                        //내부 서버 오류
+                        message.set_result_message(response_body, "ES004");
+                        recode_log(req.route.path, req.method, req.query, response_body);
+                        res.json(response_body);
+                        return;
+                    }
+
+                    switch (response.Result_Code) {
+                        case "RS000": {
+                            let book_join_list = [];
+
+                            if (sort_key === "registration_date") {
+                                // isbn을 통한 join
+                                // registration_date 인경우 예외처리.
+                                book_join_list = injoin_json_list("isbn", book_list, response.Response.item);
+                            } else {
+                                // isbn을 통한 join
+                                book_join_list = outjoin_json_list("isbn", response.Response.item, book_list);
+
+                                if (max_count) {
+                                    book_join_list = book_join_list.slice(0, max_count)
+                                }
+                            }
+
+                            //요청 성공.
+                            message.set_result_message(response_body, "RS000");
+                            response_body.Response = {
+                                count: book_join_list.length,
+                                item: book_join_list
+                            };
+                            break;
+                        }
+                        case "ES002":
+                        case "ES011": {
+                            message.set_result_message(response_body, response.Result_Code);
+                            break;
+                        }
+                    }
+
+                    res.json(response_body)
+                })
+            })
+            .catch(err => {
+                console.log(err);
+                //데이터 베이스 오류
+                message.set_result_message(response_body, "ES010");
+                res.json(response_body);
+                return;
+            })
 
     } else {
         //권한 없는 토큰.
         message.set_result_message(response_body, "EC002");
-        recode_log(req.route.path, req.method, req.query, response_body);
-        res.send(response_body);
+        res.json(response_body);
     }
 });
 
@@ -777,27 +779,20 @@ router.post('/UserBook', (req, res) => {
             let book_id = create_key(user_id);
 
             //책 저장.
-            await new Promise((resolve, reject) => {
+            await get_db_query_results(`insert into registered_book(book_id ,user_id,isbn, registration_date, bookmark) values(?, ?, ?, ?, ?);`,
+                [book_id, user_id, isbn, current_time(), bookmark])
+                .then(results => {
+                    message.set_result_message(response_body, "RS000");
+                    update_user_update_date(user_id);
+                })
+                .catch(err => {
+                    message.set_result_message(response_body, "ES010");
 
-                mysql_connetion.query(`insert into registered_book(book_id ,user_id,isbn, registration_date, bookmark) values(?, ?, ?, ?, ?);`,
-                    [book_id, user_id, isbn, current_time(), bookmark], (err, results, fields) => {
-                        if (err) {
-                            reject("ES010");
-                        } else {
-                            //등록 성공
-                            resolve("RS000");
-                        }
-                    });
+                });
 
-            }).then(results => {
-                message.set_result_message(response_body, results);
-                update_user_update_date(user_id);
-            }).catch(err_code => {
-                message.set_result_message(response_body, err_code);
-            });
-
-            recode_log(req.route.path, req.method, req.body, response_body);
             res.json(response_body);
+
+
 
         })(); //async exit
 
@@ -805,8 +800,7 @@ router.post('/UserBook', (req, res) => {
     } else {
         //권한 없는 토큰.
         message.set_result_message(response_body, "EC002");
-        recode_log(req.route.path, req.method, req.body, response_body);
-        res.send(response_body);
+        res.json(response_body);
     }
 });
 
@@ -827,7 +821,7 @@ router.put('/UserBook', (req, res) => {
             //파라미터 타입 오류 및 누락
             message.set_result_message(response_body, "EC001");
             recode_log(req.route.path, req.method, req.body, response_body);
-            res.send(response_body);
+            res.json(response_body);
             return;
         }
 
@@ -835,42 +829,23 @@ router.put('/UserBook', (req, res) => {
 
             let book_id_check_result = null;
 
-            //사용자 책이 등록되어 있는지 확인.
-            await new Promise((resolve, reject) => {
-
-                mysql_connetion.query(`select book_id from registered_book where user_id = ? and book_id = ?`, [user_id, book_id], (err, results, fields) => {
-                    if (err) {
-                        //User DB 서버 오류
-                        reject("ES010");
+            await get_db_query_results(`select book_id from registered_book where user_id = ? and book_id = ?`, [user_id, book_id])
+                .then(results => {
+                    if (results.length) {
+                        //해당 책번호 존제
+                        book_id_check_result = true;
                     } else {
-                        if (results.length) {
-                            //해당 책번호 존제
-                            resolve("success");
-                        } else {
-                            //일치하는 책 없음.
-                            reject("EC005");
-                        }
+                        //일치하는 책 없음.
+                        message.set_result_message(response_body, "EC005");
                     }
+                })
+                .catch(err => {
+                    message.set_result_message(response_body, "ES010");
+                })
 
-                });
-            }).then(result => {
-                book_id_check_result = true;
-            }).catch(error_code => {
-                switch (error_code) {
-                    case "EC005": {
-                        message.set_result_message(response_body, "EC005", "Not Exist book_id Parameter Info");
-                        break;
-                    }
-                    default: {
-                        message.set_result_message(response_body, error_code);
-                        break;
-                    }
-                }
-            });
 
             if (!book_id_check_result) {
                 console.log("book_id check error");
-                recode_log(req.route.path, req.method, req.body, response_body);
                 res.json(response_body);
                 return;
             }
@@ -930,23 +905,16 @@ router.put('/UserBook', (req, res) => {
                 return;
             }
 
+
             //책 정보 수정
-            await new Promise((resolve, reject) => {
-                let query = `update registered_book set isbn = ?, second_candidate = null, third_candidate = null, fourth_candidate = null, fifth_candidate = null where user_id = ? and book_id = ? `
-                mysql_connetion.query(query, [modify_isbn, user_id, book_id], (err, results, fields) => {
-                    if (err) {
-                        reject("ES010");
-                    } else {
-                        resolve("RS000");
-                    }
+            let query = `update registered_book set isbn = ?, second_candidate = null, third_candidate = null, fourth_candidate = null, fifth_candidate = null where user_id = ? and book_id = ? `
+            await get_db_query_results(query, [modify_isbn, user_id, book_id])
+                .then(results => {
+                    message.set_result_message(response_body, "ES010");
                 })
-            }).then(result => {
-                message.set_result_message(response_body, result);
-                update_user_update_date(user_id);
-            }).catch(error_code => {
-                message.set_result_message(response_body, error_code);
-            });
-            recode_log(req.route.path, req.method, req.body, response_body);
+                .catch(err => {
+                    message.set_result_message(response_body, "RS000");
+                })
             res.json(response_body);
 
         })(); // aysnc exit
@@ -954,8 +922,7 @@ router.put('/UserBook', (req, res) => {
     } else {
         //권한 없는 토큰.
         message.set_result_message(response_body, "EC002");
-        recode_log(req.route.path, req.method, req.body, response_body);
-        res.send(response_body);
+        res.json(response_body);
     }
 });
 
@@ -974,20 +941,14 @@ router.delete('/UserBook', (req, res) => {
         if (!book_id) {
             //파라미터 타입 오류 및 누락
             message.set_result_message(response_body, "EC001", `book_id parameter error`);
-            recode_log(req.route.path, req.method, req.body, response_body);
-            res.send(response_body);
+            res.json(response_body);
             return;
         }
 
-        mysql_connetion.query(`delete from registered_book where user_id = ? and book_id = ?`, [user_id, book_id], (err, results, fields) => {
-            if (err) {
-                //User DB 서버 오류
-                result_code = "ES010";
-                message.set_result_message(response_body, "ES010");
-            } else {
+        get_db_query_results(`delete from registered_book where user_id = ? and book_id = ?`, [user_id, book_id])
+            .then(results => {
                 if (results.affectedRows) {
                     //해당 책번호 존재
-                    result_code = "RS000";
                     message.set_result_message(response_body, "RS000");
                     update_user_update_date(user_id);
                 } else {
@@ -995,16 +956,18 @@ router.delete('/UserBook', (req, res) => {
                     result_code = "EC005";
                     message.set_result_message(response_body, "EC005", "Not Exist book_id Parameter Info");
                 }
-            }
-            recode_log(req.route.path, req.method, req.body, response_body);
-            res.send(response_body);
-        });
+                res.json(response_body);
+            })
+            .catch(err => {
+                //User DB 서버 오류
+                message.set_result_message(response_body, "ES010");
+                res.json(response_body);
+            })
 
     } else {
         //권한 없는 토큰.
         message.set_result_message(response_body, "EC002");
-        recode_log(req.route.path, req.method, req.body, response_body);
-        res.send(response_body);
+        res.json(response_body);
     }
 });
 
@@ -1058,8 +1021,44 @@ router.post('/AnalyzeImage', (req, res) => {
 
             let image_url = req.file.location;
 
-            mysql_connetion.query(`insert into registered_image values (?, ?, ?, ?, ?)`, [image_id, user_id, registration_date, image_url, 0], (err, results, fields) => {
-                if (err) {
+            let query = `insert into registered_image values (?, ?, ?, ?, ?)`;
+            get_db_query_results(query, [image_id, user_id, registration_date, image_url, 0])
+                .then(results => {
+                    message.set_result_message(response_body, "RS000");
+
+                    res.json(response_body);
+
+                    //이미지 분석 요청.
+                    let internal_server_request_form = {
+                        method: 'GET',
+                        uri: `${host.internal_server}/AnalyzeImage`,
+                        qs: {
+                            image_id: image_id,
+                            user_id: user_id,
+                            image_url: req.file.location
+                        },
+                        json: true
+                    }
+
+                    request.get(internal_server_request_form, (err, httpResponse, response) => {
+                        if (err) {
+                            console.log("internal server error.")
+                            mysql_connetion.query(`update registered_image set state = ? where user_id = ? and image_id = ?;`,
+                                [1, user_id, image_id], (err, results, fields) => {
+                                    if (err) {
+                                        //User DB 서버 오류
+                                        console.log("update registered image state fail")
+                                    } else {
+                                        //정보 수정 성공.
+                                        console.log("update registered image state success!")
+                                    }
+                                });
+                            return;
+                        }
+                        console.log(response)
+                    });
+                })
+                .catch(err => {
                     //user db 오류
                     console.log(err)
                     message.set_result_message(response_body, "ES010");
@@ -1075,57 +1074,15 @@ router.post('/AnalyzeImage', (req, res) => {
                             console.log("s3 file delete error");
                             message.set_result_message(response_body, "ES013");
                         }
-                        recode_log(req.route.path, req.method, req.body, response_body);
                         res.json(response_body);
                     });
-
-                    return;
-                }
-
-                message.set_result_message(response_body, "RS000");
-
-                recode_log(req.route.path, req.method, req.body, response_body);
-                res.json(response_body);
-
-                //이미지 분석 요청.
-                let internal_server_request_form = {
-                    method: 'GET',
-                    uri: `${host.internal_server}/AnalyzeImage`,
-                    qs: {
-                        image_id: image_id,
-                        user_id: user_id,
-                        image_url: req.file.location
-                    },
-                    json: true
-                }
-
-                request.get(internal_server_request_form, (err, httpResponse, response) => {
-                    if(err){
-                        console.log("internal server error.")
-                        mysql_connetion.query(`update registered_image set state = ? where user_id = ? and image_id = ?;`,
-                        [1, user_id, image_id], (err, results, fields) => {
-                            if (err) {
-                                //User DB 서버 오류
-                                console.log("update registered image state fail")
-                            } else {
-                                //정보 수정 성공.
-                                console.log("update registered image state success!")
-                            }
-                        });
-                        return;
-                    }
-                    console.log(response)
-                });
-
-                
-            });
+                })
 
         })
     } else {
         //권한 없는 토큰.
         message.set_result_message(response_body, "EC002");
-        recode_log(req.route.path, req.method, req.body, response_body);
-        res.send(response_body);
+        res.json(response_body);
     }
 });
 
@@ -1140,11 +1097,9 @@ router.get('/ImageList', (req, res) => {
     if (decoded) {
         let user_id = decoded.id;
 
-        mysql_connetion.query(`select image_id, registration_date, image_url, state from registered_image where user_id = ?`, [user_id], (err, results, fields) => {
-            if (err) {
-                //User DB 서버 오류
-                message.set_result_message(response_body, "ES010");
-            } else {
+        let query = `select image_id, registration_date, image_url, state from registered_image where user_id = ?`
+        get_db_query_results(query, [user_id])
+            .then(results => {
                 message.set_result_message(response_body, "RS000");
                 response_body.Response = {
                     count: results.length,
@@ -1155,17 +1110,18 @@ router.get('/ImageList', (req, res) => {
                     results[i]["registration_date"] = trim_date(results[i]["registration_date"])
                     response_body.Response.item.push(results[i]);
                 }
-            }
-            recode_log(req.route.path, req.method, req.query, response_body);
-            res.json(response_body)
-
-        });
+                res.json(response_body)
+            })
+            .catch(err => {
+                //User DB 서버 오류
+                message.set_result_message(response_body, "ES010");
+                res.json(response_body)
+            })
 
     } else {
         //권한 없는 토큰.
         message.set_result_message(response_body, "EC002");
-        recode_log(req.route.path, req.method, req.query, response_body);
-        res.send(response_body);
+        res.json(response_body);
     }
 });
 
@@ -1184,35 +1140,32 @@ router.delete('/ImageList', (req, res) => {
         if (!image_id) {
             //필수 파라미터 누락
             message.set_result_message(response_body, "EC001");
-            recode_log(req.route.path, req.method, req.body, response_body);
-            res.send(response_body);
+            res.json(response_body);
             return;
         }
 
-        mysql_connetion.query(`delete from registered_image where user_id = ? and image_id = ?`, [user_id, image_id], (err, results, fields) => {
-            let result_code = null;
-            if (err) {
-                //User DB 서버 오류
-                console.log(err)
-                result_code = "ES010";
-            } else {
+        let query = `delete from registered_image where user_id = ? and image_id = ?`;
+        get_db_query_results(query, [user_id, image_id])
+            .then(results => {
                 if (results.affectedRows) {
                     result_code = "RS000";
                 } else {
                     result_code = "EC005";
                 }
-            }
-            message.set_result_message(response_body, result_code);
-            recode_log(req.route.path, req.method, req.body, response_body);
-            res.json(response_body)
-
-        });
+                message.set_result_message(response_body, result_code);
+                res.json(response_body)
+            })
+            .catch(err => {
+                //User DB 서버 오류
+                console.log(err)
+                message.set_result_message(response_body, "ES010");
+                res.json(response_body)
+            })
 
     } else {
         //권한 없는 토큰.
         message.set_result_message(response_body, "EC002");
-        recode_log(req.route.path, req.method, req.body, response_body);
-        res.send(response_body);
+        res.json(response_body);
     }
 });
 
@@ -1237,22 +1190,14 @@ router.post('/AddUserBook', (req, res) => {
             let registration_date = current_time();
             let book_id = create_key(user_id, registration_date)
 
-            await new Promise((resolve, reject) => {
-                mysql_connetion.query(`insert into registered_book values (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-                    [book_id, user_id, registration_date, bookmark, isbn, second_candidate, third_candidate, fourth_candidate, fifth_candidate], (err, results, fields) => {
-                        if (err) {
-                            reject("ES010");
-                        } else {
-                            //등록 성공
-                            resolve("RS000");
-                        }
-                    });
-            }).then(results => {
-                message.set_result_message(response_body, results);
-            }).catch(err_code => {
-                message.set_result_message(response_body, err_code);
-            });;
-
+            let query = `insert into registered_book values (?, ?, ?, ?, ?, ?, ?, ?, ?);`;
+            await get_db_query_results(query, [book_id, user_id, registration_date, bookmark, isbn, second_candidate, third_candidate, fourth_candidate, fifth_candidate])
+                .then(results => {
+                    message.set_result_message(response_body, "RS000");
+                })
+                .catch(err => {
+                    message.set_result_message(response_body, "ES010");
+                })
             res.json(response_body);
 
         })();
@@ -1260,7 +1205,6 @@ router.post('/AddUserBook', (req, res) => {
     } else {
         //필수 파라미터 누락
         message.set_result_message(response_body, "EC001");
-        recode_log(req.route.path, req.method, req.body, response_body);
         res.json(response_body);
     }
 
@@ -1277,24 +1221,19 @@ router.put('/RegisteredImage', (req, res) => {
     if (!user_id || !image_id) {
         //필수 파라미터 누락
         message.set_result_message(response_body, "EC001");
-        recode_log(req.route.path, req.method, req.body, response_body);
         res.json(response_body);
     }
 
-    mysql_connetion.query(`update registered_image set state = ? where user_id = ? and image_id = ?;`,
-        [1, user_id, image_id], (err, results, fields) => {
-            let result_code = "";
-            if (err) {
-                //User DB 서버 오류
-                result_code = "ES010";
-            } else {
-                //등록 성공
-                result_code = "RS000";
-            }
-            message.set_result_message(response_body, result_code);
-            recode_log(req.route.path, req.method, req.body, response_body);
+    let query = `update registered_image set state = ? where user_id = ? and image_id = ?;`;
+    get_db_query_results(query, [1, user_id, image_id])
+        .then(results=>{
+            message.set_result_message(response_body, "RS000");
             res.json(response_body);
-        });
+        })
+        .catch(err=>{
+            message.set_result_message(response_body, "ES010");
+            res.json(response_body);
+        })
 
 });
 
@@ -1309,25 +1248,20 @@ router.delete('/RegisteredImage', (req, res) => {
     if (user_id && image_id) {
 
         // delete from user where id
-        mysql_connetion.query(`delete from registered_image where user_id = ? and image_id = ?;`,
-            [user_id, image_id], (err, results, fields) => {
-                let result_code = "";
-                if (err) {
-                    //User DB 서버 오류
-                    result_code = "ES010";
-                } else {
-                    //등록 성공
-                    result_code = "RS000";
-                }
-                message.set_result_message(response_body, result_code);
-                recode_log(req.route.path, req.method, req.body, response_body);
+        let query = `delete from registered_image where user_id = ? and image_id = ?;`;
+        get_db_query_results(query, [user_id, image_id])
+            .then(results=>{
+                message.set_result_message(response_body, "RS000");
                 res.json(response_body);
-            });
+            })
+            .catch(err=>{
+                message.set_result_message(response_body, "ES010");
+                res.json(response_body);
+            }) 
 
     } else {
         //필수 파라미터 누락
         message.set_result_message(response_body, "EC001");
-        recode_log(req.route.path, req.method, req.body, response_body);
         res.json(response_body);
     }
 
