@@ -5,45 +5,71 @@ const aws = require('aws-sdk');
 const uuidv4 = require('uuid/v4');
 const moment = require('moment-timezone');
 
-const mysql_connetion = require('../bin/mysql_connetion');
+const mysql_pool = require('../bin/mysql_pool');
 const message = require('../bin/message');
 const host = require('../config/host');
 
 const router = express.Router();
-
-//aws region 설정, s3설정
-aws.config.region = 'ap-northeast-2';
-const logdb = new aws.DynamoDB.DocumentClient();
-const log_table_name = "book_log"
 
 //현재시간 표시
 function current_time() {
     return moment().tz("Asia/Seoul").format('YYYY-MM-DD HH:mm:ss');
 }
 
-//로그 데이터 저장.
-function recode_log(path, method, request, response) {
+function get_db_query_results(query, values){
+    if(values){
+        return new Promise((resolve, reject)=>{
 
-    // var params = {
-    //     TableName: log_table_name,
-    //     Item: {
-    //         id: uuidv4(),
-    //         path: path,
-    //         method: method,
-    //         request: request,
-    //         response: response,
-    //         log_date: current_time()
-    //     }
-    // };
+            mysql_pool.getConnection((err, conn)=>{
+                if(err){
+                    //db 오류
+                    console.log(err)
+                    conn.release();
+                    reject("ES011")
+                    return;
+                }
 
+                conn.query(query, values, (err, results, fields) => {
+                    if (err) {
+                        //db 오류
+                        console.log(err)
+                        reject("ES011")
+                    }
+                    else {
+                        resolve(results)
+                    }
+                    //connection pool 반환
+                    conn.release();
+                })
+            })
+        });
+    }else{
+        return new Promise((resolve, reject)=>{
+            mysql_pool.getConnection((err, conn)=>{
+                if(err){
+                    //db 오류
+                    console.log(err)
+                    conn.release();
+                    reject("ES011")
+                }
 
-    // logdb.put(params, function (err, data) {
-    //     if (err) {
-    //         // console.log("recode_log_fail"); // an error occurred
-    //         console.log(err)
-    //     }
-    //     else console.log("recode_log_success");           // successful response
-    // });
+                conn.query(query, (err, results, fields) => {
+                    if (err) {
+                        //db 오류
+                        console.log(err)
+                        reject("ES011")
+                    }   
+                    else {
+                        resolve(results)
+                    }
+                    //connection pool 반환
+                    conn.release();
+                })
+
+            });
+        });
+    }
+    
 }
 
 
@@ -56,37 +82,30 @@ router.get('/Detail', (req, res) => {
     if (!isbn) {
         //필수 파라미터 누락
         message.set_result_message(response_body, "EC001");
-        recode_log(req.route.path, req.method, req.query, response_body);
         res.json(response_body)
         return;
     }
 
     let query = `SELECT * FROM book WHERE isbn=${isbn};`;
 
-    mysql_connetion.query(query, (err, results, fields) => {
-        if (err) {
-            //db 오류
-            console.log(err)
-            message.set_result_message(response_body, "ES011");
+    get_db_query_results(query).then(results=>{
+        if (results.length) {
+            message.set_result_message(response_body, "RS000");
+            response_body.Response = {};
+
+            for (let key in results[0]) {
+                response_body.Response[key] = results[0][key];
+            }
         }
         else {
-            if (results.length) {
-                message.set_result_message(response_body, "RS000");
-                response_body.Response = {};
-
-                for (let key in results[0]) {
-                    response_body.Response[key] = results[0][key];
-                }
-
-            }
-            else {
-                // 일치하는 isbn 없음.
-                message.set_result_message(response_body, "EC005");
-            }
+            // 일치하는 isbn 없음.
+            message.set_result_message(response_body, "EC005");
         }
-        recode_log(req.route.path, req.method, req.query, response_body);
         res.send(response_body)
-    })
+    }).catch(err_code=>{
+        message.set_result_message(response_body, err_code);
+        res.send(response_body)
+    });
 
 });
 
@@ -129,35 +148,6 @@ router.get('/List', (req, res) => {
     }
     res.send(query)
 
-    // database.query(query, (err, results, fields) => {
-
-    //     if (err) {
-    //         //db 오류
-    //         console.log(err)
-    //         response_body.Result_Code = "ES011";
-    //         response_body.Message = "Book DataBase Server Error";
-    //     }
-    //     else{
-    //         if (results.length) {
-
-    //             response_body.Result_Code = "RS000";
-    //             response_body.Message = "Response Success";
-    //             response_body.Response = {};
-
-    //             for (let key in results[0]) {
-    //                 response_body.Response[key] = results[0][key];
-    //             }
-
-    //         }
-    //         else{
-    //             // 일치하는 isbn 없음.
-    //             response_body.Result_Code = "EC005";
-    //             response_body.Message = "Not Exist Parameter Info";
-    //         }
-    //     }
-    //     res.send(response_body)
-
-    // })
 
 });
 
@@ -173,7 +163,6 @@ router.get('/SearchInISBN', (req, res) => {
     if (!isbn_list) {
         //필수 파라미터 누락
         message.set_result_message(response_body, "EC001");
-        recode_log(req.route.path, req.method, req.query, response_body);
         res.json(response_body)
         return;
     }
@@ -203,29 +192,21 @@ router.get('/SearchInISBN', (req, res) => {
 
     query += `order by ${sort_key} ${sort_method} `
 
-    mysql_connetion.query(query, (err, results, fields) => {
+    get_db_query_results(query).then(results =>{
+        response_body.Response = {
+            count: results.length,
+            item: []
+        };
 
-        if (err) {
-            //db 오류
-            console.log(err)
-            message.set_result_message(response_body, "ES011");
+        for (let i in results) {
+            response_body.Response.item.push(results[i])
         }
-        else {
-            message.set_result_message(response_body, "RS000");
-            response_body.Response = {
-                count: results.length,
-                item: []
-            };
-
-            for (let i in results) {
-                response_body.Response.item.push(results[i])
-            }
-
-        }
-        recode_log(req.route.path, req.method, req.query, response_body);
+        message.set_result_message(response_body, "RS000");
         res.send(response_body)
-
-    })
+    }).catch(err_code=>{
+        message.set_result_message(response_body, err_code);
+        res.send(response_body)
+    });
 
 });
 
@@ -237,36 +218,31 @@ router.get('/CheckISBNExists', (req, res) => {
 
     if (isbn) {
         let query = `select isbn from book where isbn = ?;`;
-        mysql_connetion.query(query, [isbn], (err, results, fields) => {
+
+        get_db_query_results(query, [isbn]).then(results=>{
             let result_code = "";
-            if (err) {
-                //db 오류
-                console.log(err)
-                result_code = "ES011";
-            }
-            else {
-                if (results.length) {
-                    //동일 isbn 존제
-                    result_code = "RS000";
-                } else {
-                    //사용 가능한 아이디
-                    result_code = "EC005";
-                }
+
+            if (results.length) {
+                //동일 isbn 존제
+                result_code = "RS000";
+            } else {
+                //사용 가능한 아이디
+                result_code = "EC005";
             }
             message.set_result_message(response_body, result_code);
-            recode_log(req.route.path, req.method, req.query, response_body);
             res.send(response_body)
-        })
+
+        }).catch(err_code=>{
+            message.set_result_message(response_body, err_code);
+            res.send(response_body)
+        });
+
     } else {
         //필수 파라미터 누락
         message.set_result_message(response_body, "EC001");
-        recode_log(req.route.path, req.method, req.query, response_body);
         res.json(response_body)
     }
 
 });
-
-
-
 
 module.exports = router;

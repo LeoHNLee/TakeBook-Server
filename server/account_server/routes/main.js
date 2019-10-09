@@ -1084,7 +1084,10 @@ router.post('/AnalyzeImage', (req, res) => {
 
                 message.set_result_message(response_body, "RS000");
 
-                //book 정보 가져오기
+                recode_log(req.route.path, req.method, req.body, response_body);
+                res.json(response_body);
+
+                //이미지 분석 요청.
                 let internal_server_request_form = {
                     method: 'GET',
                     uri: `${host.internal_server}/AnalyzeImage`,
@@ -1097,11 +1100,24 @@ router.post('/AnalyzeImage', (req, res) => {
                 }
 
                 request.get(internal_server_request_form, (err, httpResponse, response) => {
+                    if(err){
+                        console.log("internal server error.")
+                        mysql_connetion.query(`update registered_image set state = ? where user_id = ? and image_id = ?;`,
+                        [1, user_id, image_id], (err, results, fields) => {
+                            if (err) {
+                                //User DB 서버 오류
+                                console.log("update registered image state fail")
+                            } else {
+                                //정보 수정 성공.
+                                console.log("update registered image state success!")
+                            }
+                        });
+                        return;
+                    }
                     console.log(response)
                 });
 
-                recode_log(req.route.path, req.method, req.body, response_body);
-                res.json(response_body);
+                
             });
 
         })

@@ -195,7 +195,7 @@ router.get('/AnalyzeImage', (req, res) => {
         let analysis_result = null;
 
         await new Promise((resolve, reject) => {
-            //book 정보 가져오기
+            //책 특성 추출
             let analysis_server_request_form = {
                 method: 'GET',
                 uri: `${host.analysis_server}/UrlAnalyze`,
@@ -205,7 +205,7 @@ router.get('/AnalyzeImage', (req, res) => {
                 json: true
             }
 
-            //도서 정보 요청
+            //특성 추출 요청
             request.get(analysis_server_request_form, (err, httpResponse, response) => {
                 if (err) {
                     //내부 서버 오류
@@ -233,7 +233,7 @@ router.get('/AnalyzeImage', (req, res) => {
 
         if (!analysis_result) {
             //분석 실패
-            console.log("analysis fail");
+            console.log("book feature analysis fail");
             update_registered_image_state();
             recode_log(req.route.path, req.method, req.query, response_body);
             res.json(response_body);
@@ -247,6 +247,7 @@ router.get('/AnalyzeImage', (req, res) => {
         //특성 분석이 성공한 경우에만 매칭 실시
         await new Promise((resolve, reject) => {
 
+            //특성 매칭 요청
             let es_server_request_form = {
                 method: 'POST',
                 uri: `${host.es_server}/SeacrhFeature`,
@@ -261,7 +262,7 @@ router.get('/AnalyzeImage', (req, res) => {
             request.post(es_server_request_form, (err, httpResponse, response) => {
                 if (err) {
                     //내부 서버 오류
-                    reject("ES001")
+                    reject("ES003")
                     return;
                 }
                 resolve(response)
@@ -281,10 +282,8 @@ router.get('/AnalyzeImage', (req, res) => {
             }
         }).catch(error_code => {
             switch (error_code) {
-                case "EC001": //필수 파라미터 누락
-                case "ES012": {//es 데이터 서버 오류
-                    message.set_result_message(response_body, "ES002");
-                    break;
+                case "EC003":{
+                    message.set_result_message(response_body, "ES003");
                 }
                 default: {
                     //무슨 에러인지 모른경우.
@@ -433,14 +432,15 @@ router.get('/AnalyzeImage', (req, res) => {
                     reject(err)
                     //S3 서버 오류
                 } else {
+                    console.log("s3 delete image success")
                     resolve("success")
                 }
             });
         }).catch(err => {
+            console.log("s3 delete image fail")
             console.log(err)
         });
 
-        console.log("success")
         recode_log(req.route.path, req.method, req.query, response_body);
         res.json(response_body);
 
