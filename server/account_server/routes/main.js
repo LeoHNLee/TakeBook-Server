@@ -4,11 +4,8 @@ const request = require('request');
 const multer = require('multer');
 const multers3 = require('multer-s3');
 const aws = require('aws-sdk');
-const uuidv4 = require('uuid/v4');
 
-const moment = require('moment-timezone');
-
-const mysql_pool = require('../bin/mysql_pool');
+const method = require('../bin/Method');
 const jwt_token = require("../bin/jwt_token");
 const message = require("../bin/message");
 const host = require('../config/host')
@@ -22,182 +19,7 @@ let s3 = new aws.S3();
 const user_bucket = 'takebook-user-bucket';
 const image_bucket = 'takebook-book-image';
 
-function params_check(params, check_list) {
-    // 입력받은 파라미터가 옳바른지 채크
-    // @ param params: 채크하려는 파라미터
-    // @ param check_list: 채크하려는 정보.
-    // @ return 문제가 있는 param
-
-    let result = null;
-
-    for (let param in params) {
-        if (params[param]) {
-            if (!check_list[param].includes(params[param])) {
-                result = param;
-                break;
-            }
-        }
-    }
-
-    return result;
-}
-
-function isnumber(value) {
-    // value 값이 숫자인지 아닌지 채크
-    // @ param value: 채크하려는 string 값
-    // @ return 숫자이면 true, 아니면 false
-
-    value += ''; // 문자열로 변환
-    value = value.replace(/^\s*|\s*$/g, ''); // 좌우 공백 제거
-    if (value == '' || isNaN(value)) return false;
-    return true;
-}
-
-function trim_date(datetime) {
-    //mysql에서 나온 datetime를 다듬는다.
-    // @ param datetime: 다듬으려는 datetime값
-    // @ return 수정된 값.
-
-    let trim_text = datetime.toISOString().slice(0, 19).replace('T', ' ');
-    return trim_text;
-}
-
-function current_time() {
-    //현재시간 표시
-    return moment().tz("Asia/Seoul").format('YYYY-MM-DD HH:mm:ss:SSS');
-}
-
-function email_parser(user_id) {
-    let text = user_id;
-
-    if (text.indexOf('@') !== -1) {
-        text = text.substring(0, text.indexOf('@'))
-    }
-    return text;
-}
-
-function create_key(user_id, datetime) {
-    //replaceAll prototype 선언
-    String.prototype.replaceAll = function (org, dest) {
-        return this.split(org).join(dest);
-    }
-
-    let time = null;
-    if (datetime) {
-        time = datetime;
-        let replace_list = ['-', ' ', ':'];
-        for (let i in replace_list) {
-            time = time.replaceAll(replace_list[i], '');
-        }
-
-    } else {
-        time = moment().tz("Asia/Seoul").format('YYYYMMDDHHmmssSSS');
-    }
-
-    let key = `${email_parser(user_id)}-${time}`;
-    return key;
-}
-
-function injoin_json_list(join_key, list1, list2) {
-
-    let join_list = [];
-    for (let i in list1) {
-        // if (list2.find(item => item[join_key] == list1[i][join_key])) {
-        //     let result = Object.assign({}, list1[i], list2.find(item => item[join_key] == list1[i][join_key]))
-        //     join_list.push(result)
-        // }
-        let result = Object.assign({}, list1[i], list2.find(item => item[join_key] == list1[i][join_key]))
-        join_list.push(result)
-    }
-
-    return join_list;
-}
-
-function outjoin_json_list(join_key, list1, list2) {
-
-    let join_list = [];
-    for (let i in list1) {
-        while (true) {
-            let find_index = list2.findIndex(item => item[join_key] == list1[i][join_key])
-            if (find_index === -1) {
-                break;
-            } else {
-                let result = Object.assign({}, list1[i], list2[find_index])
-                join_list.push(result);
-                list2.splice(find_index, 1)
-            }
-        }
-    }
-
-    return join_list;
-}
-
-function update_user_update_date(user_id) {
-
-    mysql_connetion.query(`update user set update_date = ? where user_id = ?`, [current_time(), user_id], (err, results, fields) => {
-        if (err) {
-            //User DB 서버 오류
-            console.log("update user update_date fail");
-        } else {
-            console.log("update user update_date success!");
-        }
-    });
-
-}
-
-function get_db_query_results(query, values) {
-    if (values) {
-        return new Promise((resolve, reject) => {
-
-            mysql_pool.getConnection((err, conn) => {
-                if (err) {
-                    //db 오류
-                    conn.release();
-                    reject(err)
-                    return;
-                }
-
-                conn.query(query, values, (err, results, fields) => {
-                    if (err) {
-                        //db 오류
-                        reject(err)
-                    }
-                    else {
-                        resolve(results)
-                    }
-                    //connection pool 반환
-                    conn.release();
-                })
-            })
-        });
-    } else {
-        return new Promise((resolve, reject) => {
-            mysql_pool.getConnection((err, conn) => {
-                if (err) {
-                    //db 오류
-                    conn.release();
-                    reject(err)
-                }
-
-                conn.query(query, (err, results, fields) => {
-                    if (err) {
-                        //db 오류
-                        reject(err)
-                    }
-                    else {
-                        resolve(results)
-                    }
-                    //connection pool 반환
-                    conn.release();
-                })
-
-            });
-        });
-    }
-
-}
-
-router.post('/CreaateUsers', (req, res) => {
+router.post('/CreateUsers', (req, res) => {
     response_body = {}
 
     if (!req.body.user_id || !req.body.user_password || !req.body.user_name) {
@@ -211,10 +33,10 @@ router.post('/CreaateUsers', (req, res) => {
     let user_id = req.body.user_id;
     let user_password = req.body.user_password;
     let user_name = req.body.user_name;
-    let signup_date = current_time();
+    let signup_date = method.current_time();
     let access_state = 0;
 
-    get_db_query_results(`insert into user (user_id, pw, name, signup_date, update_date, access_state) values (?,?,?,?,?,?)`
+    method.get_db_query_results(`insert into user (user_id, pw, name, signup_date, update_date, access_state) values (?,?,?,?,?,?)`
         , [user_id, user_password, user_name, signup_date, signup_date, access_state])
         .then(results => {
             message.set_result_message(response_body, "RS000");
@@ -245,12 +67,11 @@ router.get('/CheckIDExists', (req, res) => {
     if (!user_id || typeof (user_id) === 'object') {
         //필수 파라미터 누락 및 입력오류
         message.set_result_message(response_body, "EC001")
-        recode_log(req.route.path, req.method, req.query, response_body);
         res.json(response_body)
         return;
     }
 
-    get_db_query_results(`select user_id from user where user_id = ?`, [user_id])
+    method.get_db_query_results(`select user_id from user where user_id = ?`, [user_id])
         .then(results => {
             if (results.length) {
                 //동일 아이디 존제
@@ -279,12 +100,11 @@ router.post('/UserLogin', (req, res) => {
         //필수 파라미터 누락
         response_body.Result_Code = "EC001";
         response_body.Message = "invalid parameter error";
-        recode_log(req.route.path, req.method, req.body, response_body);
         res.json(response_body)
         return;
     }
 
-    get_db_query_results(`select user_id, pw, name, signup_date, profile_url, update_date from user where user_id = ?`, [user_id])
+    method.get_db_query_results(`select user_id, pw, name, signup_date, profile_url, update_date from user where user_id = ?`, [user_id])
         .then(results => {
             if (results.length) {
 
@@ -328,7 +148,7 @@ router.get('/UserInfo', (req, res) => {
     if (decoded) {
         let user_id = decoded.id;
 
-        get_db_query_results(`select user_id, name, signup_date, profile_url, update_date, access_state, state_message from user where user_id = ?`, [user_id])
+        method.get_db_query_results(`select user_id, name, signup_date, profile_url, update_date, access_state, state_message from user where user_id = ?`, [user_id])
             .then(results => {
                 //사용자 정보 요청 성공
                 message.set_result_message(response_body, "RS000")
@@ -340,8 +160,8 @@ router.get('/UserInfo', (req, res) => {
                     response_body.Response.user_info[value] = results[0][value];
                 }
                 //날짜 데이터 다듬기
-                response_body.Response.user_info.update_date = trim_date(response_body.Response.user_info.update_date);
-                response_body.Response.user_info.signup_date = trim_date(response_body.Response.user_info.signup_date);
+                response_body.Response.user_info.update_date = method.trim_date(response_body.Response.user_info.update_date);
+                response_body.Response.user_info.signup_date = method.trim_date(response_body.Response.user_info.signup_date);
                 res.json(response_body);
             })
             .catch(err => {
@@ -370,15 +190,14 @@ router.put('/UserInfo', (req, res) => {
         let user_id = decoded.id;
         let state_message = req.body.state_message;
 
-        if (state_message == undefined) {
+        if (state_message === undefined) {
             //필수 파라미터 누락
             message.set_result_message(response_body, "EC001");
-            recode_log(req.route.path, req.method, req.body, response_body);
             res.json(response_body)
             return;
         }
 
-        get_db_query_results(`update user set state_message = ? where user_id = ?;`, [state_message, user_id])
+        method.get_db_query_results(`update user set state_message = ? where user_id = ?;`, [state_message, user_id])
             .then(results => {
                 //요청 성공
                 message.set_result_message(response_body, "RS000");
@@ -416,10 +235,10 @@ router.put('/UserProfile', (req, res) => {
                 s3: s3,
                 bucket: user_bucket,
                 metadata: function (req, file, cb) {
-                    cb(null, { fieldName: `${email_parser(user_id)}-profile.jpg` });
+                    cb(null, { fieldName: `${method.email_parser(user_id)}-profile.jpg` });
                 },
                 key: function (req, file, cb) {
-                    cb(null, `${email_parser(user_id)}-profile.jpg`);
+                    cb(null, `${method.email_parser(user_id)}-profile.jpg`);
                 }
             })
         }).single('profile_image');
@@ -443,7 +262,7 @@ router.put('/UserProfile', (req, res) => {
                 if (req.file) {
 
                     //정보 수정
-                    get_db_query_results(`update user set profile_url = ? where user_id = ?;`, [req.file.location, user_id])
+                    method.get_db_query_results(`update user set profile_url = ? where user_id = ?;`, [req.file.location, user_id])
                         .then(results => {
                             //요청 성공.
                             message.set_result_message(response_body, "RS000");
@@ -486,7 +305,7 @@ router.delete('/UserProfile', (req, res) => {
 
         var params = {
             Bucket: user_bucket,
-            Key: `${email_parser(user_id)}-profile.jpg`
+            Key: `${method.email_parser(user_id)}-profile.jpg`
         };
 
         s3.deleteObject(params, function (err, data) {
@@ -494,10 +313,9 @@ router.delete('/UserProfile', (req, res) => {
                 console.log(err)
                 //S3 서버 오류
                 message.set_result_message(response_body, "ES013");
-                recode_log(req.route.path, req.method, req.body, response_body);
                 res.json(response_body);
             } else {
-                get_db_query_results(`update user set profile_url = null where user_id = ?;`, [user_id])
+                method.get_db_query_results(`update user set profile_url = null where user_id = ?;`, [user_id])
                     .then(results => {
                         //요청 성공.
                         message.set_result_message(response_body, "RS000");
@@ -557,20 +375,18 @@ router.get('/UserBook', (req, res) => {
         }
 
         let params = { category, sort_key, sort_method };
-        let check_result = params_check(params, check_list);
+        let check_result = method.params_check(params, check_list);
 
         if (check_result) {
             //파라미터 값 오류
             message.set_result_message(response_body, "EC001", `${check_result} parameter error`);
-            recode_log(req.route.path, req.method, req.query, response_body);
             res.json(response_body);
             return;
         }
 
-        if (max_count && !isnumber(max_count)) {
+        if (max_count && !method.isnumber(max_count)) {
             //파라미터 타입 오류
             message.set_result_message(response_body, "EC001", `max_count parameter error`);
-            recode_log(req.route.path, req.method, req.query, response_body);
             res.json(response_body);
             return;
         }
@@ -587,14 +403,14 @@ router.get('/UserBook', (req, res) => {
             }
         }
 
-        get_db_query_results(query, [user_id])
+        method.get_db_query_results(query, [user_id])
             .then(results => {
                 //책정보
                 let book_list = [];
                 //isbn 리스트
                 let isbn_list = new Set(); // 중복제거
                 for (let result in results) {
-                    results[result].registration_date = trim_date(results[result].registration_date);
+                    results[result].registration_date = method.trim_date(results[result].registration_date);
                     book_list.push(results[result]);
 
                     isbn_list.add(results[result].isbn);
@@ -609,7 +425,6 @@ router.get('/UserBook', (req, res) => {
                         count: 0,
                         item: []
                     };
-                    recode_log(req.route.path, req.method, req.query, response_body);
                     res.json(response_body);
                     return;
                 }
@@ -647,7 +462,6 @@ router.get('/UserBook', (req, res) => {
                     if (err) {
                         //내부 서버 오류
                         message.set_result_message(response_body, "ES004");
-                        recode_log(req.route.path, req.method, req.query, response_body);
                         res.json(response_body);
                         return;
                     }
@@ -659,10 +473,10 @@ router.get('/UserBook', (req, res) => {
                             if (sort_key === "registration_date") {
                                 // isbn을 통한 join
                                 // registration_date 인경우 예외처리.
-                                book_join_list = injoin_json_list("isbn", book_list, response.Response.item);
+                                book_join_list = method.injoin_json_list("isbn", book_list, response.Response.item);
                             } else {
                                 // isbn을 통한 join
-                                book_join_list = outjoin_json_list("isbn", response.Response.item, book_list);
+                                book_join_list = method.outjoin_json_list("isbn", response.Response.item, book_list);
 
                                 if (max_count) {
                                     book_join_list = book_join_list.slice(0, max_count)
@@ -771,23 +585,21 @@ router.post('/UserBook', (req, res) => {
 
             if (!presence_check_result) {
                 console.log("presence check error");
-                recode_log(req.route.path, req.method, req.body, response_body);
                 res.json(response_body);
                 return;
             }
 
-            let book_id = create_key(user_id);
+            let book_id = method.create_key(user_id);
 
             //책 저장.
-            await get_db_query_results(`insert into registered_book(book_id ,user_id,isbn, registration_date, bookmark) values(?, ?, ?, ?, ?);`,
-                [book_id, user_id, isbn, current_time(), bookmark])
+            await method.get_db_query_results(`insert into registered_book(book_id ,user_id,isbn, registration_date, bookmark) values(?, ?, ?, ?, ?);`,
+                [book_id, user_id, isbn, method.current_time(), bookmark])
                 .then(results => {
                     message.set_result_message(response_body, "RS000");
-                    update_user_update_date(user_id);
+                    method.update_user_update_date(user_id);
                 })
                 .catch(err => {
                     message.set_result_message(response_body, "ES010");
-
                 });
 
             res.json(response_body);
@@ -820,7 +632,6 @@ router.put('/UserBook', (req, res) => {
         if (!book_id || !modify_isbn) {
             //파라미터 타입 오류 및 누락
             message.set_result_message(response_body, "EC001");
-            recode_log(req.route.path, req.method, req.body, response_body);
             res.json(response_body);
             return;
         }
@@ -829,7 +640,7 @@ router.put('/UserBook', (req, res) => {
 
             let book_id_check_result = null;
 
-            await get_db_query_results(`select book_id from registered_book where user_id = ? and book_id = ?`, [user_id, book_id])
+            await method.get_db_query_results(`select book_id from registered_book where user_id = ? and book_id = ?`, [user_id, book_id])
                 .then(results => {
                     if (results.length) {
                         //해당 책번호 존제
@@ -900,7 +711,6 @@ router.put('/UserBook', (req, res) => {
 
             if (!modify_isbn_check_result) {
                 console.log("modify_isbn check error");
-                recode_log(req.route.path, req.method, req.body, response_body);
                 res.json(response_body);
                 return;
             }
@@ -908,12 +718,12 @@ router.put('/UserBook', (req, res) => {
 
             //책 정보 수정
             let query = `update registered_book set isbn = ?, second_candidate = null, third_candidate = null, fourth_candidate = null, fifth_candidate = null where user_id = ? and book_id = ? `
-            await get_db_query_results(query, [modify_isbn, user_id, book_id])
+            await method.get_db_query_results(query, [modify_isbn, user_id, book_id])
                 .then(results => {
-                    message.set_result_message(response_body, "ES010");
+                    message.set_result_message(response_body, "RS000");
                 })
                 .catch(err => {
-                    message.set_result_message(response_body, "RS000");
+                    message.set_result_message(response_body, "ES010");
                 })
             res.json(response_body);
 
@@ -945,12 +755,12 @@ router.delete('/UserBook', (req, res) => {
             return;
         }
 
-        get_db_query_results(`delete from registered_book where user_id = ? and book_id = ?`, [user_id, book_id])
+        method.get_db_query_results(`delete from registered_book where user_id = ? and book_id = ?`, [user_id, book_id])
             .then(results => {
                 if (results.affectedRows) {
                     //해당 책번호 존재
                     message.set_result_message(response_body, "RS000");
-                    update_user_update_date(user_id);
+                    method.update_user_update_date(user_id);
                 } else {
                     //해당 책번호 없음.
                     result_code = "EC005";
@@ -979,8 +789,8 @@ router.post('/AnalyzeImage', (req, res) => {
     let decoded = jwt_token.token_check(token);
     if (decoded) {
         let user_id = decoded.id;
-        let registration_date = current_time();
-        let image_id = create_key(user_id, registration_date);
+        let registration_date = method.current_time();
+        let image_id = method.create_key(user_id, registration_date);
 
         let user_file_upload = multer({
             storage: multers3({
@@ -1014,7 +824,6 @@ router.post('/AnalyzeImage', (req, res) => {
             if (!req.file) {
                 //필수 파라미터 누락
                 message.set_result_message(response_body, "EC001");
-                recode_log(req.route.path, req.method, req.body, response_body);
                 res.json(response_body);
                 return;
             }
@@ -1022,7 +831,7 @@ router.post('/AnalyzeImage', (req, res) => {
             let image_url = req.file.location;
 
             let query = `insert into registered_image values (?, ?, ?, ?, ?)`;
-            get_db_query_results(query, [image_id, user_id, registration_date, image_url, 0])
+            method.get_db_query_results(query, [image_id, user_id, registration_date, image_url, 0])
                 .then(results => {
                     message.set_result_message(response_body, "RS000");
 
@@ -1098,7 +907,7 @@ router.get('/ImageList', (req, res) => {
         let user_id = decoded.id;
 
         let query = `select image_id, registration_date, image_url, state from registered_image where user_id = ?`
-        get_db_query_results(query, [user_id])
+        method.get_db_query_results(query, [user_id])
             .then(results => {
                 message.set_result_message(response_body, "RS000");
                 response_body.Response = {
@@ -1107,7 +916,7 @@ router.get('/ImageList', (req, res) => {
                 }
 
                 for (let i in results) {
-                    results[i]["registration_date"] = trim_date(results[i]["registration_date"])
+                    results[i]["registration_date"] = method.trim_date(results[i]["registration_date"])
                     response_body.Response.item.push(results[i]);
                 }
                 res.json(response_body)
@@ -1145,7 +954,7 @@ router.delete('/ImageList', (req, res) => {
         }
 
         let query = `delete from registered_image where user_id = ? and image_id = ?`;
-        get_db_query_results(query, [user_id, image_id])
+        method.get_db_query_results(query, [user_id, image_id])
             .then(results => {
                 if (results.affectedRows) {
                     result_code = "RS000";
@@ -1169,103 +978,7 @@ router.delete('/ImageList', (req, res) => {
     }
 });
 
-//internal api
 
-//책 정보 등록
-router.post('/AddUserBook', (req, res) => {
-
-    const response_body = {};
-
-    let user_id = req.body.user_id;
-    let isbn = req.body.isbn;
-
-    if (user_id && isbn) {
-        let second_candidate = (req.body.second_candidate) ? req.body.second_candidate : null;
-        let third_candidate = (req.body.third_candidate) ? req.body.third_candidate : null;
-        let fourth_candidate = (req.body.fourth_candidate) ? req.body.fourth_candidate : null;
-        let fifth_candidate = (req.body.fifth_candidate) ? req.body.fifth_candidate : null;
-        let bookmark = (req.body.bookmark) ? req.body.bookmark : false;
-
-        (async () => {
-            let registration_date = current_time();
-            let book_id = create_key(user_id, registration_date)
-
-            let query = `insert into registered_book values (?, ?, ?, ?, ?, ?, ?, ?, ?);`;
-            await get_db_query_results(query, [book_id, user_id, registration_date, bookmark, isbn, second_candidate, third_candidate, fourth_candidate, fifth_candidate])
-                .then(results => {
-                    message.set_result_message(response_body, "RS000");
-                })
-                .catch(err => {
-                    message.set_result_message(response_body, "ES010");
-                })
-            res.json(response_body);
-
-        })();
-
-    } else {
-        //필수 파라미터 누락
-        message.set_result_message(response_body, "EC001");
-        res.json(response_body);
-    }
-
-});
-
-//책 정보 수정
-router.put('/RegisteredImage', (req, res) => {
-
-    const response_body = {};
-
-    let user_id = req.body.user_id;
-    let image_id = req.body.image_id;
-
-    if (!user_id || !image_id) {
-        //필수 파라미터 누락
-        message.set_result_message(response_body, "EC001");
-        res.json(response_body);
-    }
-
-    let query = `update registered_image set state = ? where user_id = ? and image_id = ?;`;
-    get_db_query_results(query, [1, user_id, image_id])
-        .then(results=>{
-            message.set_result_message(response_body, "RS000");
-            res.json(response_body);
-        })
-        .catch(err=>{
-            message.set_result_message(response_body, "ES010");
-            res.json(response_body);
-        })
-
-});
-
-//책 정보 수정
-router.delete('/RegisteredImage', (req, res) => {
-
-    const response_body = {};
-
-    let user_id = req.body.user_id;
-    let image_id = req.body.image_id;
-
-    if (user_id && image_id) {
-
-        // delete from user where id
-        let query = `delete from registered_image where user_id = ? and image_id = ?;`;
-        get_db_query_results(query, [user_id, image_id])
-            .then(results=>{
-                message.set_result_message(response_body, "RS000");
-                res.json(response_body);
-            })
-            .catch(err=>{
-                message.set_result_message(response_body, "ES010");
-                res.json(response_body);
-            }) 
-
-    } else {
-        //필수 파라미터 누락
-        message.set_result_message(response_body, "EC001");
-        res.json(response_body);
-    }
-
-});
 
 
 module.exports = router;

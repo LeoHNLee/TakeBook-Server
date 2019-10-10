@@ -6,6 +6,7 @@ const logger = require('morgan');
 
 //router
 const mainRouter = require('./routes/main')
+const internalRouter = require('./routes/internal')
 
 
 app.use(logger('dev'));
@@ -16,6 +17,7 @@ app.use(cookieParser());
 
 //router 경로추가
 app.use('/', mainRouter);
+app.use('/Intetnal', internalRouter);
 
 //404 NOT FOUND
 app.use((req, res, next) => {

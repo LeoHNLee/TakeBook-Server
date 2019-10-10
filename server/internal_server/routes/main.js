@@ -171,7 +171,7 @@ router.get('/AnalyzeImage', (req, res) => {
         //등록이미지 수정 requset_form
         let account_server_request_form = {
             method: 'PUT',
-            uri: `${host.account_server}/RegisteredImage`,
+            uri: `${host.account_server}/Internal/RegisteredImage`,
             body: {
                 user_id: user_id,
                 image_id: image_id
@@ -310,7 +310,7 @@ router.get('/AnalyzeImage', (req, res) => {
 
             let account_server_request_form = {
                 method: 'POST',
-                uri: `${host.account_server}/AddUserBook`,
+                uri: `${host.account_server}/Internal/AddUserBook`,
                 body: {
                     user_id: user_id
                 },
@@ -374,7 +374,7 @@ router.get('/AnalyzeImage', (req, res) => {
             //등록이미지 삭제 requset_form
             let account_server_request_form = {
                 method: 'DELETE',
-                uri: `${host.account_server}/RegisteredImage`,
+                uri: `${host.account_server}/Internal/RegisteredImage`,
                 body: {
                     user_id: user_id,
                     image_id: image_id
