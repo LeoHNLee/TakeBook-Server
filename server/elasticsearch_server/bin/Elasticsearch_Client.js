@@ -1,6 +1,6 @@
 const elasticsearch = require('elasticsearch');
 
-const config = require('../config/elasticsearch.json')
+const config = require('../config/elasticsearch.json.js')
 
 let Elasticsearch_Client = new elasticsearch.Client(config);
 
