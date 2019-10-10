@@ -416,10 +416,12 @@ class BookRecognizer(object):
         ORB = cv2.ORB_create()
         keypoints = ORB.detect(img,None)
         keypoints, descriptors = ORB.compute(img, keypoints)
-        descriptors = descriptors.tolist()
-        return descriptors
+        if type(descriptors)==np.ndarray:
+            return descriptors.tolist()
+        else:
+            return list()
 
-    def predict_SURF_features(self, img=None):
+    def predict_SURF_features(self, img=None, n_features=500, feature_dims=False):
         '''
         -Description: extract image descriptors using SURF method
         -Input
@@ -430,13 +432,16 @@ class BookRecognizer(object):
         if img is None:
             raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_SURF_features'\nargument:'img'={img}")
         # Create SURF Algorithm and set to 128-dim
-        SURF = cv2.xfeatures2d.SURF_create(500)
-        # surf.setExtended(True)
+        SURF = cv2.xfeatures2d.SURF_create(n_features)
+        if feature_dims:
+            surf.setExtended(feature_dims)
 
         # extract descriptor
         _, descriptors = SURF.detectAndCompute(img, None)
-        descriptors = descriptors.tolist()
-        return descriptors
+        if type(descriptors)==np.ndarray:
+            return descriptors.tolist()
+        else:
+            return list()
 
     def predict_BGR_histogram(self, img=None):
         if img is None:
