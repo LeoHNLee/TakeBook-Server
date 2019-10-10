@@ -25,9 +25,9 @@ function pytojs(img_path, path_type, response, response_body) {
     let options = {
         mode: 'text',
         // pythonPath: '/usr/local/bin/python3', // local python 설치 경로
-        pythonPath: path.normalize(__dirname+'/../venv/bin/python3'), // venv python 설치 경로
+        pythonPath: path.normalize(__dirname + '/../venv/bin/python3'), // venv python 설치 경로
         pythonOptions: ['-u'],
-        scriptPath: path.normalize(__dirname+'/../python_module'), // 실행할 python 파일 경로
+        scriptPath: path.normalize(__dirname + '/../python_module'), // 실행할 python 파일 경로
         args: ['-p', img_path, '-t', path_type]
     };
 
@@ -57,25 +57,25 @@ function pytojs(img_path, path_type, response, response_body) {
 
 };
 
-async function getresult(img_path, path_type) {
-    let { PythonShell } = require('python-shell')
+function get_feature(img_path, path_type) {
+    return new Promise((resolve, reject) => {
+        let { PythonShell } = require('python-shell')
 
-    var options = {
-        mode: 'text',
-        // pythonPath: '/usr/local/bin/python3', // local python 설치 경로
-        pythonPath: path.normalize(__dirname+'/../venv/bin/python3'), // venv python 설치 경로
-        pythonOptions: ['-u'],
-        scriptPath: path.normalize(__dirname+'/../python_module'), // 실행할 python 파일 경로
-        args: ['-p', img_path, '-t', path_type]
-    };
+        //파이선 경로 설정
+        var options = {
+            mode: 'text',
+            // pythonPath: '/usr/local/bin/python3', // local python 설치 경로
+            pythonPath: path.normalize(__dirname + '/../venv/bin/python3'), // venv python 설치 경로
+            pythonOptions: ['-u'],
+            scriptPath: path.normalize(__dirname + '/../python_module'), // 실행할 python 파일 경로
+            args: ['-p', img_path, '-t', path_type, '-mp', path.normalize(__dirname + '/../modle/kmeans/')]
+        };
 
-    let analyze_result = '';
-    await new Promise((resolve, reject) => {
         PythonShell.run('node_book_predict.py', options, function (err, results) {
-            
+
             if (err) {
-                console.log(`에러발생: ${err}`)
-                reject("python error");
+                reject(err);
+                return;
             }
 
             var data = ``;
@@ -83,16 +83,13 @@ async function getresult(img_path, path_type) {
                 data += results[i] + ' ';
             }
 
-            resolve("success");
-            analyze_result = data;
+            data = JSON.parse(data);
+            resolve(data);
             return;
         });
-    })
 
-    analyze_result = JSON.parse(analyze_result);
-
-    return analyze_result;
-};
+    });
+}
 
 router.get('/result', (req, res) => {
     res.send('왜일로 들왔누?')
@@ -144,22 +141,38 @@ router.get('/UrlAnalyze', (req, res) => {
     let respone_body = {}
     let image_url = req.query.image_url;
 
-    if(!image_url){
+    if (!image_url) {
         //필수 파라미터 누락
         message.set_result_message(respone_body, "EC001");
         res.json(respone_body)
         return;
     }
 
-    getresult(image_url, 'url').then(analyze_result => {
-        if(!analyze_result.code){
-            message.set_result_message(respone_body, "RS000");
-            respone_body.Response = analyze_result;
-            res.json(respone_body)
-        }else{
-            res.json(analyze_result);
-        }
-    });
+    get_feature(image_url, 'url')
+        .then(results => {
+            switch(results.code){
+                case 999:{
+                    message.set_result_message(respone_body, "RS000");
+                    respone_body.Response = results;
+                    break;
+                }
+                case 0:{
+                    message.set_result_message(respone_body, "EP001");
+                    break;
+                }
+                default:{
+                    message.set_result_message(respone_body, "EP001");
+                    break;
+                }
+            }
+
+            res.json(respone_body);
+        })
+        .catch(err=>{
+            console.log(err);
+            message.set_result_message(respone_body, "EP000");
+            res.json(respone_body);
+        });
 
 });
 

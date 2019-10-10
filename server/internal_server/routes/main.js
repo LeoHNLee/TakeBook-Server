@@ -209,9 +209,11 @@ router.get('/AnalyzeImage', (req, res) => {
             request.get(analysis_server_request_form, (err, httpResponse, response) => {
                 if (err) {
                     //내부 서버 오류
+                    console.log(err)
                     reject("ES001")
                     return;
                 }
+                console.log(response)
                 resolve(response)
             })
         }).then(response => {

@@ -77,6 +77,14 @@ let message = {
                     response_body.Message = "S3 Server Error";
                     break;
                 }
+                case "EP000": {
+                    response_body.Message = "Python Moudel Error";
+                    break;
+                }
+                case "EP001": {
+                    response_body.Message = "Python Analysis Fail";
+                    break;
+                }
                 default:{
                     response_body.Message = "Undefined Error";
                     break;

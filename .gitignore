@@ -93,6 +93,7 @@ node_modules
 .vscode
 uploads
 config
+server/analysis_server/modle/
 
 # node file
 package-lock.json
