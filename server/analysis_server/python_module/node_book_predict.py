@@ -78,6 +78,7 @@ def main(args):
 
 if __name__ == "__main__":
     try:
+        import time
         import os
         import argparse
         import joblib

@@ -17,7 +17,7 @@ app.use(cookieParser());
 
 //router 경로추가
 app.use('/', mainRouter);
-app.use('/Intetnal', internalRouter);
+app.use('/Internal', internalRouter);
 
 //404 NOT FOUND
 app.use((req, res, next) => {
