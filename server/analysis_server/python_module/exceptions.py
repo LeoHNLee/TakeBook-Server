@@ -14,6 +14,16 @@ __error_schemas__ = {
         "error":"ImageError",
         "message":None,
     },
+    "URLError":{
+        "code":700,
+        "error":"URLError",
+        "message":None,
+    },
+    "LoggingError":{
+        "code":800,
+        "error":"LoggingError",
+        "message":None,
+    },
     "PythonError":{
         "code":900,
         "error":"PythonError",
@@ -23,6 +33,7 @@ __error_schemas__ = {
         "code":999,
         "error": "OK",
         "message": None,
+        "body": None,
     }
 }
 class ErrorReturner():
@@ -39,4 +50,7 @@ class ImageError(Exception):
     pass
 
 class ArgumentError(Exception):
+    pass
+
+class LoggingError(Exception):
     pass
