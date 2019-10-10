@@ -363,7 +363,7 @@ class BookRecognizer(object):
             if feature == "text":
                 extracted = self.predict_text(img=img, east=text_east, lang=text_lang)
             elif feature == "image":
-                extracted = self.predict_image(img=temp, options=image_options)
+                extracted = self.predict_image(img=img, options=image_options)
             else:
                 raise ArgumentError(f"Not Found 'predict' Arguemnt 'features': <{feature}>")
             ret[feature] = extracted
@@ -476,9 +476,9 @@ class BookRecognizer(object):
         if lang is None:
             raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_test'\nargument:'lang'={lang}")
         ret = {}
-        for lang in langs:
-            text = pytesseract.image_to_string(img, lang=lang)
-            ret[lang] = TextHandler(text).text_cleaning(lang=lang)
+        for l in lang:
+            text = pytesseract.image_to_string(img, lang=l)
+            ret[l] = TextHandler(text).text_cleaning(lang=l)
         return ret
 
     def find_text_area(self, img, east_path="models/east.pb", min_confidence=0.5, new_width=320, new_height=320):
