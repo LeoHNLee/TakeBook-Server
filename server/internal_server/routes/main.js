@@ -218,11 +218,18 @@ router.get('/AnalyzeImage', (req, res) => {
         }).then(response => {
             switch (response.Result_Code) {
                 case "RS000": {
-                    analysis_result = response.Response;
+                    analysis_result = response;
+                    break;
+                }
+                case "EP000": {
+                    message.set_result_message(response_body, "EP000");
+                    break;
+                }
+                case "EP001": {
+                    message.set_result_message(response_body, "EP001");
                     break;
                 }
                 default: {
-                    //분석 서버 오류
                     message.set_result_message(response_body, "ES001");
                     break;
                 }
@@ -241,20 +248,24 @@ router.get('/AnalyzeImage', (req, res) => {
             return;
         }
 
-
         //특성 매칭 결과.
         let feature_matching_result = null;
 
         //특성 분석이 성공한 경우에만 매칭 실시
         await new Promise((resolve, reject) => {
 
+            let image_feature = analysis_result.Response.body.image.SURF;
+            let kor_text_feature = analysis_result.Response.body.text.kor;
+            let eng_text_feature = analysis_result.Response.body.text.eng;
+
             //특성 매칭 요청
             let elasticsearch_server_request_form = {
                 method: 'POST',
-                uri: `${host.elasticsearch_server}/SeacrhFeature`,
+                uri: `${host.elasticsearch_server}/Internal/SeacrhFeature`,
                 body: {
-                    img_feature: 'dummy',
-                    text_feature: 'dummy'
+                    image_feature: image_feature,
+                    kor_text_feature: kor_text_feature,
+                    eng_text_feature: eng_text_feature
                 },
                 json: true
             }
@@ -262,7 +273,7 @@ router.get('/AnalyzeImage', (req, res) => {
 
             request.post(elasticsearch_server_request_form, (err, httpResponse, response) => {
                 if (err) {
-                    //내부 서버 오류
+                    //일라스틱 서치 서버 오류.
                     reject("ES003")
                     return;
                 }
@@ -276,14 +287,14 @@ router.get('/AnalyzeImage', (req, res) => {
                     break;
                 }
                 default: {
-                    //특성 매칭 서버 오류
+                    //일라스틱 서치 서버 오류
                     message.set_result_message(response_body, "ES003");
                     break;
                 }
             }
         }).catch(error_code => {
             switch (error_code) {
-                case "EC003":{
+                case "ES003":{
                     message.set_result_message(response_body, "ES003");
                 }
                 default: {
