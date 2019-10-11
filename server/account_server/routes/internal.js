@@ -22,8 +22,8 @@ router.post('/AddUserBook', (req, res) => {
         let bookmark = (req.body.bookmark) ? req.body.bookmark : false;
 
         (async () => {
-            let registration_date = current_time();
-            let book_id = create_key(user_id, registration_date)
+            let registration_date = method.current_time();
+            let book_id = method.create_key(user_id, registration_date)
 
             let query = `insert into registered_book values (?, ?, ?, ?, ?, ?, ?, ?, ?);`;
             await method.get_db_query_results(query, [book_id, user_id, registration_date, bookmark, isbn, second_candidate, third_candidate, fourth_candidate, fifth_candidate])

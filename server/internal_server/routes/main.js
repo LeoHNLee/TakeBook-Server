@@ -213,7 +213,6 @@ router.get('/AnalyzeImage', (req, res) => {
                     reject("ES001")
                     return;
                 }
-                console.log(response)
                 resolve(response)
             })
         }).then(response => {
@@ -250,9 +249,9 @@ router.get('/AnalyzeImage', (req, res) => {
         await new Promise((resolve, reject) => {
 
             //특성 매칭 요청
-            let es_server_request_form = {
+            let elasticsearch_server_request_form = {
                 method: 'POST',
-                uri: `${host.es_server}/SeacrhFeature`,
+                uri: `${host.elasticsearch_server}/SeacrhFeature`,
                 body: {
                     img_feature: 'dummy',
                     text_feature: 'dummy'
@@ -261,7 +260,7 @@ router.get('/AnalyzeImage', (req, res) => {
             }
 
 
-            request.post(es_server_request_form, (err, httpResponse, response) => {
+            request.post(elasticsearch_server_request_form, (err, httpResponse, response) => {
                 if (err) {
                     //내부 서버 오류
                     reject("ES003")
