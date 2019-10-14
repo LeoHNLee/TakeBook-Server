@@ -5,13 +5,14 @@ const multer = require('multer');
 const multers3 = require('multer-s3');
 const aws = require('aws-sdk');
 
-const redis_client = require('../bin/redis_client');
+const log_register = require("../bin/log_register");
 const method = require('../bin/Method');
 const jwt_token = require("../bin/jwt_token");
 const message = require("../bin/message");
 const host = require('../config/host')
 
 const router = express.Router();
+let log = new log_register();
 
 //aws region 설정, s3설정
 aws.config.region = 'ap-northeast-2';
@@ -20,11 +21,11 @@ let s3 = new aws.S3();
 const user_bucket = 'takebook-user-bucket';
 const image_bucket = 'takebook-book-image';
 
-router.get('/',(req, res)=>{
-    redis_client.get("name", (err,reply)=>{
-        console.log(reply)
-    })
-});
+router.get('/', (req, res) => {
+    log.regist_log()
+    log.get_log_list()
+})
+
 
 router.post('/CreateUsers', (req, res) => {
     response_body = {}
