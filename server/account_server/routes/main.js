@@ -5,6 +5,7 @@ const multer = require('multer');
 const multers3 = require('multer-s3');
 const aws = require('aws-sdk');
 
+const redis_client = require('../bin/redis_client');
 const method = require('../bin/Method');
 const jwt_token = require("../bin/jwt_token");
 const message = require("../bin/message");
@@ -18,6 +19,12 @@ aws.config.region = 'ap-northeast-2';
 let s3 = new aws.S3();
 const user_bucket = 'takebook-user-bucket';
 const image_bucket = 'takebook-book-image';
+
+router.get('/',(req, res)=>{
+    redis_client.get("name", (err,reply)=>{
+        console.log(reply)
+    })
+});
 
 router.post('/CreateUsers', (req, res) => {
     response_body = {}
