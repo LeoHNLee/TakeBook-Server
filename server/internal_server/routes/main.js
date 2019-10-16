@@ -51,7 +51,6 @@ function recode_log(path, method, request, response) {
 //     });
 }
 
-
 router.get('/UserBook', (req, res) => {
 
     let response_body = {}
@@ -166,30 +165,6 @@ router.get('/AnalyzeImage', (req, res) => {
         return;
     }
 
-    function update_registered_image_state() {
-
-        //등록이미지 수정 requset_form
-        let account_server_request_form = {
-            method: 'PUT',
-            uri: `${host.account_server}/Internal/RegisteredImage`,
-            body: {
-                user_id: user_id,
-                image_id: image_id
-            },
-            json: true
-        }
-
-        //도서 정보 요청
-        request.put(account_server_request_form, (err, httpResponse, response) => {
-            if (err) {
-                //유저 서버 오류
-                console.log("update registered image state fail");
-                return;
-            }
-            console.log("update registered image state success");
-        })
-    }
-
     (async () => {
 
         let analysis_result = null;
@@ -242,7 +217,6 @@ router.get('/AnalyzeImage', (req, res) => {
         if (!analysis_result) {
             //분석 실패
             console.log("book feature analysis fail");
-            update_registered_image_state();
             recode_log(req.route.path, req.method, req.query, response_body);
             res.json(response_body);
             return;
@@ -305,157 +279,13 @@ router.get('/AnalyzeImage', (req, res) => {
             }
         });
 
-
-        if (!feature_matching_result) {
-            //매칭 실패
-            console.log("feature matching fail");
-            update_registered_image_state();
-            recode_log(req.route.path, req.method, req.query, response_body);
+        if(feature_matching_result){
+            message.set_result_message(response_body, "RS000");
+            response_body.Response = feature_matching_result;
             res.json(response_body);
-            return;
-        }
-
-        let account_server_result = null;
-
-        //특성 매칭이 성공한 경우에만 책 정보 등록.
-        await new Promise((resolve, reject) => {
-
-            let account_server_request_form = {
-                method: 'POST',
-                uri: `${host.account_server}/Internal/AddUserBook`,
-                body: {
-                    user_id: user_id
-                },
-                json: true
-            }
-
-
-            for (let value in feature_matching_result) {
-                account_server_request_form.body[value] = feature_matching_result[value];
-            }
-
-            //책 저장
-            request.post(account_server_request_form, (err, httpResponse, response) => {
-                if (err) {
-                    //유저 서버 오류
-                    reject("ES000")
-                    return;
-                }
-                resolve(response)
-            })
-
-        }).then(response => {
-            switch (response.Result_Code) {
-                case "RS000": {
-                    // 요청 성공
-                    account_server_result = true;
-                    break;
-                }
-                case "EC001": {
-                    // 필수 파라미터 누락
-                    message.set_result_message(response_body, "ES004");
-                    break;
-                }
-                case "ES010": {
-                    // user db 오류
-                    message.set_result_message(response_body, "ES011");
-                    break;
-                }
-            }
-        }).catch(error_code => {
-            switch (error_code) {
-                case "ES000": {
-                    //account server 오류
-                    message.set_result_message(response_body, "ES000");
-                    break;
-                }
-            }
-        })
-
-        if (!account_server_result) {
-            //데이터 저장 실패
-            console.log("save book data fail");
-            update_registered_image_state();
-            recode_log(req.route.path, req.method, req.query, response_body);
+        }else{
             res.json(response_body);
-            return;
         }
-
-        //등록이미지 삭제.
-        await new Promise((resolve, reject) => {
-            //등록이미지 삭제 requset_form
-            let account_server_request_form = {
-                method: 'DELETE',
-                uri: `${host.account_server}/Internal/RegisteredImage`,
-                body: {
-                    user_id: user_id,
-                    image_id: image_id
-                },
-                json: true
-            }
-
-            //도서 정보 요청
-            request.delete(account_server_request_form, (err, httpResponse, response) => {
-                if (err) {
-                    //유저 서버 오류
-                    reject("ES000")
-                    return;
-                }
-                resolve(response)
-            })
-
-        }).then(response => {
-            switch (response.Result_Code) {
-                case "RS000": {
-                    // 요청 성공
-                    message.set_result_message(response_body, "RS000");
-                    break;
-                }
-                case "EC001": {
-                    // 필수 파라미터 누락
-                    message.set_result_message(response_body, "ES004");
-                    break;
-                }
-                case "ES001": {
-                    // account server 오류
-                    message.set_result_message(response_body, "ES001");
-                    break;
-                }
-                case "ES010": {
-                    // user db 오류
-                    message.set_result_message(response_body, "ES010");
-                    break;
-                }
-            }
-        }).catch(error_code => {
-            message.set_result_message(response_body, error_code);
-        })
-
-        //s3 분석 이미지 삭제.
-        await new Promise((resolve, reject) => {
-
-            var params = {
-                Bucket: image_bucket,
-                Key: `${image_id}.jpg`
-            };
-
-            s3.deleteObject(params, function (err, data) {
-                if (err) {
-                    reject(err)
-                    //S3 서버 오류
-                } else {
-                    console.log("s3 delete image success")
-                    resolve("success")
-                }
-            });
-        }).catch(err => {
-            console.log("s3 delete image fail")
-            console.log(err)
-        });
-
-        recode_log(req.route.path, req.method, req.query, response_body);
-        res.json(response_body);
-
 
     })(); //async exit
 

@@ -38,7 +38,7 @@ class LogRegister {
         }
 
         let data = "";
-        if (request) {
+        if (request&&request!=={}) {
             data = JSON.stringify(request);
         } else {
             data = "none";
@@ -89,13 +89,13 @@ class LogRegister {
         let result_text = "";
 
         if (result) {
-            result_text = "succeded";
+            result_text = "succeed";
         } else {
             result_text = "failed";
         }
 
         let log_text = null;
-        
+
         if (query) {
             // (요청 시간) Sending a query to the database is succeded.  Query: (query) 
             log_text = `${current_datetime()} sending a query to the database is ${result_text}. query: ${query}`

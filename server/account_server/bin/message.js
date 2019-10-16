@@ -75,7 +75,7 @@ let message = {
                     break;
                 }
                 case "ES012": {
-                    response_body.Message = "Elastic Databsae Server Error";
+                    response_body.Message = "Elasticsearch Databsae Server Error";
                     break;
                 }
                 case "ES013": {

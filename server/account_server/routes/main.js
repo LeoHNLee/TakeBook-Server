@@ -22,7 +22,7 @@ let s3 = new aws.S3();
 const user_bucket = 'takebook-user-bucket';
 const image_bucket = 'takebook-book-image';
 
-router.post('/CreateUsers',[log.regist_request_log] ,(req, res) => {
+router.post('/CreateUsers', [log.regist_request_log], (req, res) => {
 
     response_body = {}
 
@@ -49,7 +49,7 @@ router.post('/CreateUsers',[log.regist_request_log] ,(req, res) => {
 
             //로그기록
             log.regist_response_log(req.method, req.route.path, response_body);
-            
+
             res.json(response_body);
         })
         .catch(err => {
@@ -73,7 +73,7 @@ router.post('/CreateUsers',[log.regist_request_log] ,(req, res) => {
 
 });
 
-router.get('/CheckIDExists',[log.regist_request_log] ,(req, res) => {
+router.get('/CheckIDExists', [log.regist_request_log], (req, res) => {
     const response_body = {};
 
     let user_id = req.query.user_id;
@@ -115,7 +115,7 @@ router.get('/CheckIDExists',[log.regist_request_log] ,(req, res) => {
 });
 
 //유저 로그인
-router.post('/UserLogin',[log.regist_request_log], (req, res) => {
+router.post('/UserLogin', [log.regist_request_log], (req, res) => {
 
     const response_body = {};
 
@@ -172,7 +172,7 @@ router.post('/UserLogin',[log.regist_request_log], (req, res) => {
 });
 
 //유저 정보 불러오기
-router.get('/UserInfo', [log.regist_request_log],(req, res) => {
+router.get('/UserInfo', [log.regist_request_log], (req, res) => {
 
     const response_body = {};
 
@@ -221,7 +221,7 @@ router.get('/UserInfo', [log.regist_request_log],(req, res) => {
 });
 
 //회원 정보 수정: 상태메세지
-router.put('/UserInfo',[log.regist_request_log], (req, res) => {
+router.put('/UserInfo', [log.regist_request_log], (req, res) => {
 
     const response_body = {};
 
@@ -269,7 +269,7 @@ router.put('/UserInfo',[log.regist_request_log], (req, res) => {
 });
 
 //회원 프로필 수정
-router.put('/UserProfile',[log.regist_request_log], (req, res) => {
+router.put('/UserProfile', [log.regist_request_log], (req, res) => {
     const response_body = {};
 
     let token = req.headers.authorization;
@@ -360,7 +360,7 @@ router.put('/UserProfile',[log.regist_request_log], (req, res) => {
 });
 
 //회원 프로필 삭제
-router.delete('/UserProfile',[log.regist_request_log], (req, res) => {
+router.delete('/UserProfile', [log.regist_request_log], (req, res) => {
 
     const response_body = {};
 
@@ -417,7 +417,7 @@ router.delete('/UserProfile',[log.regist_request_log], (req, res) => {
 });
 
 //책 리스트 불러오기
-router.get('/UserBook',[log.regist_request_log], (req, res) => {
+router.get('/UserBook', [log.regist_request_log], (req, res) => {
     const response_body = {};
 
     let token = req.headers.authorization;
@@ -707,7 +707,7 @@ router.post('/UserBook', [log.regist_request_log], (req, res) => {
 });
 
 //책 정보 수정
-router.put('/UserBook',[log.regist_request_log], (req, res) => {
+router.put('/UserBook', [log.regist_request_log], (req, res) => {
 
     const response_body = {};
 
@@ -833,7 +833,7 @@ router.put('/UserBook',[log.regist_request_log], (req, res) => {
 });
 
 //사용자 등록 책 삭제
-router.delete('/UserBook',[log.regist_request_log], (req, res) => {
+router.delete('/UserBook', [log.regist_request_log], (req, res) => {
 
     const response_body = {};
 
@@ -890,7 +890,7 @@ router.delete('/UserBook',[log.regist_request_log], (req, res) => {
 });
 
 //책 이미지 등록
-router.post('/AnalyzeImage',[log.regist_request_log], (req, res) => {
+router.post('/AnalyzeImage', [log.regist_request_log], (req, res) => {
 
     const response_body = {};
 
@@ -916,6 +916,7 @@ router.post('/AnalyzeImage',[log.regist_request_log], (req, res) => {
 
         user_file_upload(req, res, (err) => {
             if (err) {
+                //s3 저장 실패.
                 switch (err.code) {
                     case "LIMIT_UNEXPECTED_FILE": {
                         //파라메터 잘못 입력.
@@ -968,21 +969,113 @@ router.post('/AnalyzeImage',[log.regist_request_log], (req, res) => {
                     }
 
                     request.get(internal_server_request_form, (err, httpResponse, response) => {
-                        if (err) {
-                            console.log("internal server error.")
-                            mysql_connetion.query(`update registered_image set state = ? where user_id = ? and image_id = ?;`,
-                                [1, user_id, image_id], (err, results, fields) => {
-                                    if (err) {
-                                        //User DB 서버 오류
-                                        console.log("update registered image state fail")
-                                    } else {
-                                        //정보 수정 성공.
-                                        console.log("update registered image state success!")
+                        let result = err ? false : true;
+                        if (!result) {
+                            console.log("regist image fail: internal server error.")
+                        } else {
+                            switch (response.Result_Code) {
+                                case "RS000": {
+                                    result = true;
+
+                                    //body값이 정상적으로 오지 않은 경우.
+                                    if (!response.Response.isbn) {
+                                        result = false;
+                                        console.log("regist image fail: internal server error.")
                                     }
+                                    break;
+                                }
+                                case "ES001": {
+                                    console.log("regist image fail: Analysis server error.")
+                                    result = false;
+                                    break;
+                                }
+                                case "ES003": {
+                                    console.log("regist image fail: Elasticsearch server error.")
+                                    result = false;
+                                    break;
+                                }
+                                case "ES012": {
+                                    console.log("regist image fail: Elasticsearch Databsae server error.")
+                                    result = false;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (result) {
+                            //검색 성공시.
+                            let isbn = response.Response.isbn;
+                            let second_candidate = response.Response.second_candidate;
+                            let third_candidate = response.Response.third_candidate;
+                            let fourth_candidate = response.Response.fourth_candidate;
+                            let fifth_candidate = response.Response.fifth_candidate;
+
+                            //등록 이미지 삭제.
+                            let query = `delete from registered_image where user_id = ? and image_id = ?;`;
+                            mysql_query.get_db_query_results(query, [user_id, image_id])
+                                .then(results => {
+                                    console.log("delete register_image success");
+                                })
+                                .catch(err => {
+                                    console.log("delete register_image fail: Account Database error.");
                                 });
+
+                            //s3 업로드된 파일 삭제.
+                            var params = {
+                                Bucket: image_bucket,
+                                Key: `${image_id}.jpg`
+                            };
+
+                            s3.deleteObject(params, function (err, data) {
+                                if (err) {
+                                    console.log("delete s3 register_image fail");
+                                    //log 기록
+                                    log.regist_s3_log(req.method, req.route.path, false, {
+                                        bucket: image_bucket,
+                                        method: "delete",
+                                        filename: `${image_id}.jpg`
+                                    });
+
+                                } else {
+                                    console.log("delete s3 register_image success");
+
+                                    //log 기록
+                                    log.regist_s3_log(req.method, req.route.path, true, {
+                                        bucket: image_bucket,
+                                        method: "delete",
+                                        filename: `${image_id}.jpg`
+                                    });
+                                }
+                            });
+
+                            //책 등록.
+                            let registration_date = method.current_time();
+                            let book_id = method.create_key(user_id, registration_date);
+
+                            query = `insert into registered_book values (?, ?, ?, ?, ?, ?, ?, ?, ?);`;
+                            mysql_query.get_db_query_results(query, [book_id, user_id,registration_date, 0, isbn, second_candidate, third_candidate, fourth_candidate, fifth_candidate])
+                                .then(results => {
+                                    console.log("insert register_book success");
+                                })
+                                .catch(err => {
+                                    console.log("insert register_book fail: Account Database error.");
+                                });
+
+                            //사용자 정보 업데이트
+                            mysql_query.update_user_update_date();
+                        }
+                        else {
+                            //검색 실패.
+                            let query = `update registered_image set state = ? where user_id = ? and image_id = ?;`;
+                            mysql_query.get_db_query_results(query, [1, user_id, image_id])
+                                .then(results => {
+                                    console.log("update register_image state success");
+                                })
+                                .catch(err => {
+                                    console.log("update register_image state fail: Account Database error.");
+                                })
                             return;
                         }
-                        console.log(response)
                     });
                 })
                 .catch(err => {
@@ -999,8 +1092,24 @@ router.post('/AnalyzeImage',[log.regist_request_log], (req, res) => {
                     s3.deleteObject(params, function (err, data) {
                         if (err) {
                             console.log("s3 file delete error");
+                            //log 기록
+                            log.regist_s3_log(req.method, req.route.path, false, {
+                                bucket: image_bucket,
+                                method: "delete",
+                                filename: `${image_id}.jpg`
+                            });
                             message.set_result_message(response_body, "ES013");
                         }
+                        else{
+                            //log 기록
+                            log.regist_s3_log(req.method, req.route.path, true, {
+                                bucket: image_bucket,
+                                method: "delete",
+                                filename: `${image_id}.jpg`
+                            });
+                        }
+
+                        log.regist_response_log(req.method, req.route.path, response_body);
                         res.json(response_body);
                     });
                 })
@@ -1015,7 +1124,7 @@ router.post('/AnalyzeImage',[log.regist_request_log], (req, res) => {
 });
 
 //등록중인 이미지 리스트 요청
-router.get('/ImageList',[log.regist_request_log], (req, res) => {
+router.get('/ImageList', [log.regist_request_log], (req, res) => {
 
     const response_body = {};
 
@@ -1057,7 +1166,7 @@ router.get('/ImageList',[log.regist_request_log], (req, res) => {
 });
 
 //등록중인 이미지 삭제
-router.delete('/ImageList',[log.regist_request_log], (req, res) => {
+router.delete('/ImageList', [log.regist_request_log], (req, res) => {
 
     const response_body = {};
 
