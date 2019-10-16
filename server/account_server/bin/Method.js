@@ -1,7 +1,5 @@
 const moment = require('moment-timezone');
 
-const mysql_pool = require('./mysql_pool');
-
 let Method = {
     params_check: (params, check_list) => {
         // 입력받은 파라미터가 옳바른지 채크
@@ -100,67 +98,6 @@ let Method = {
         }
     
         return join_list;
-    },    
-    update_user_update_date: (user_id)=>{
-        Method.get_db_query_results(`update user set update_date = ? where user_id = ?`, [Method.current_time(), user_id])
-            .then(results=>{
-                console.log("update user update_date success!");
-            })
-            .catch(err=>{
-                //User DB 서버 오류
-                console.log("update user update_date fail");
-            })
-    },
-    get_db_query_results: (query, values)=>{
-        if (values) {
-            return new Promise((resolve, reject) => {
-    
-                mysql_pool.getConnection((err, conn) => {
-                    if (err) {
-                        //db 오류
-                        conn.release();
-                        reject(err)
-                        return;
-                    }
-    
-                    conn.query(query, values, (err, results, fields) => {
-                        if (err) {
-                            //db 오류
-                            reject(err)
-                        }
-                        else {
-                            resolve(results)
-                        }
-                        //connection pool 반환
-                        conn.release();
-                    })
-                })
-            });
-        } else {
-            return new Promise((resolve, reject) => {
-                mysql_pool.getConnection((err, conn) => {
-                    if (err) {
-                        //db 오류
-                        conn.release();
-                        reject(err)
-                    }
-    
-                    conn.query(query, (err, results, fields) => {
-                        if (err) {
-                            //db 오류
-                            reject(err)
-                        }
-                        else {
-                            resolve(results)
-                        }
-                        //connection pool 반환
-                        conn.release();
-                    })
-    
-                });
-            });
-        }
-    
     }
     
 }

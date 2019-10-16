@@ -2,131 +2,145 @@ const moment = require('moment-timezone');
 
 const redis_client = require('./redis_client');
 
-function current_datetime(){
+function current_datetime() {
     return moment().tz("Asia/Seoul").format('YYYY-MM-DD HH:mm:ss');
 }
 
 const key = "log:account"
 
-class LogRegister{
+class LogRegister {
 
-    constructor(){}
+    constructor() { }
 
     //log 기록
-    regist_log(){
-        redis_client.rpush(key,"hello world!" , (err, req)=>{
-            if(err){
+    regist_log() {
+        redis_client.rpush(key, "hello world!", (err, req) => {
+            if (err) {
                 console.log("log regist error!");
             }
         })
     }
 
-    regist_request_log(method, path, request_data){
+    regist_request_log(req, res, next) {
         //request log 기록
         //@parms method    요청 method    
         //@parms path      요청 path
         //@parms request_data     요청 받은 body or parms json
-        
-        let data ="";
-        if(request_data){
-            data = JSON.stringify(request_data);
-        }else{
+
+        let method = req.method;
+        let path = req.route.path;
+        let request = null;
+
+        if (req.method === "GET") {
+            request = req.query;
+        } else {
+            request = req.body;
+        }
+
+        let data = "";
+        if (request) {
+            data = JSON.stringify(request);
+        } else {
             data = "none";
         }
 
         // (요청 시간) (method) (path) request with (request body or parms)
         let log_text = `${current_datetime()} ${method} ${path} request with ${data}`
 
-        redis_client.rpush(key, log_text , (err, req)=>{
-            if(err){
+        redis_client.rpush(key, log_text, (err, req) => {
+            if (err) {
                 console.log("log regist error!");
             }
+            next();
         })
     }
 
-    regist_response_log(method, path, response){
+    regist_response_log(method, path, response) {
         //request log 기록
         //@parms method    요청 method    
         //@parms path      요청 path
         //@parms request_data     요청 받은 body or parms json
-        
-        let data ="";
-        if(response){
+
+        let data = "";
+        if (response) {
             data = JSON.stringify(response);
-        }else{
+        } else {
             data = "none";
         }
 
-        // (요청 시간) (method) (path) response with (request body or parms)
-        let log_text = `${current_datetime()} ${method} ${path} request with ${data}`
+        // (요청 시간) (method) (path) response with (response body)
+        let log_text = `${current_datetime()} ${method} ${path} response with ${data}`
 
-        redis_client.rpush(key, log_text , (err, req)=>{
-            if(err){
+        redis_client.rpush(key, log_text, (err, req) => {
+            if (err) {
                 console.log("log regist error!");
             }
         })
     }
 
-    regist_database_log(method, path, result, insert_data){
+
+    regist_database_log(query, result) {
         //database log 기록
         //@parms method       요청 method    
         //@parms path         요청 path
         //@parms result       저장 성공 여부.
         //@parms insert_data  저장할 body or parms json
 
-        let data ="";
-        if(insert_data){
-            data = JSON.stringify(insert_data);
-        }else{
-            data = "none";
+        let result_text = "";
+
+        if (result) {
+            result_text = "succeded";
+        } else {
+            result_text = "failed";
         }
 
-        let result_text ="";
+        let log_text = null;
         
-        if(result){
-            result_text = "success";
-        }else{
-            result_text = "fail";
+        if (query) {
+            // (요청 시간) Sending a query to the database is succeded.  Query: (query) 
+            log_text = `${current_datetime()} sending a query to the database is ${result_text}. query: ${query}`
+        }
+        else{
+            // (요청 시간) Database connect error.
+            log_text = `${current_datetime()} s Database connect error.`
         }
 
-        // (요청 시간) (method) (path) save data in database (result). data: (table name + query type + data)
-        let log_text = `${current_datetime()} ${method} ${path} save data in database ${result_text}. data: ${data}`
 
-        redis_client.rpush(key, log_text , (err, req)=>{
-            if(err){
+        redis_client.rpush(key, log_text, (err, req) => {
+            if (err) {
                 console.log("log regist error!");
             }
         })
 
     }
 
-    regist_s3_log(method, path, result, insert_data){
+    regist_s3_log(method, path, result, insert_data) {
         //database log 기록
         //@parms method       요청 method    
         //@parms path         요청 path
         //@parms result       저장 성공 여부.
         //@parms insert_data  저장할 body or parms json
 
-        let data ="";
-        if(insert_data){
+        let data = "";
+        if (insert_data) {
             data = JSON.stringify(insert_data);
-        }else{
+        } else {
             data = "none";
         }
 
-        let result_text ="";
-        
-        if(result){
+        let result_text = "";
+
+        if (result) {
             result_text = "success";
-        }else{
+        } else {
             result_text = "fail";
         }
 
         // (요청 시간) (method) (path) request s3 (result). file: (bucketname + method + filename)
-        let log_text = `${current_datetime()} ${method} ${path} requset s3 ${result_text}. data: ${data}`
+        let log_text = `${current_datetime()} ${method} ${path} request s3 ${result_text}. data: ${data}`
 
-        redis_client.rpush(key, log_text , (err, req)=>{
-            if(err){
+        redis_client.rpush(key, log_text, (err, req) => {
+            if (err) {
                 console.log("log regist error!");
             }
         })
@@ -134,12 +148,12 @@ class LogRegister{
     }
 
     //log 기록
-    get_log_list(){
-        redis_client.lrange("log", 0, -1, (err, req)=>{
-            if(err){
+    get_log_list() {
+        redis_client.lrange("log", 0, -1, (err, req) => {
+            if (err) {
                 console.log("get log list error!");
             }
-            else{
+            else {
                 console.log(req)
             }
         })

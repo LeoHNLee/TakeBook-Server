@@ -17,11 +17,16 @@ function current_time(){
     return moment().tz("Asia/Seoul").format('YYYYMMDDHHmmss');
 }
 
+function current_YMD(){
+    //현재시간 표시
+    return moment().tz("Asia/Seoul").format('YYYYMMDD');
+}
+
 //(second) (minute) (hour) (date) (month) (year) (
 let scheduleJob = "0 */3 * * * *"
 
 let working = false;
-let workload = 20;
+let workload = 50;
 
 schedule.scheduleJob(scheduleJob, ()=>{
     if (!working) {
@@ -48,7 +53,7 @@ schedule.scheduleJob(scheduleJob, ()=>{
             let s3_params = {
                 Body: log_file,
                 Bucket: log_bucket,
-                Key: `${bucket_dir}/${current_time()}.txt`,
+                Key: `${bucket_dir}/${current_YMD()}/${current_time()}.txt`,
             };
     
             s3.putObject(s3_params, (err, data)=>{
