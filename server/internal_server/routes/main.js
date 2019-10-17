@@ -1,57 +1,17 @@
 const express = require('express');
-const fs = require('fs');
 const request = require('request');
-const aws = require('aws-sdk');
-const router = express.Router();
-const uuidv4 = require('uuid/v4');
 const moment = require('moment-timezone');
 
-//aws region 설정, s3설정
-aws.config.region = 'ap-northeast-2';
-let s3 = new aws.S3();
-const user_bucket = 'takebook-user-bucket';
-const image_bucket = 'takebook-book-image';
+const router = express.Router();
 
-//dynamodb 연결
-let logdb = new aws.DynamoDB.DocumentClient();
-const log_table_name = "internal_log"
-
-
+const log_register = require("../bin/log_register");
 const message = require("../bin/message");
+
 const host = require('../config/host');
 
+let log = new log_register();
 
-//현재시간 표시
-function current_time() {
-    return moment().tz("Asia/Seoul").format('YYYY-MM-DD HH:mm:ss:SSS');
-}
-
-//로그 데이터 저장.
-function recode_log(path, method, request, response) {
-
-//     var params = {
-//         TableName: log_table_name,
-//         Item: {
-//             id: uuidv4(),
-//             path: path,
-//             method: method,
-//             request: request,
-//             response: response,
-//             log_date: current_time()
-//         }
-//     };
-
-
-//     logdb.put(params, function (err, data) {
-//         if (err) {
-//             // console.log("recode_log_fail"); // an error occurred
-//             console.log(err)
-//         }
-//         else console.log("recode_log_success");           // successful response
-//     });
-}
-
-router.get('/UserBook', (req, res) => {
+router.get('/UserBook', [log.regist_request_log],  (req, res) => {
 
     let response_body = {}
 
@@ -89,17 +49,17 @@ router.get('/UserBook', (req, res) => {
         if (err) {
             //내부 서버 오류
             message.set_result_message(response_body, "ES002");
-            recode_log(req.route.path, req.method, req.query, response_body);
+            log.regist_response_log(req.method, req.route.path, response_body);
             res.json(response_body);
             return;
         }
+        log.regist_response_log(req.method, req.route.path, response_body);
         res.json(response)
-        recode_log(req.route.path, req.method, req.query, response);
     })
 
 });
 
-router.get('/CheckISBNExists', (req, res) => {
+router.get('/CheckISBNExists', [log.regist_request_log], (req, res) => {
     let response_body = {};
     let isbn = req.query.isbn;
 
@@ -139,18 +99,18 @@ router.get('/CheckISBNExists', (req, res) => {
                 }
             }
             message.set_result_message(response_body, result_code);
-            recode_log(req.route.path, req.method, req.query, response_body);
+            log.regist_response_log(req.method, req.route.path, response_body);
             res.json(response_body);
         });
     } else {
         //필수 파라미터 누락
         message.set_result_message(response_body, "EC001");
-        recode_log(req.route.path, req.method, req.query, response_body);
+        log.regist_response_log(req.method, req.route.path, response_body);
         res.json(response_body);
     }
 })
 
-router.get('/AnalyzeImage', (req, res) => {
+router.get('/AnalyzeImage', [log.regist_request_log], (req, res) => {
     let response_body = {};
 
     let user_id = req.query.user_id;
@@ -160,7 +120,7 @@ router.get('/AnalyzeImage', (req, res) => {
 
     if (!(user_id && image_id && image_url)) {
         message.set_result_message(response_body, "EC001");
-        recode_log(req.route.path, req.method, req.query, response_body);
+        log.regist_response_log(req.method, req.route.path, response_body);
         res.json(response_body);
         return;
     }
@@ -217,7 +177,7 @@ router.get('/AnalyzeImage', (req, res) => {
         if (!analysis_result) {
             //분석 실패
             console.log("book feature analysis fail");
-            recode_log(req.route.path, req.method, req.query, response_body);
+            log.regist_response_log(req.method, req.route.path, response_body);
             res.json(response_body);
             return;
         }
@@ -274,7 +234,6 @@ router.get('/AnalyzeImage', (req, res) => {
                 default: {
                     //무슨 에러인지 모른경우.
                     message.set_result_message(response_body, error_code);
-                    console.log(error_code)
                 }
             }
         });
@@ -282,8 +241,11 @@ router.get('/AnalyzeImage', (req, res) => {
         if(feature_matching_result){
             message.set_result_message(response_body, "RS000");
             response_body.Response = feature_matching_result;
+            log.regist_response_log(req.method, req.route.path, response_body);
             res.json(response_body);
         }else{
+            console.log("book feature matching fail");
+            log.regist_response_log(req.method, req.route.path, response_body);
             res.json(response_body);
         }
 
@@ -294,90 +256,90 @@ router.get('/AnalyzeImage', (req, res) => {
 
 //책 리스트 불러오기
 //미완성
-router.put('/UserBook', (req, res) => {
+// router.put('/UserBook', (req, res) => {
 
-    const response_body = {};
+//     const response_body = {};
 
-    let token = req.headers.authorization;
-    let decoded = jwt_token.token_check(token);
+//     let token = req.headers.authorization;
+//     let decoded = jwt_token.token_check(token);
 
-    if (decoded) {
-        let user_id = decoded.id;
-        let isbn = req.body.isbn;
-        let modify_isbn = req.body.modify_isbn;
+//     if (decoded) {
+//         let user_id = decoded.id;
+//         let isbn = req.body.isbn;
+//         let modify_isbn = req.body.modify_isbn;
 
-        if (isbn && modify_isbn) {
-            (async () => {
+//         if (isbn && modify_isbn) {
+//             (async () => {
 
-                let isbn_check_result = null;
+//                 let isbn_check_result = null;
 
-                await new Promise((resolve, reject) => {
+//                 await new Promise((resolve, reject) => {
 
-                    mysql_connetion.query(`select isbn from registered_book where user_id = ? and isbn = ?`, [user_id, isbn], (err, results, fields) => {
-                        if (err) {
-                            //User DB 서버 오류
-                            reject("ES010");
-                        } else {
-                            if (results.length) {
-                                //해당 isbn 존제
-                                resolve("success");
-                            } else {
-                                //일치하는 isbn 없음.
-                                reject("EC005");
-                            }
-                        }
+//                     mysql_connetion.query(`select isbn from registered_book where user_id = ? and isbn = ?`, [user_id, isbn], (err, results, fields) => {
+//                         if (err) {
+//                             //User DB 서버 오류
+//                             reject("ES010");
+//                         } else {
+//                             if (results.length) {
+//                                 //해당 isbn 존제
+//                                 resolve("success");
+//                             } else {
+//                                 //일치하는 isbn 없음.
+//                                 reject("EC005");
+//                             }
+//                         }
 
-                    });
-                }).then(result => {
-                    isbn_check_result = result;
-                }).catch(error_code => {
-                    message.set_result_message(response_body, error_code);
-                });
+//                     });
+//                 }).then(result => {
+//                     isbn_check_result = result;
+//                 }).catch(error_code => {
+//                     message.set_result_message(response_body, error_code);
+//                 });
 
-                if (!isbn_check_result) {
-                    res.json(response_body);
-                    return;
-                }
+//                 if (!isbn_check_result) {
+//                     res.json(response_body);
+//                     return;
+//                 }
 
-                await new Promise((resolve, reject) => {
-                    //modify_isbn 존제 여부 확인.
-                    let internal_server_request_form = {
-                        method: 'GET',
-                        uri: `${host.internal_server}/CheckISBNExists`,
-                        qs: {
-                            isbn: modify_isbn
-                        },
-                        json: true
-                    }
+//                 await new Promise((resolve, reject) => {
+//                     //modify_isbn 존제 여부 확인.
+//                     let internal_server_request_form = {
+//                         method: 'GET',
+//                         uri: `${host.internal_server}/CheckISBNExists`,
+//                         qs: {
+//                             isbn: modify_isbn
+//                         },
+//                         json: true
+//                     }
 
-                    request.get(internal_server_request_form, (err, httpResponse, response) => {
-                        if (err) {
-                            reject("ES004");
-                            // response_body.Result_Code = "ES004";
-                            // response_body.Message = "Internal Server Error";
-                        } else {
-                            resolve(response);
-                        }
-                    });
-                });
-
-
-            })();
+//                     request.get(internal_server_request_form, (err, httpResponse, response) => {
+//                         if (err) {
+//                             reject("ES004");
+//                             // response_body.Result_Code = "ES004";
+//                             // response_body.Message = "Internal Server Error";
+//                         } else {
+//                             resolve(response);
+//                         }
+//                     });
+//                 });
 
 
+//             })();
 
-        } else {
-            //필수 파라미터 누락
-            response_body.Result_Code = "EC001";
-            response_body.Message = "invalid parameter error";
-            res.json(response_body);
-        }
-    } else {
-        //권한 없는 토큰.
-        response_body.Result_Code = "EC002";
-        response_body.Message = "Unauthorized token";
-        res.send(response_body);
-    }
-});
+
+
+//         } else {
+//             //필수 파라미터 누락
+//             response_body.Result_Code = "EC001";
+//             response_body.Message = "invalid parameter error";
+//             res.json(response_body);
+//         }
+//     } else {
+//         //권한 없는 토큰.
+//         response_body.Result_Code = "EC002";
+//         response_body.Message = "Unauthorized token";
+//         res.send(response_body);
+//     }
+// });
 
 module.exports = router;

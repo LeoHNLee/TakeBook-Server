@@ -91,10 +91,6 @@ function get_feature(img_path, path_type) {
     });
 }
 
-router.get('/result', (req, res) => {
-    res.send('왜일로 들왔누?')
-});
-
 router.post('/result', (req, res) => {
     let s3 = new aws.S3();
     let filename = req.body.filename;

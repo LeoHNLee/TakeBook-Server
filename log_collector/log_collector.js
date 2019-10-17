@@ -28,46 +28,70 @@ let scheduleJob = "0 */3 * * * *"
 let working = false;
 let workload = 50;
 
+//workload 의 양을 늘릴 기준.
+let scale_up_standard = 1000;
+
+//workload 의 양을 줄일 기준.
+let scale_down_standard = 100;
+
 schedule.scheduleJob(scheduleJob, ()=>{
     if (!working) {
         working = true;
-        redis_client.lrange("log:account", 0, workload, (err, req) => {
+
+        redis_client.llen("log:account", (err, length)=>{
             if(err){
                 console.log(err)
                 working = false;
                 return;
             }
-    
-            if(req.length==0){
+
+            if(length==0){
                 working = false;
                 return;
+            }else{
+                if(length >= scale_up_standard){
+                    workload = 150;
+                }else if(length <= scale_down_standard){
+                    workload = 50;
+                }
             }
-    
-            let log_text = req.join('\n');
-            //파일 생성.
-            fs.writeFileSync('./log.txt', log_text);
-    
-            let log_file = fs.readFileSync('./log.txt');
-    
-            //s3 파라미터
-            let s3_params = {
-                Body: log_file,
-                Bucket: log_bucket,
-                Key: `${bucket_dir}/${current_YMD()}/${current_time()}.txt`,
-            };
-    
-            s3.putObject(s3_params, (err, data)=>{
+
+            redis_client.lrange("log:account", 0, workload, (err, req) => {
                 if(err){
                     console.log(err)
+                    working = false;
+                    return;
                 }
-                else{
-                    //로컬 로그 파일 삭제.
-                    fs.unlinkSync('./log.txt');
-                    redis_client.ltrim("log:account", workload, -1)
-                    console.log("save log success!")
-                }
-                working = false;
+        
+                let log_text = req.join('\n');
+                //파일 생성.
+                fs.writeFileSync('./log.txt', log_text);
+        
+                let log_file = fs.readFileSync('./log.txt');
+        
+                //s3 파라미터
+                let s3_params = {
+                    Body: log_file,
+                    Bucket: log_bucket,
+                    Key: `${bucket_dir}/${current_YMD()}/${current_time()}.txt`,
+                };
+        
+                s3.putObject(s3_params, (err, data)=>{
+                    if(err){
+                        console.log(err)
+                    }
+                    else{
+                        //로컬 로그 파일 삭제.
+                        fs.unlinkSync('./log.txt');
+                        redis_client.ltrim("log:account", workload, -1)
+                        console.log("save log success!")
+                    }
+                    working = false;
+                });
             });
+
         });
+
+        
     }
 });
