@@ -2,11 +2,13 @@ const moment = require('moment-timezone');
 
 const redis_client = require('./redis_client');
 
+const redis_key = require('../config/redis.json');
+
 function current_datetime() {
     return moment().tz("Asia/Seoul").format('YYYY-MM-DD HH:mm:ss');
 }
 
-const key = "log:account"
+const key = redis_key.key;
 
 class LogRegister {
 
