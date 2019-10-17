@@ -84,7 +84,7 @@ schedule.scheduleJob(scheduleJob, ()=>{
                     }
                     else{
                         //로컬 로그 파일 삭제.
-                        fs.unlinkSync('./log.txt');
+                        fs.unlinkSync('./account_log.txt');
                         redis_client.ltrim(key, workload, -1)
                         console.log("save log success!")
                     }
