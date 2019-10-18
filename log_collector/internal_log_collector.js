@@ -24,7 +24,7 @@ function current_YMD(){
     return moment().tz("Asia/Seoul").format('YYYYMMDD');
 }
 
-//(second) (minute) (hour) (date) (month) (year) (
+//(second) (minute) (hour) (date) (month) (year) 
 let scheduleJob = "0 */1 * * * *"
 
 let working = false;
@@ -67,9 +67,9 @@ schedule.scheduleJob(scheduleJob, ()=>{
         
                 let log_text = req.join('\n');
                 //파일 생성.
-                fs.writeFileSync('./log.txt', log_text);
+                fs.writeFileSync('./internal_log.txt', log_text);
         
-                let log_file = fs.readFileSync('./log.txt');
+                let log_file = fs.readFileSync('./internal_log.txt');
         
                 //s3 파라미터
                 let s3_params = {
