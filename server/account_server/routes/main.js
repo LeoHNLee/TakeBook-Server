@@ -852,23 +852,74 @@ router.delete('/UserBook', [log.regist_request_log], (req, res) => {
             return;
         }
 
-        let db_log_date = {
-            table: "registered_book",
-            method: "delete",
-            book_id: book_id
-        }
-
         mysql_query.get_db_query_results(`delete from registered_book where user_id = ? and book_id = ?`, [user_id, book_id])
             .then(results => {
                 if (results.affectedRows) {
                     //해당 책번호 존재
                     message.set_result_message(response_body, "RS000");
-                    log.regist_response_log(req.method, req.route.path, true, db_log_date);
                     mysql_query.update_user_update_date(user_id);
                 } else {
                     //해당 책번호 없음.
                     result_code = "EC005";
-                    log.regist_response_log(req.method, req.route.path, false, db_log_date);
+                    message.set_result_message(response_body, "EC005", "Not Exist book_id Parameter Info");
+                }
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            })
+            .catch(err => {
+                //User DB 서버 오류
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            })
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//사용자 등록 책 삭제
+router.delete('/UserBooks', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let book_id = req.body.book_id;
+
+        if (!book_id || typeof(book_id) !== 'object' || book_id.length === 0) {
+            //파라미터 타입 오류 및 누락
+            message.set_result_message(response_body, "EC001", `book_id parameter error`);
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        let query = `delete from registered_book where `;
+
+        for(let i = 0; i< book_id.length; i++){
+            query+= "book_id = ?";
+
+            if(i !== book_id.length-1){
+                query+=" or ";
+            }
+        }
+
+        mysql_query.get_db_query_results(query, book_id)
+            .then(results => {
+                if (results.affectedRows) {
+                    //해당 책번호 존재
+                    message.set_result_message(response_body, "RS000");
+                    mysql_query.update_user_update_date(user_id);
+                } else {
+                    //해당 책번호 없음.
+                    result_code = "EC005";
                     message.set_result_message(response_body, "EC005", "Not Exist book_id Parameter Info");
                 }
                 log.regist_response_log(req.method, req.route.path, response_body);
