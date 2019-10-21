@@ -1224,56 +1224,6 @@ router.get('/UserScrap', [log.regist_request_log], (req, res) => {
 });
 
 //사용자 스크랩 리스트 요청
-router.get('/UserScrap', [log.regist_request_log], (req, res) => {
-
-    const response_body = {};
-
-    let token = req.headers.authorization;
-    let decoded = jwt_token.token_check(token);
-
-    if (decoded) {
-        let user_id = decoded.id;
-        let folder_name = req.query.folder_name;
-
-        if (!folder_name) {
-            //필수 파라미터 누락
-            message.set_result_message(response_body, "EC001");
-            log.regist_response_log(req.method, req.route.path, response_body);
-            res.json(response_body);
-            return;
-        }
-
-        mysql_query.get_db_query_results('select scrap_id, creation_date, contents, source, folder from scrap where user_id = ? and folder = ?', [user_id, folder_name])
-            .then(results => {
-                message.set_result_message(response_body, "RS000");
-                response_body.Response = {
-                    count: results.length,
-                    item: []
-                }
-
-                for (let i in results) {
-                    results[i]["creation_date"] = method.trim_date(results[i]["creation_date"])
-                    response_body.Response.item.push(results[i]);
-                }
-                log.regist_response_log(req.method, req.route.path, response_body);
-                res.json(response_body)
-            })
-            .catch(err => {
-                //User DB 서버 오류
-                message.set_result_message(response_body, "ES010");
-                log.regist_response_log(req.method, req.route.path, response_body);
-                res.json(response_body)
-            })
-
-    } else {
-        //권한 없는 토큰.
-        message.set_result_message(response_body, "EC002");
-        log.regist_response_log(req.method, req.route.path, response_body);
-        res.json(response_body);
-    }
-});
-
-//사용자 스크랩 리스트 요청
 router.delete('/UserScrap', [log.regist_request_log], (req, res) => {
 
     const response_body = {};
@@ -1338,6 +1288,220 @@ router.delete('/UserScrap', [log.regist_request_log], (req, res) => {
         res.json(response_body);
     }
 });
+
+//사용자 스크랩 내용 수정(내용)
+router.put('/UserScrapContents', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let scrap_id = req.body.scrap_id;
+        let modify_contents = req.body.modify_contents;
+
+        if (!scrap_id||!modify_contents) {
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        mysql_query.get_db_query_results('select folder from scrap where user_id = ? and scrap_id = ?', [user_id, scrap_id])
+        .then(results => {
+            if (results.length) {
+                let folder_name = results[0].folder;
+
+                //스크랩 수정.
+                mysql_query.get_db_query_results('update scrap set contents = ? where user_id = ? and scrap_id = ?', [modify_contents, user_id, scrap_id])
+                    .then(results => {
+                        //요청 성공.
+                        message.set_result_message(response_body, "RS000");
+                        //정보 업데이트.
+                        mysql_query.update_user_update_date(user_id);
+                        mysql_query.update_folder_update_date(user_id, folder_name);
+
+                        log.regist_response_log(req.method, req.route.path, response_body);
+                        res.json(response_body)
+                    })
+                    .catch(err => {
+                        //User DB 서버 오류
+                        message.set_result_message(response_body, "ES010");
+                        log.regist_response_log(req.method, req.route.path, response_body);
+                        res.json(response_body)
+                    })
+
+            } else {
+                //해당 스크랩 없음.
+                message.set_result_message(response_body, "EC005", "Not Exist scrap_id Parameter Info");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            }
+        })
+        .catch(err => {
+            //User DB 서버 오류
+            message.set_result_message(response_body, "ES010");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body)
+        })
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//사용자 스크랩 내용 수정(출처)
+router.put('/UserScrapSource', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let scrap_id = req.body.scrap_id;
+        let modify_source = req.body.modify_source;
+
+        if (!scrap_id||modify_source===undefined) {
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        if(modify_source===''){
+            modify_source = null;
+        }
+
+        mysql_query.get_db_query_results('select folder from scrap where user_id = ? and scrap_id = ?', [user_id, scrap_id])
+        .then(results => {
+            if (results.length) {
+                let folder_name = results[0].folder;
+
+                //스크랩 삭제.
+                mysql_query.get_db_query_results('update scrap set source = ? where user_id = ? and scrap_id = ?', [modify_source, user_id, scrap_id])
+                    .then(results => {
+                        //요청 성공.
+                        message.set_result_message(response_body, "RS000");
+                        //정보 업데이트.
+                        mysql_query.update_user_update_date(user_id);
+                        mysql_query.update_folder_update_date(user_id, folder_name);
+
+                        log.regist_response_log(req.method, req.route.path, response_body);
+                        res.json(response_body)
+                    })
+                    .catch(err => {
+                        //User DB 서버 오류
+                        message.set_result_message(response_body, "ES010");
+                        log.regist_response_log(req.method, req.route.path, response_body);
+                        res.json(response_body)
+                    })
+
+            } else {
+                //해당 스크랩 없음.
+                message.set_result_message(response_body, "EC005", "Not Exist scrap_id Parameter Info");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            }
+        })
+        .catch(err => {
+            //User DB 서버 오류
+            message.set_result_message(response_body, "ES010");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body)
+        })
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//사용자 스크랩의 폴더 변경
+router.put('/ChangeScrapFolder', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let scrap_id_list = req.body.scrap_id_list;
+        let folder_name = req.body.folder_name;
+
+        if (!scrap_id_list || typeof (scrap_id_list) !== 'object' || scrap_id_list.length === 0 || !folder_name) {
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        mysql_query.get_db_query_results('select name from folder where user_id = ? and name = ?', [user_id, folder_name])
+        .then(results => {
+            if (results.length) {
+                let query = `update scrap set folder = '${folder_name}' where `;
+
+                for (let i = 0; i < scrap_id_list.length; i++) {
+                    query += "scrap_id = ?";
+        
+                    if (i !== scrap_id_list.length - 1) {
+                        query += " or ";
+                    }
+                }
+
+                //스크랩 삭제.
+                mysql_query.get_db_query_results(query, scrap_id_list)
+                    .then(results => {
+                        //요청 성공.
+                        message.set_result_message(response_body, "RS000");
+                        //정보 업데이트.
+                        mysql_query.update_user_update_date(user_id);
+                        mysql_query.update_folder_update_date(user_id, folder_name);
+
+                        log.regist_response_log(req.method, req.route.path, response_body);
+                        res.json(response_body)
+                    })
+                    .catch(err => {
+                        //User DB 서버 오류
+                        message.set_result_message(response_body, "ES010");
+                        log.regist_response_log(req.method, req.route.path, response_body);
+                        res.json(response_body)
+                    })
+
+            } else {
+                //해당 폴더 없음.
+                message.set_result_message(response_body, "EC005", "Not Exist folder_name Parameter Info");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            }
+        })
+        .catch(err => {
+            //User DB 서버 오류
+            message.set_result_message(response_body, "ES010");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body)
+        })
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
 
 //책 이미지 등록
 router.post('/AnalyzeImage', [log.regist_request_log], (req, res) => {
