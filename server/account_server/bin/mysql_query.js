@@ -73,6 +73,17 @@ let mysql_query = {
                 console.log("update user update_date fail");
             })
     },
+    update_folder_update_date: (user_id, folder_name)=>{
+        mysql_query.get_db_query_results(`update folder set update_date = ? where user_id = ? and name = ?`, [current_time(), user_id, folder_name])
+            .then(results=>{
+                console.log("update folder update_date success!");
+            })
+            .catch(err=>{
+                //User DB 서버 오류
+                console.log(err)
+                console.log("update folder update_date fail");
+            })
+    },
 
 }
 

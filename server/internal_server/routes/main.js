@@ -113,143 +113,63 @@ router.get('/CheckISBNExists', [log.regist_request_log], (req, res) => {
 router.get('/AnalyzeImage', [log.regist_request_log], (req, res) => {
     let response_body = {};
 
-    let user_id = req.query.user_id;
-    let image_id = req.query.image_id;
     let image_url = req.query.image_url;
 
 
-    if (!(user_id && image_id && image_url)) {
+    if (!image_url) {
         message.set_result_message(response_body, "EC001");
         log.regist_response_log(req.method, req.route.path, response_body);
         res.json(response_body);
         return;
     }
 
-    (async () => {
+    //책 분석 요청
+    let analysis_server_request_form = {
+        method: 'GET',
+        uri: `${host.analysis_server}/UrlAnalyze`,
+        qs: {
+            image_url: image_url
+        },
+        json: true
+    }
 
-        let analysis_result = null;
-
-        await new Promise((resolve, reject) => {
-            //책 특성 추출
-            let analysis_server_request_form = {
-                method: 'GET',
-                uri: `${host.analysis_server}/UrlAnalyze`,
-                qs: {
-                    image_url: image_url
-                },
-                json: true
-            }
-
-            //특성 추출 요청
-            request.get(analysis_server_request_form, (err, httpResponse, response) => {
-                if (err) {
-                    //내부 서버 오류
-                    console.log(err)
-                    reject("ES001")
-                    return;
-                }
-                resolve(response)
-            })
-        }).then(response => {
-            switch (response.Result_Code) {
-                case "RS000": {
-                    analysis_result = response;
-                    break;
-                }
-                case "EP000": {
-                    message.set_result_message(response_body, "EP000");
-                    break;
-                }
-                case "EP001": {
-                    message.set_result_message(response_body, "EP001");
-                    break;
-                }
-                default: {
-                    message.set_result_message(response_body, "ES001");
-                    break;
-                }
-            }
-        }).catch(error_code => {
-            message.set_result_message(response_body, error_code);
-        });
-
-
-        if (!analysis_result) {
-            //분석 실패
-            console.log("book feature analysis fail");
-            log.regist_response_log(req.method, req.route.path, response_body);
-            res.json(response_body);
+    request.get(analysis_server_request_form, (err, httpResponse, response) => {
+        if (err) {
+            //내부 서버 오류
+            console.log(err)
+            message.set_result_message(response_body, "ES001");
             return;
         }
-
-        //특성 매칭 결과.
-        let feature_matching_result = null;
-
-        //특성 분석이 성공한 경우에만 매칭 실시
-        await new Promise((resolve, reject) => {
-
-            let image_feature = analysis_result.Response.body.image.SURF;
-            let kor_text_feature = analysis_result.Response.body.text.kor;
-            let eng_text_feature = analysis_result.Response.body.text.eng;
-
-            //특성 매칭 요청
-            let elasticsearch_server_request_form = {
-                method: 'POST',
-                uri: `${host.elasticsearch_server}/Internal/SeacrhFeature`,
-                body: {
-                    image_feature: image_feature,
-                    kor_text_feature: kor_text_feature,
-                    eng_text_feature: eng_text_feature
-                },
-                json: true
+        switch (response.Result_Code) {
+            case "RS000": {
+                //분석 성공
+                console.log("book feature analysis success");
+                response_body = response;
+                break;
             }
-
-
-            request.post(elasticsearch_server_request_form, (err, httpResponse, response) => {
-                if (err) {
-                    //일라스틱 서치 서버 오류.
-                    reject("ES003")
-                    return;
-                }
-                resolve(response)
-            })
-
-        }).then(response => {
-            switch (response.Result_Code) {
-                case "RS000": {
-                    feature_matching_result = response.Response;
-                    break;
-                }
-                default: {
-                    //일라스틱 서치 서버 오류
-                    message.set_result_message(response_body, "ES003");
-                    break;
-                }
+            case "EP000": {
+                //분석 실패
+                console.log("book feature analysis fail");
+                message.set_result_message(response_body, "EP000");
+                break;
             }
-        }).catch(error_code => {
-            switch (error_code) {
-                case "ES003":{
-                    message.set_result_message(response_body, "ES003");
-                }
-                default: {
-                    //무슨 에러인지 모른경우.
-                    message.set_result_message(response_body, error_code);
-                }
+            case "EP001": {
+                //분석 실패
+                console.log("book feature analysis fail");
+                message.set_result_message(response_body, "EP001");
+                break;
             }
-        });
-
-        if(feature_matching_result){
-            message.set_result_message(response_body, "RS000");
-            response_body.Response = feature_matching_result;
-            log.regist_response_log(req.method, req.route.path, response_body);
-            res.json(response_body);
-        }else{
-            console.log("book feature matching fail");
-            log.regist_response_log(req.method, req.route.path, response_body);
-            res.json(response_body);
+            default: {
+                //분석 실패
+                console.log("book feature analysis fail");
+                message.set_result_message(response_body, "ES001");
+                break;
+            }
         }
 
-    })(); //async exit
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    });
 
 })
 
