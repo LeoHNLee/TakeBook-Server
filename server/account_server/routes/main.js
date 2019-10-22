@@ -1302,7 +1302,7 @@ router.put('/UserScrapContents', [log.regist_request_log], (req, res) => {
         let scrap_id = req.body.scrap_id;
         let modify_contents = req.body.modify_contents;
 
-        if (!scrap_id||!modify_contents) {
+        if (!scrap_id || !modify_contents) {
             //필수 파라미터 누락
             message.set_result_message(response_body, "EC001");
             log.regist_response_log(req.method, req.route.path, response_body);
@@ -1311,42 +1311,42 @@ router.put('/UserScrapContents', [log.regist_request_log], (req, res) => {
         }
 
         mysql_query.get_db_query_results('select folder from scrap where user_id = ? and scrap_id = ?', [user_id, scrap_id])
-        .then(results => {
-            if (results.length) {
-                let folder_name = results[0].folder;
+            .then(results => {
+                if (results.length) {
+                    let folder_name = results[0].folder;
 
-                //스크랩 수정.
-                mysql_query.get_db_query_results('update scrap set contents = ? where user_id = ? and scrap_id = ?', [modify_contents, user_id, scrap_id])
-                    .then(results => {
-                        //요청 성공.
-                        message.set_result_message(response_body, "RS000");
-                        //정보 업데이트.
-                        mysql_query.update_user_update_date(user_id);
-                        mysql_query.update_folder_update_date(user_id, folder_name);
+                    //스크랩 수정.
+                    mysql_query.get_db_query_results('update scrap set contents = ? where user_id = ? and scrap_id = ?', [modify_contents, user_id, scrap_id])
+                        .then(results => {
+                            //요청 성공.
+                            message.set_result_message(response_body, "RS000");
+                            //정보 업데이트.
+                            mysql_query.update_user_update_date(user_id);
+                            mysql_query.update_folder_update_date(user_id, folder_name);
 
-                        log.regist_response_log(req.method, req.route.path, response_body);
-                        res.json(response_body)
-                    })
-                    .catch(err => {
-                        //User DB 서버 오류
-                        message.set_result_message(response_body, "ES010");
-                        log.regist_response_log(req.method, req.route.path, response_body);
-                        res.json(response_body)
-                    })
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body)
+                        })
+                        .catch(err => {
+                            //User DB 서버 오류
+                            message.set_result_message(response_body, "ES010");
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body)
+                        })
 
-            } else {
-                //해당 스크랩 없음.
-                message.set_result_message(response_body, "EC005", "Not Exist scrap_id Parameter Info");
+                } else {
+                    //해당 스크랩 없음.
+                    message.set_result_message(response_body, "EC005", "Not Exist scrap_id Parameter Info");
+                    log.regist_response_log(req.method, req.route.path, response_body);
+                    res.json(response_body)
+                }
+            })
+            .catch(err => {
+                //User DB 서버 오류
+                message.set_result_message(response_body, "ES010");
                 log.regist_response_log(req.method, req.route.path, response_body);
                 res.json(response_body)
-            }
-        })
-        .catch(err => {
-            //User DB 서버 오류
-            message.set_result_message(response_body, "ES010");
-            log.regist_response_log(req.method, req.route.path, response_body);
-            res.json(response_body)
-        })
+            })
 
     } else {
         //권한 없는 토큰.
@@ -1369,7 +1369,7 @@ router.put('/UserScrapSource', [log.regist_request_log], (req, res) => {
         let scrap_id = req.body.scrap_id;
         let modify_source = req.body.modify_source;
 
-        if (!scrap_id||modify_source===undefined) {
+        if (!scrap_id || modify_source === undefined) {
             //필수 파라미터 누락
             message.set_result_message(response_body, "EC001");
             log.regist_response_log(req.method, req.route.path, response_body);
@@ -1377,47 +1377,47 @@ router.put('/UserScrapSource', [log.regist_request_log], (req, res) => {
             return;
         }
 
-        if(modify_source===''){
+        if (modify_source === '') {
             modify_source = null;
         }
 
         mysql_query.get_db_query_results('select folder from scrap where user_id = ? and scrap_id = ?', [user_id, scrap_id])
-        .then(results => {
-            if (results.length) {
-                let folder_name = results[0].folder;
+            .then(results => {
+                if (results.length) {
+                    let folder_name = results[0].folder;
 
-                //스크랩 삭제.
-                mysql_query.get_db_query_results('update scrap set source = ? where user_id = ? and scrap_id = ?', [modify_source, user_id, scrap_id])
-                    .then(results => {
-                        //요청 성공.
-                        message.set_result_message(response_body, "RS000");
-                        //정보 업데이트.
-                        mysql_query.update_user_update_date(user_id);
-                        mysql_query.update_folder_update_date(user_id, folder_name);
+                    //스크랩 삭제.
+                    mysql_query.get_db_query_results('update scrap set source = ? where user_id = ? and scrap_id = ?', [modify_source, user_id, scrap_id])
+                        .then(results => {
+                            //요청 성공.
+                            message.set_result_message(response_body, "RS000");
+                            //정보 업데이트.
+                            mysql_query.update_user_update_date(user_id);
+                            mysql_query.update_folder_update_date(user_id, folder_name);
 
-                        log.regist_response_log(req.method, req.route.path, response_body);
-                        res.json(response_body)
-                    })
-                    .catch(err => {
-                        //User DB 서버 오류
-                        message.set_result_message(response_body, "ES010");
-                        log.regist_response_log(req.method, req.route.path, response_body);
-                        res.json(response_body)
-                    })
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body)
+                        })
+                        .catch(err => {
+                            //User DB 서버 오류
+                            message.set_result_message(response_body, "ES010");
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body)
+                        })
 
-            } else {
-                //해당 스크랩 없음.
-                message.set_result_message(response_body, "EC005", "Not Exist scrap_id Parameter Info");
+                } else {
+                    //해당 스크랩 없음.
+                    message.set_result_message(response_body, "EC005", "Not Exist scrap_id Parameter Info");
+                    log.regist_response_log(req.method, req.route.path, response_body);
+                    res.json(response_body)
+                }
+            })
+            .catch(err => {
+                //User DB 서버 오류
+                message.set_result_message(response_body, "ES010");
                 log.regist_response_log(req.method, req.route.path, response_body);
                 res.json(response_body)
-            }
-        })
-        .catch(err => {
-            //User DB 서버 오류
-            message.set_result_message(response_body, "ES010");
-            log.regist_response_log(req.method, req.route.path, response_body);
-            res.json(response_body)
-        })
+            })
 
     } else {
         //권한 없는 토큰.
@@ -1449,50 +1449,50 @@ router.put('/ChangeScrapFolder', [log.regist_request_log], (req, res) => {
         }
 
         mysql_query.get_db_query_results('select name from folder where user_id = ? and name = ?', [user_id, folder_name])
-        .then(results => {
-            if (results.length) {
-                let query = `update scrap set folder = '${folder_name}' where `;
+            .then(results => {
+                if (results.length) {
+                    let query = `update scrap set folder = '${folder_name}' where `;
 
-                for (let i = 0; i < scrap_id_list.length; i++) {
-                    query += "scrap_id = ?";
-        
-                    if (i !== scrap_id_list.length - 1) {
-                        query += " or ";
+                    for (let i = 0; i < scrap_id_list.length; i++) {
+                        query += "scrap_id = ?";
+
+                        if (i !== scrap_id_list.length - 1) {
+                            query += " or ";
+                        }
                     }
+
+                    //스크랩 삭제.
+                    mysql_query.get_db_query_results(query, scrap_id_list)
+                        .then(results => {
+                            //요청 성공.
+                            message.set_result_message(response_body, "RS000");
+                            //정보 업데이트.
+                            mysql_query.update_user_update_date(user_id);
+                            mysql_query.update_folder_update_date(user_id, folder_name);
+
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body)
+                        })
+                        .catch(err => {
+                            //User DB 서버 오류
+                            message.set_result_message(response_body, "ES010");
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body)
+                        })
+
+                } else {
+                    //해당 폴더 없음.
+                    message.set_result_message(response_body, "EC005", "Not Exist folder_name Parameter Info");
+                    log.regist_response_log(req.method, req.route.path, response_body);
+                    res.json(response_body)
                 }
-
-                //스크랩 삭제.
-                mysql_query.get_db_query_results(query, scrap_id_list)
-                    .then(results => {
-                        //요청 성공.
-                        message.set_result_message(response_body, "RS000");
-                        //정보 업데이트.
-                        mysql_query.update_user_update_date(user_id);
-                        mysql_query.update_folder_update_date(user_id, folder_name);
-
-                        log.regist_response_log(req.method, req.route.path, response_body);
-                        res.json(response_body)
-                    })
-                    .catch(err => {
-                        //User DB 서버 오류
-                        message.set_result_message(response_body, "ES010");
-                        log.regist_response_log(req.method, req.route.path, response_body);
-                        res.json(response_body)
-                    })
-
-            } else {
-                //해당 폴더 없음.
-                message.set_result_message(response_body, "EC005", "Not Exist folder_name Parameter Info");
+            })
+            .catch(err => {
+                //User DB 서버 오류
+                message.set_result_message(response_body, "ES010");
                 log.regist_response_log(req.method, req.route.path, response_body);
                 res.json(response_body)
-            }
-        })
-        .catch(err => {
-            //User DB 서버 오류
-            message.set_result_message(response_body, "ES010");
-            log.regist_response_log(req.method, req.route.path, response_body);
-            res.json(response_body)
-        })
+            })
 
     } else {
         //권한 없는 토큰.
@@ -1501,7 +1501,6 @@ router.put('/ChangeScrapFolder', [log.regist_request_log], (req, res) => {
         res.json(response_body);
     }
 });
-
 
 //책 이미지 등록
 router.post('/AnalyzeImage', [log.regist_request_log], (req, res) => {
@@ -1825,8 +1824,359 @@ router.delete('/ImageList', [log.regist_request_log], (req, res) => {
     }
 });
 
+//책 댓글 등록
+router.post('/Comment', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let isbn = req.body.isbn;
+        let contents = req.body.contents;
+        let upper_comment = req.body.upper_comment;
+
+        if (!isbn || !contents) {
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        //등록날짜
+        let registration_date = method.current_time();
+        // primary_key
+        let comment_id = method.create_key(user_id, registration_date);
+
+        let query = 'insert comment values(?, ?, ?, ?, ?, ?, ?, ?, ?)';
+        if (upper_comment) {
+            //대댓글 등록.
+            mysql_query.get_db_query_results(query, [comment_id, user_id, isbn, registration_date, contents, 0, 0, upper_comment, null])
+                .then(results => {
+                    //요청 성공.
+
+                    //upper_comment recomment_cnt 증가.
+                    mysql_query.increment_comment_recomment_cnt(upper_comment);
+
+                    message.set_result_message(response_body, "RS000");
+                    log.regist_response_log(req.method, req.route.path, response_body);
+                    res.json(response_body)
+                })
+                .catch(err => {
+                    switch (err.code) {
+                        case "ER_NO_REFERENCED_ROW_2": {
+                            message.set_result_message(response_body, "EC005", "Not Exist upper_comment Info");
+                            break;
+                        }
+                        default: {
+                            message.set_result_message(response_body, "ES010");
+                            break;
+                        }
+                    }
+                    log.regist_response_log(req.method, req.route.path, response_body);
+                    res.json(response_body)
+                });
+        } else {
+            //댓글 등록.
+            mysql_query.get_db_query_results(query, [comment_id, user_id, isbn, registration_date, contents, 0, 0, null, 0])
+                .then(results => {
+                    //요청 성공.
+                    message.set_result_message(response_body, "RS000");
+                    log.regist_response_log(req.method, req.route.path, response_body);
+                    res.json(response_body)
+                })
+                .catch(err => {
+                    //User DB 서버 오류
+                    console.log(err)
+                    message.set_result_message(response_body, "ES010");
+                    log.regist_response_log(req.method, req.route.path, response_body);
+                    res.json(response_body)
+                });
+        }
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//책 댓글 내용 수정
+router.put('/Comment', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let comment_id = req.body.comment_id;
+        let contents = req.body.contents;
+
+        if (!comment_id || !contents) {
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        mysql_query.get_db_query_results('update comment set contents = ? where comment_id = ?', [contents, comment_id])
+            .then(results => {
+                if (results.affectedRows) {
+                    //요청 성공.
+                    message.set_result_message(response_body, "RS000");
+                } else {
+                    //해당 id 없음.
+                    message.set_result_message(response_body, "EC005", "Not Exist comment_id Info");
+                }
+
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            })
+            .catch(err => {
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            });
 
 
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//책 댓글 삭제
+router.delete('/Comment', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let comment_id = req.body.comment_id;
+
+        if (!comment_id) {
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        mysql_query.get_db_query_results('select upper_comment from comment where comment_id = ?', [comment_id])
+            .then(results => {
+                if (results.length) {
+                    let upper_comment = results[0].upper_comment;
+
+                    mysql_query.get_db_query_results('delete from comment where comment_id = ?', [comment_id])
+                        .then(results => {
+                            //요청 성공.
+                            message.set_result_message(response_body, "RS000");
+
+                            if (upper_comment) {
+                                //대댓글인 경우, 상위 댓글의 recomment_cnt를 -1
+                                mysql_query.decrement_comment_recomment_cnt(upper_comment);
+                            }
+
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body)
+                        })
+                        .catch(err => {
+                            message.set_result_message(response_body, "ES010");
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body)
+                        });
+                }
+                else {
+                    //해당 id 없음.
+                    message.set_result_message(response_body, "EC005", "Not Exist comment_id Info");
+                    log.regist_response_log(req.method, req.route.path, response_body);
+                    res.json(response_body)
+                }
+
+            })
+            .catch(err => {
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            });
+
+
+
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//댓글 좋아요/싫어요 등록.
+router.post('/VoteBook', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let comment_id = req.body.comment_id;
+        let vote = req.body.vote;
+
+        if (!comment_id || !method.isnumber(vote)) {
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        if (!(vote == 1) && !(vote == -1)) {
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001", "invalid vote error");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        mysql_query.get_db_query_results('select * from comment_vote where comment_id = ? and user_id = ?', [comment_id, user_id])
+            .then(results => {
+                if (results.length) {
+                    //이미 vote가 존재함.
+                    message.set_result_message(response_body, "RS001", "Vote is already exists");
+                    log.regist_response_log(req.method, req.route.path, response_body);
+                    res.json(response_body)
+                }
+                else {
+                    mysql_query.get_db_query_results('insert comment_vote values (?, ?, ?, ?)',
+                        [method.create_key(user_id), comment_id, user_id, vote])
+                        .then(results => {
+                            //요청 성공.
+                            if (vote === 1) {
+                                //좋아요 수 증가.
+                                mysql_query.increment_comment_good_cnt(comment_id);
+                            } else if (vote === -1) {
+                                //싫어요 수 증가.
+                                mysql_query.increment_comment_bad_cnt(comment_id);
+                            }
+
+                            message.set_result_message(response_body, "RS000");
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body)
+                        })
+                        .catch(err => {
+                            switch (err.code) {
+                                case "ER_NO_REFERENCED_ROW_2": {
+                                    //해당 id 없음.
+                                    message.set_result_message(response_body, "EC005", "Not Exist comment_id Info");
+                                    break;
+                                }
+                                default: {
+                                    message.set_result_message(response_body, "ES010");
+                                    break;
+                                }
+                            }
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body);
+
+                        });
+                }
+            })
+            .catch(err => {
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            })
+
+
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//댓글 좋아요/싫어요 등록.
+router.delete('/VoteBook', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let comment_id = req.body.comment_id;
+
+        if (!comment_id) {
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        mysql_query.get_db_query_results('select vote from comment_vote where comment_id = ? and user_id = ?', [comment_id, user_id])
+            .then(results => {
+                if (results.length) {
+                    let vote = results[0].vote;
+
+                    mysql_query.get_db_query_results('delete from comment_vote where comment_id = ? and user_id = ?', [comment_id, user_id])
+                        .then(results => {
+                            //요청 성공.
+                            message.set_result_message(response_body, "RS000");
+
+                            if (vote = 1) {
+                                //해당 댓글의 good_cnt를 -1
+                                mysql_query.decrement_comment_good_cnt(comment_id);
+                            } else {
+                                //해당 댓글의 bad_cnt를 -1
+                                mysql_query.decrement_comment_bad_cnt(comment_id);
+                            }
+
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body)
+                        })
+                        .catch(err => {
+                            message.set_result_message(response_body, "ES010");
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body)
+                        });
+                }
+                else {
+                    //해당 vote 없음.
+                    message.set_result_message(response_body, "EC005", "Not Exist comment_id Info");
+                    log.regist_response_log(req.method, req.route.path, response_body);
+                    res.json(response_body)
+                }
+
+            })
+            .catch(err => {
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            });
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
 
 
 module.exports = router;

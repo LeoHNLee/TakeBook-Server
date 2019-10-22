@@ -84,6 +84,72 @@ let mysql_query = {
                 console.log("update folder update_date fail");
             })
     },
+    increment_comment_recomment_cnt: (comment_id)=>{
+        mysql_query.get_db_query_results(`update comment set recomment_cnt = recomment_cnt + 1 where comment_id = ?`, [comment_id])
+            .then(results=>{
+                console.log("increment comment recomment_cnt success!");
+            })
+            .catch(err=>{
+                //User DB 서버 오류
+                console.log(err)
+                console.log("increment comment recomment_cnt fail");
+            })
+    },
+    decrement_comment_recomment_cnt: (comment_id)=>{
+        mysql_query.get_db_query_results(`update comment set recomment_cnt = recomment_cnt - 1 where comment_id = ?`, [comment_id])
+            .then(results=>{
+                console.log("increment comment recomment_cnt success!");
+            })
+            .catch(err=>{
+                //User DB 서버 오류
+                console.log(err)
+                console.log("increment comment recomment_cnt fail");
+            })
+    },
+    increment_comment_good_cnt: (comment_id)=>{
+        mysql_query.get_db_query_results(`update comment set good_cnt = good_cnt + 1 where comment_id = ?`, [comment_id])
+            .then(results=>{
+                console.log("increment comment good_cnt success!");
+            })
+            .catch(err=>{
+                //User DB 서버 오류
+                console.log(err)
+                console.log("increment comment good_cnt fail");
+            })
+    },
+    decrement_comment_good_cnt: (comment_id)=>{
+        mysql_query.get_db_query_results(`update comment set good_cnt = good_cnt - 1 where comment_id = ?`, [comment_id])
+            .then(results=>{
+                console.log("decrement comment good_cnt success!");
+            })
+            .catch(err=>{
+                //User DB 서버 오류
+                console.log(err)
+                console.log("decrement comment good_cnt fail");
+            })
+    },
+    increment_comment_bad_cnt: (comment_id)=>{
+        mysql_query.get_db_query_results(`update comment set bad_cnt = bad_cnt + 1 where comment_id = ?`, [comment_id])
+            .then(results=>{
+                console.log("increment comment bad_cnt success!");
+            })
+            .catch(err=>{
+                //User DB 서버 오류
+                console.log(err)
+                console.log("increment comment bad_cnt fail");
+            })
+    },
+    decrement_comment_bad_cnt: (comment_id)=>{
+        mysql_query.get_db_query_results(`update comment set bad_cnt = bad_cnt - 1 where comment_id = ?`, [comment_id])
+            .then(results=>{
+                console.log("decrement comment bad_cnt success!");
+            })
+            .catch(err=>{
+                //User DB 서버 오류
+                console.log(err)
+                console.log("decrement comment bad_cnt fail");
+            })
+    },
 
 }
 
