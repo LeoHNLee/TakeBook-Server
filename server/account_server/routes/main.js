@@ -1824,6 +1824,87 @@ router.delete('/ImageList', [log.regist_request_log], (req, res) => {
     }
 });
 
+//책 대댓글 리스트 요청
+router.get('/Comment', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let isbn = req.query.isbn;
+        let sort_key = (req.query.sort_key)? req.query.sort_key : "registration_date";
+        let sort_method = (req.query.sort_method) ? req.query.sort_method : "desc";
+
+        if (!isbn) {
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        //파라미터 옮바른 값 확인.
+        let check_list = {
+            sort_key: ["registration_date", "good_cnt", "bad_cnt"],
+            sort_method: ["asc", "desc"]
+        }
+
+        let params = { sort_key, sort_method };
+        let check_result = method.params_check(params, check_list);
+
+        if (check_result) {
+            //파라미터 값 오류
+            message.set_result_message(response_body, "EC001", `${check_result} parameter error`);
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        let query = `select c.comment_id, c.user_id, c.registration_date,
+                            c.contents, c.good_cnt, c.bad_cnt, c.vote, u.name, u.profile_url
+                     from (
+                        select c.comment_id, c.user_id, c.registration_date, c.contents, c.good_cnt, c.bad_cnt, v.vote
+                        from comment as c
+                        left join comment_vote v
+                        on c.comment_id = v.comment_id
+                        where c.isbn = ? and c.upper_comment is null
+                     ) as c, user as u
+                     where c.user_id = u.user_id
+                     order by ${sort_key} ${sort_method};`
+
+        mysql_query.get_db_query_results(query, [isbn])
+            .then(results => {
+                //요청 성공.
+                message.set_result_message(response_body, "RS000");
+                response_body.Response = {
+                    count: results.length,
+                    item: []
+                }
+                for(var i in results){
+                    results[i].registration_date = method.trim_date(results[i].registration_date);
+                    response_body.Response.item.push(results[i])
+                }
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            })
+            .catch(err => {
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            });
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+
 //책 댓글 등록
 router.post('/Comment', [log.regist_request_log], (req, res) => {
 
@@ -2012,6 +2093,86 @@ router.delete('/Comment', [log.regist_request_log], (req, res) => {
 
 
 
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//책 대댓글 리스트 요청
+router.get('/ReComment', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let comment_id = req.query.comment_id;
+        let sort_key = (req.query.sort_key)? req.query.sort_key : "registration_date";
+        let sort_method = (req.query.sort_method) ? req.query.sort_method : "desc";
+
+        if (!comment_id) {
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        //파라미터 옮바른 값 확인.
+        let check_list = {
+            sort_key: ["registration_date", "good_cnt", "bad_cnt"],
+            sort_method: ["asc", "desc"]
+        }
+
+        let params = { sort_key, sort_method };
+        let check_result = method.params_check(params, check_list);
+
+        if (check_result) {
+            //파라미터 값 오류
+            message.set_result_message(response_body, "EC001", `${check_result} parameter error`);
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        let query = `select c.comment_id, c.user_id, c.registration_date,
+                            c.contents, c.good_cnt, c.bad_cnt, c.vote, u.name, u.profile_url
+                     from (
+                        select c.comment_id, c.user_id, c.registration_date, c.contents, c.good_cnt, c.bad_cnt, v.vote
+                        from comment as c
+                        left join comment_vote v
+                        on c.comment_id = v.comment_id
+                        where c.upper_comment = ?
+                     ) as c, user as u
+                     where c.user_id = u.user_id
+                     order by ${sort_key} ${sort_method};`
+
+        mysql_query.get_db_query_results(query, [comment_id])
+            .then(results => {
+                //요청 성공.
+                message.set_result_message(response_body, "RS000");
+                response_body.Response = {
+                    count: results.length,
+                    item: []
+                }
+                for(var i in results){
+                    results[i].registration_date = method.trim_date(results[i].registration_date);
+                    response_body.Response.item.push(results[i])
+                }
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            })
+            .catch(err => {
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            });
 
     } else {
         //권한 없는 토큰.
