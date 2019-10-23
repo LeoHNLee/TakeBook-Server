@@ -7,7 +7,7 @@ import bin.message as message
 import bin.es_client as es_client
 
 
-class UrlAnalyze(Resource):
+class BookImageAnalyze(Resource):
     def get(self):
         response_body = {}
 
@@ -32,4 +32,30 @@ class UrlAnalyze(Resource):
             response_body["Response"] = result
         
 
+        return jsonify(response_body)
+
+
+
+class ScrapImageAnalyze(Resource):
+    def get(self):
+        response_body = {}
+
+        req = request.args
+        image_url = req.get("image_url")
+
+        if image_url is None:
+            # 필수 파라미터 누락
+            message.set_result_message(response_body, "EC001")
+        else:
+            # 이곳에서 텍스트 추출.
+            ##################################
+            # scrap_text = get_scrap_text(image_url)
+            ##################################
+
+
+            message.set_result_message(response_body, "RS000")
+            response_body["Response"] = {
+                # "text": scrap_text,
+                "text": "scrap_text"
+            }
         return jsonify(response_body)

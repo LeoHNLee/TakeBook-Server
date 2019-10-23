@@ -110,7 +110,7 @@ router.get('/CheckISBNExists', [log.regist_request_log], (req, res) => {
     }
 })
 
-router.get('/AnalyzeImage', [log.regist_request_log], (req, res) => {
+router.get('/AnalyzeBookImage', [log.regist_request_log], (req, res) => {
     let response_body = {};
 
     let image_url = req.query.image_url;
@@ -126,7 +126,7 @@ router.get('/AnalyzeImage', [log.regist_request_log], (req, res) => {
     //책 분석 요청
     let analysis_server_request_form = {
         method: 'GET',
-        uri: `${host.analysis_server}/UrlAnalyze`,
+        uri: `${host.analysis_server}/BookImageAnalyze`,
         qs: {
             image_url: image_url
         },
@@ -150,13 +150,13 @@ router.get('/AnalyzeImage', [log.regist_request_log], (req, res) => {
             case "EP000": {
                 //분석 실패
                 console.log("book feature analysis fail");
-                message.set_result_message(response_body, "EP000");
+                message.set_result_message(response_body, "ES001");
                 break;
             }
             case "EP001": {
                 //분석 실패
                 console.log("book feature analysis fail");
-                message.set_result_message(response_body, "EP001");
+                message.set_result_message(response_body, "ES001");
                 break;
             }
             default: {
@@ -172,6 +172,70 @@ router.get('/AnalyzeImage', [log.regist_request_log], (req, res) => {
     });
 
 })
+
+router.get('/AnalyzeScrapImage', [log.regist_request_log], (req, res) => {
+    let response_body = {};
+
+    let image_url = req.query.image_url;
+
+
+    if (!image_url) {
+        message.set_result_message(response_body, "EC001");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+        return;
+    }
+
+    //책 분석 요청
+    let analysis_server_request_form = {
+        method: 'GET',
+        uri: `${host.analysis_server}/ScrapImageAnalyze`,
+        qs: {
+            image_url: image_url
+        },
+        json: true
+    }
+
+    request.get(analysis_server_request_form, (err, httpResponse, response) => {
+        if (err) {
+            //내부 서버 오류
+            console.log(err)
+            message.set_result_message(response_body, "ES001");
+            return;
+        }
+        switch (response.Result_Code) {
+            case "RS000": {
+                //분석 성공
+                console.log("scrap image analysis success");
+                response_body = response;
+                break;
+            }
+            case "EP000": {
+                //분석 실패
+                console.log("scrap image analysis fail");
+                message.set_result_message(response_body, "ES001");
+                break;
+            }
+            case "EP001": {
+                //분석 실패
+                console.log("scrap image analysis fail");
+                message.set_result_message(response_body, "ES001");
+                break;
+            }
+            default: {
+                //분석 실패
+                console.log("scrap image analysis fail");
+                message.set_result_message(response_body, "ES001");
+                break;
+            }
+        }
+
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    });
+
+})
+
 
 
 //책 리스트 불러오기

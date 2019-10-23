@@ -21,6 +21,7 @@ aws.config.region = 'ap-northeast-2';
 let s3 = new aws.S3();
 const user_bucket = 'takebook-user-bucket';
 const image_bucket = 'takebook-book-image';
+const user_scrap = 'takebook-user-scrap';
 
 router.post('/CreateUsers', [log.regist_request_log], (req, res) => {
 
@@ -1193,7 +1194,7 @@ router.get('/UserScrap', [log.regist_request_log], (req, res) => {
             return;
         }
 
-        mysql_query.get_db_query_results('select scrap_id, creation_date, contents, source, folder from scrap where user_id = ? and folder = ?', [user_id, folder_name])
+        mysql_query.get_db_query_results('select scrap_id, creation_date, contents, source, folder, image_url from scrap where user_id = ? and folder = ?', [user_id, folder_name])
             .then(results => {
                 message.set_result_message(response_body, "RS000");
                 response_body.Response = {
@@ -1223,7 +1224,165 @@ router.get('/UserScrap', [log.regist_request_log], (req, res) => {
     }
 });
 
-//사용자 스크랩 리스트 요청
+//사용자 스크랩 추가
+router.post('/UserScrap', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let registration_date = method.current_time();
+
+        let user_file_upload = multer({
+            storage: multers3({
+                s3: s3,
+                bucket: user_scrap,
+                metadata: function (req, file, cb) {
+                    cb(null, { fieldName: `${method.email_parser(user_id)}-${registration_date}.jpg` });
+                },
+                key: function (req, file, cb) {
+                    cb(null, `${method.email_parser(user_id)}-${registration_date}.jpg`);
+                }
+            })
+        }).single('image_file');
+
+        user_file_upload(req, res, (err) => {
+            if (err) {
+                switch (err.code) {
+                    case "LIMIT_UNEXPECTED_FILE": {
+                        //파라메터 잘못 입력.
+                        message.set_result_message(response_body, "EC001");
+                    }
+                    default: {
+                        console.log("s3 scrap file upload error.")
+
+                        log.regist_s3_log(req.method, req.route.path, false, {
+                            bucket: user_scrap,
+                            method: "upload",
+                            filename: `${method.email_parser(user_id)}-${registration_date}.jpg`
+                        })
+                        message.set_result_message(response_body, "EC001");
+                    }
+                }
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            }
+            else {
+                if (req.file) {
+                    console.log("s3 scrap file upload success!");
+
+                    //s3 로그 기록
+                    log.regist_s3_log(req.method, req.route.path, true, {
+                        bucket: user_scrap,
+                        method: "upload",
+                        filename: `${method.email_parser(user_id)}-${registration_date}.jpg`
+                    })
+
+                    let source = (req.body.source) ? (req.body.source) : null;
+                    let folder = req.body.folder;
+
+                    if (!folder) {
+                        //필수 파라미터 누락
+                        message.set_result_message(response_body, "EC001");
+                        log.regist_response_log(req.method, req.route.path, response_body);
+                        res.json(response_body);
+                        console.log("invalid scrap. request fail.");
+                        //s3 파일 삭제.
+                        var params = {
+                            Bucket: user_scrap,
+                            Key: `${method.email_parser(user_id)}-${registration_date}.jpg`
+                        };
+
+                        s3.deleteObject(params, (err, data) => {
+                            let result = false;
+                            if (err) {
+                                console.log("s3 scrap file delete fail!");
+                            } else {
+                                result = true;
+                                console.log("s3 scrap file delete success!");
+                            }
+                            //s3 로그 기록
+                            log.regist_s3_log(req.method, req.route.path, result, {
+                                bucket: user_scrap,
+                                method: "delete",
+                                filename: `${method.email_parser(user_id)}-${registration_date}.jpg`
+                            })
+                        });
+                        return;
+                    }
+
+                    //정보 수정
+                    mysql_query.get_db_query_results(`insert scrap values (?, ?, ?, ?, ?, ?, ?);`,
+                        [method.create_key(user_id, registration_date), user_id, registration_date, null, source, folder, req.file.location])
+                        .then(results => {
+                            //요청 성공.
+                            message.set_result_message(response_body, "RS000");
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body);
+                        })
+                        .catch(err => {
+                            switch (err.code) {
+                                case "ER_NO_REFERENCED_ROW_2": {
+                                    //해당 폴더가 존재하지 않음.
+                                    console.log("scrap folder is not exist. request fail.");
+                                    message.set_result_message(response_body, "EC005", "Not Exist folder Info");
+                                    break;
+                                }
+                                default: {
+                                    //데이터 베이스 오류
+                                    message.set_result_message(response_body, "ES010");
+                                    break;
+                                }
+                            }
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body);
+
+                            //s3 파일 삭제.
+                            var params = {
+                                Bucket: user_scrap,
+                                Key: `${method.email_parser(user_id)}-${registration_date}.jpg`
+                            };
+
+                            s3.deleteObject(params, (err, data) => {
+                                let result = false;
+                                if (err) {
+                                    console.log("s3 scrap file delete fail!");
+                                } else {
+                                    result = true;
+                                    console.log("s3 scrap file delete success!");
+                                }
+                                //s3 로그 기록
+                                log.regist_s3_log(req.method, req.route.path, result, {
+                                    bucket: user_scrap,
+                                    method: "delete",
+                                    filename: `${method.email_parser(user_id)}-${registration_date}.jpg`
+                                })
+                            });
+
+                        })
+                }
+                else {
+                    //필수 파라미터 누락
+                    message.set_result_message(response_body, "EC001");
+                    log.regist_response_log(req.method, req.route.path, response_body);
+                    res.json(response_body);
+                }
+            }
+
+        });
+    } else {
+
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//사용자 스크랩 삭제
 router.delete('/UserScrap', [log.regist_request_log], (req, res) => {
 
     const response_body = {};
@@ -1502,238 +1661,6 @@ router.put('/ChangeScrapFolder', [log.regist_request_log], (req, res) => {
     }
 });
 
-//책 이미지 등록
-router.post('/AnalyzeImage', [log.regist_request_log], (req, res) => {
-
-    const response_body = {};
-
-    let token = req.headers.authorization;
-    let decoded = jwt_token.token_check(token);
-    if (decoded) {
-        let user_id = decoded.id;
-        let registration_date = method.current_time();
-        let image_id = method.create_key(user_id, registration_date);
-
-        let user_file_upload = multer({
-            storage: multers3({
-                s3: s3,
-                bucket: image_bucket,
-                metadata: function (req, file, cb) {
-                    cb(null, { fieldName: `${image_id}.jpg` });
-                },
-                key: function (req, file, cb) {
-                    cb(null, `${image_id}.jpg`);
-                }
-            })
-        }).single('book_image');
-
-        user_file_upload(req, res, (err) => {
-            if (err) {
-                //s3 저장 실패.
-                switch (err.code) {
-                    case "LIMIT_UNEXPECTED_FILE": {
-                        //파라메터 잘못 입력.
-                        message.set_result_message(response_body, "EC001");
-                    }
-                    default: {
-                        message.set_result_message(response_body, "EC001");
-                    }
-                }
-
-                //log 기록
-                log.regist_s3_log(req.method, req.route.path, false, {
-                    bucket: image_bucket,
-                    method: "upload",
-                    filename: `${image_id}.jpg`
-                });
-                log.regist_response_log(req.method, req.route.path, response_body);
-                res.json(response_body);
-                return;
-            }
-
-            if (!req.file) {
-                //필수 파라미터 누락
-                message.set_result_message(response_body, "EC001");
-                log.regist_response_log(req.method, req.route.path, response_body);
-                res.json(response_body);
-                return;
-            }
-
-            let image_url = req.file.location;
-
-            let query = `insert into registered_image values (?, ?, ?, ?, ?)`;
-            mysql_query.get_db_query_results(query, [image_id, user_id, registration_date, image_url, 0])
-                .then(results => {
-                    message.set_result_message(response_body, "RS000");
-
-                    log.regist_response_log(req.method, req.route.path, response_body);
-                    res.json(response_body);
-
-                    //이미지 분석 요청.
-                    let internal_server_request_form = {
-                        method: 'GET',
-                        uri: `${host.internal_server}/AnalyzeImage`,
-                        qs: {
-                            image_url: req.file.location
-                        },
-                        json: true
-                    }
-
-                    request.get(internal_server_request_form, (err, httpResponse, response) => {
-                        let result = err ? false : true;
-                        if (!result) {
-                            console.log("regist image fail: internal server error.")
-                        } else {
-                            switch (response.Result_Code) {
-                                case "RS000": {
-                                    result = true;
-
-                                    //body값이 정상적으로 오지 않은 경우.
-                                    if (!response.Response.isbn) {
-                                        result = false;
-                                        console.log("regist image fail: internal server error.")
-                                    }
-                                    break;
-                                }
-                                case "ES001": {
-                                    console.log("regist image fail: Analysis server error.")
-                                    result = false;
-                                    break;
-                                }
-                                case "ES003": {
-                                    console.log("regist image fail: Elasticsearch server error.")
-                                    result = false;
-                                    break;
-                                }
-                                case "ES012": {
-                                    console.log("regist image fail: Elasticsearch Databsae server error.")
-                                    result = false;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (result) {
-                            //검색 성공시.
-                            let isbn = response.Response.isbn;
-                            let second_candidate = response.Response.second_candidate;
-                            let third_candidate = response.Response.third_candidate;
-                            let fourth_candidate = response.Response.fourth_candidate;
-                            let fifth_candidate = response.Response.fifth_candidate;
-
-                            //등록 이미지 삭제.
-                            let query = `delete from registered_image where user_id = ? and image_id = ?;`;
-                            mysql_query.get_db_query_results(query, [user_id, image_id])
-                                .then(results => {
-                                    console.log("delete register_image success");
-                                })
-                                .catch(err => {
-                                    console.log("delete register_image fail: Account Database error.");
-                                });
-
-                            //s3 업로드된 파일 삭제.
-                            var params = {
-                                Bucket: image_bucket,
-                                Key: `${image_id}.jpg`
-                            };
-
-                            s3.deleteObject(params, function (err, data) {
-                                if (err) {
-                                    console.log("delete s3 register_image fail");
-                                    //log 기록
-                                    log.regist_s3_log(req.method, req.route.path, false, {
-                                        bucket: image_bucket,
-                                        method: "delete",
-                                        filename: `${image_id}.jpg`
-                                    });
-
-                                } else {
-                                    console.log("delete s3 register_image success");
-
-                                    //log 기록
-                                    log.regist_s3_log(req.method, req.route.path, true, {
-                                        bucket: image_bucket,
-                                        method: "delete",
-                                        filename: `${image_id}.jpg`
-                                    });
-                                }
-                            });
-
-                            //책 등록.
-                            let registration_date = method.current_time();
-                            let book_id = method.create_key(user_id, registration_date);
-
-                            query = `insert into registered_book values (?, ?, ?, ?, ?, ?, ?, ?, ?);`;
-                            mysql_query.get_db_query_results(query, [book_id, user_id, registration_date, 0, isbn, second_candidate, third_candidate, fourth_candidate, fifth_candidate])
-                                .then(results => {
-                                    console.log("insert register_book success");
-                                })
-                                .catch(err => {
-                                    console.log("insert register_book fail: Account Database error.");
-                                });
-
-                            //사용자 정보 업데이트
-                            mysql_query.update_user_update_date();
-                        }
-                        else {
-                            //검색 실패.
-                            let query = `update registered_image set state = ? where user_id = ? and image_id = ?;`;
-                            mysql_query.get_db_query_results(query, [1, user_id, image_id])
-                                .then(results => {
-                                    console.log("update register_image state success");
-                                })
-                                .catch(err => {
-                                    console.log("update register_image state fail: Account Database error.");
-                                })
-                            return;
-                        }
-                    });
-                })
-                .catch(err => {
-                    //user db 오류
-                    console.log(err)
-                    message.set_result_message(response_body, "ES010");
-
-                    //s3 업로드된 파일 삭제
-                    var params = {
-                        Bucket: image_bucket,
-                        Key: `${image_id}.jpg`
-                    };
-
-                    s3.deleteObject(params, function (err, data) {
-                        if (err) {
-                            console.log("s3 file delete error");
-                            //log 기록
-                            log.regist_s3_log(req.method, req.route.path, false, {
-                                bucket: image_bucket,
-                                method: "delete",
-                                filename: `${image_id}.jpg`
-                            });
-                            message.set_result_message(response_body, "ES013");
-                        }
-                        else {
-                            //log 기록
-                            log.regist_s3_log(req.method, req.route.path, true, {
-                                bucket: image_bucket,
-                                method: "delete",
-                                filename: `${image_id}.jpg`
-                            });
-                        }
-
-                        log.regist_response_log(req.method, req.route.path, response_body);
-                        res.json(response_body);
-                    });
-                })
-
-        })
-    } else {
-        //권한 없는 토큰.
-        message.set_result_message(response_body, "EC002");
-        log.regist_response_log(req.method, req.route.path, response_body);
-        res.json(response_body);
-    }
-});
-
 //등록중인 이미지 리스트 요청
 router.get('/ImageList', [log.regist_request_log], (req, res) => {
 
@@ -1835,7 +1762,7 @@ router.get('/Comment', [log.regist_request_log], (req, res) => {
     if (decoded) {
         let user_id = decoded.id;
         let isbn = req.query.isbn;
-        let sort_key = (req.query.sort_key)? req.query.sort_key : "registration_date";
+        let sort_key = (req.query.sort_key) ? req.query.sort_key : "registration_date";
         let sort_method = (req.query.sort_method) ? req.query.sort_method : "desc";
 
         if (!isbn) {
@@ -1883,7 +1810,7 @@ router.get('/Comment', [log.regist_request_log], (req, res) => {
                     count: results.length,
                     item: []
                 }
-                for(var i in results){
+                for (var i in results) {
                     results[i].registration_date = method.trim_date(results[i].registration_date);
                     response_body.Response.item.push(results[i])
                 }
@@ -1903,7 +1830,6 @@ router.get('/Comment', [log.regist_request_log], (req, res) => {
         res.json(response_body);
     }
 });
-
 
 //책 댓글 등록
 router.post('/Comment', [log.regist_request_log], (req, res) => {
@@ -2113,7 +2039,7 @@ router.get('/ReComment', [log.regist_request_log], (req, res) => {
     if (decoded) {
         let user_id = decoded.id;
         let comment_id = req.query.comment_id;
-        let sort_key = (req.query.sort_key)? req.query.sort_key : "registration_date";
+        let sort_key = (req.query.sort_key) ? req.query.sort_key : "registration_date";
         let sort_method = (req.query.sort_method) ? req.query.sort_method : "desc";
 
         if (!comment_id) {
@@ -2161,7 +2087,7 @@ router.get('/ReComment', [log.regist_request_log], (req, res) => {
                     count: results.length,
                     item: []
                 }
-                for(var i in results){
+                for (var i in results) {
                     results[i].registration_date = method.trim_date(results[i].registration_date);
                     response_body.Response.item.push(results[i])
                 }
@@ -2270,7 +2196,7 @@ router.post('/VoteBook', [log.regist_request_log], (req, res) => {
     }
 });
 
-//댓글 좋아요/싫어요 등록.
+//댓글 좋아요/싫어요 취소.
 router.delete('/VoteBook', [log.regist_request_log], (req, res) => {
 
     const response_body = {};
@@ -2339,5 +2265,526 @@ router.delete('/VoteBook', [log.regist_request_log], (req, res) => {
     }
 });
 
+//팔로워 리스트 요청
+router.get('/Follower', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let sort_method = (req.query.sort_method) ? req.query.sort_method : "asc";
+
+        //파라미터 옮바른 값 확인.
+        let check_list = {
+            sort_method: ["asc", "desc"]
+        }
+
+        let params = { sort_method };
+        let check_result = method.params_check(params, check_list);
+
+        if (check_result) {
+            //파라미터 값 오류
+            message.set_result_message(response_body, "EC001", `${check_result} parameter error`);
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        let query = `select u.user_id, u.name, u.state_message, u.profile_url
+                    from (select user_id
+                        from following
+                        where followee_id = ?) as f, user as u
+                    where f.user_id = u.user_id
+                    order by name ${sort_method}`
+
+        mysql_query.get_db_query_results(query, [user_id])
+            .then(results => {
+                //요청 성공.
+                message.set_result_message(response_body, "RS000");
+                response_body.Response = {
+                    count: results.length,
+                    item: results
+                }
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            })
+            .catch(err => {
+                //User DB 서버 오류
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            })
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//팔로우한 유저 리스트 요청
+router.get('/Followee', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let sort_method = (req.query.sort_method) ? req.query.sort_method : "asc";
+
+        //파라미터 옮바른 값 확인.
+        let check_list = {
+            sort_method: ["asc", "desc"]
+        }
+
+        let params = { sort_method };
+        let check_result = method.params_check(params, check_list);
+
+        if (check_result) {
+            //파라미터 값 오류
+            message.set_result_message(response_body, "EC001", `${check_result} parameter error`);
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        let query = `select u.user_id, u.name, u.state_message, u.profile_url
+                    from (select followee_id
+                        from following
+                        where user_id = ?) as f, user as u
+                    where f.followee_id = u.user_id
+                    order by name ${sort_method}`
+
+        mysql_query.get_db_query_results(query, [user_id])
+            .then(results => {
+                //요청 성공.
+                message.set_result_message(response_body, "RS000");
+                response_body.Response = {
+                    count: results.length,
+                    item: results
+                }
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            })
+            .catch(err => {
+                //User DB 서버 오류
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            })
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+// 다른 유저를 팔로우
+router.post('/FollowUser', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let followee_id = req.body.followee_id;
+
+        if (!followee_id) {
+            //필수 파라미터 누락 및 오류
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        mysql_query.get_db_query_results('insert following values (?, ?)', [user_id, followee_id])
+            .then(results => {
+                //팔로우 성공.
+                message.set_result_message(response_body, "RS000");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            })
+            .catch(err => {
+                switch (err.code) {
+                    case "ER_NO_REFERENCED_ROW_2": {
+                        message.set_result_message(response_body, "EC005", "Not Exist followee_id Info");
+                        break;
+                    }
+                    case "ER_DUP_ENTRY": {
+                        message.set_result_message(response_body, "RS001", "Same followee_id already exists");
+                        break;
+                    }
+                    default: {
+                        message.set_result_message(response_body, "ES010");
+                        break;
+                    }
+                }
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            })
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+// 팔로우 취소
+router.delete('/FollowUser', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let followee_id = req.body.followee_id;
+
+        if (!followee_id) {
+            //필수 파라미터 누락 및 오류
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        mysql_query.get_db_query_results('delete from following where user_id = ? and followee_id = ? ', [user_id, followee_id])
+            .then(results => {
+
+                if (results.affectedRows) {
+                    //팔로우 성공.
+                    message.set_result_message(response_body, "RS000");
+                } else {
+                    //존재 하지 않는 유저.
+                    message.set_result_message(response_body, "EC005", "Not Exist followee_id Info");
+                }
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            })
+            .catch(err => {
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            })
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//책 이미지 등록
+router.post('/AnalyzeBookImage', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+    if (decoded) {
+        let user_id = decoded.id;
+        let registration_date = method.current_time();
+        let image_id = method.create_key(user_id, registration_date);
+
+        let user_file_upload = multer({
+            storage: multers3({
+                s3: s3,
+                bucket: image_bucket,
+                metadata: function (req, file, cb) {
+                    cb(null, { fieldName: `${image_id}.jpg` });
+                },
+                key: function (req, file, cb) {
+                    cb(null, `${image_id}.jpg`);
+                }
+            })
+        }).single('book_image');
+
+        user_file_upload(req, res, (err) => {
+            if (err) {
+                //s3 저장 실패.
+                switch (err.code) {
+                    case "LIMIT_UNEXPECTED_FILE": {
+                        //파라메터 잘못 입력.
+                        message.set_result_message(response_body, "EC001");
+                    }
+                    default: {
+                        message.set_result_message(response_body, "EC001");
+                    }
+                }
+
+                //log 기록
+                log.regist_s3_log(req.method, req.route.path, false, {
+                    bucket: image_bucket,
+                    method: "upload",
+                    filename: `${image_id}.jpg`
+                });
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+                return;
+            }
+
+            if (!req.file) {
+                //필수 파라미터 누락
+                message.set_result_message(response_body, "EC001");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+                return;
+            }
+
+            let image_url = req.file.location;
+
+            let query = `insert into registered_image values (?, ?, ?, ?, ?)`;
+            mysql_query.get_db_query_results(query, [image_id, user_id, registration_date, image_url, 0])
+                .then(results => {
+                    message.set_result_message(response_body, "RS000");
+
+                    log.regist_response_log(req.method, req.route.path, response_body);
+                    res.json(response_body);
+
+                    //이미지 분석 요청.
+                    let internal_server_request_form = {
+                        method: 'GET',
+                        uri: `${host.internal_server}/AnalyzeBookImage`,
+                        qs: {
+                            image_url: req.file.location
+                        },
+                        json: true
+                    }
+
+                    request.get(internal_server_request_form, (err, httpResponse, response) => {
+                        let result = err ? false : true;
+                        if (err) {
+                            console.log("regist image fail: internal server error.")
+                        } else {
+                            switch (response.Result_Code) {
+                                case "RS000": {
+                                    result = true;
+                                    console.log("analysis image success!.")
+                                    break;
+                                }
+                                case "ES001": {
+                                    console.log("regist image fail: Analysis server error.")
+                                    result = false;
+                                    break;
+                                }
+                                case "ES012": {
+                                    console.log("regist image fail: Elasticsearch Databsae server error.")
+                                    result = false;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (result) {
+                            //검색 성공시.
+                            let isbn = response.Response.isbn;
+                            let second_candidate = response.Response.second_candidate;
+                            let third_candidate = response.Response.third_candidate;
+                            let fourth_candidate = response.Response.fourth_candidate;
+                            let fifth_candidate = response.Response.fifth_candidate;
+
+                            //등록 이미지 삭제.
+                            let query = `delete from registered_image where user_id = ? and image_id = ?;`;
+                            mysql_query.get_db_query_results(query, [user_id, image_id])
+                                .then(results => {
+                                    console.log("delete register_image success");
+                                })
+                                .catch(err => {
+                                    console.log("delete register_image fail: Account Database error.");
+                                });
+
+                            //s3 업로드된 파일 삭제.
+                            var params = {
+                                Bucket: image_bucket,
+                                Key: `${image_id}.jpg`
+                            };
+
+                            s3.deleteObject(params, function (err, data) {
+                                if (err) {
+                                    console.log("delete s3 register_image fail");
+                                    //log 기록
+                                    log.regist_s3_log(req.method, req.route.path, false, {
+                                        bucket: image_bucket,
+                                        method: "delete",
+                                        filename: `${image_id}.jpg`
+                                    });
+
+                                } else {
+                                    console.log("delete s3 register_image success");
+
+                                    //log 기록
+                                    log.regist_s3_log(req.method, req.route.path, true, {
+                                        bucket: image_bucket,
+                                        method: "delete",
+                                        filename: `${image_id}.jpg`
+                                    });
+                                }
+                            });
+
+                            //책 등록.
+                            let registration_date = method.current_time();
+                            let book_id = method.create_key(user_id, registration_date);
+
+                            query = `insert into registered_book values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
+                            mysql_query.get_db_query_results(query, [book_id, user_id, registration_date, false, isbn, second_candidate, third_candidate, fourth_candidate, fifth_candidate, true])
+                                .then(results => {
+                                    console.log("insert register_book success");
+                                })
+                                .catch(err => {
+                                    console.log("insert register_book fail: Account Database error.");
+                                });
+
+                            //사용자 정보 업데이트
+                            mysql_query.update_user_update_date();
+                        }
+                        else {
+                            //검색 실패.
+                            let query = `update registered_image set state = ? where user_id = ? and image_id = ?;`;
+                            mysql_query.get_db_query_results(query, [1, user_id, image_id])
+                                .then(results => {
+                                    console.log("update register_image state success");
+                                })
+                                .catch(err => {
+                                    console.log("update register_image state fail: Account Database error.");
+                                })
+                            return;
+                        }
+                    });
+                })
+                .catch(err => {
+                    //user db 오류
+                    console.log(err)
+                    message.set_result_message(response_body, "ES010");
+
+                    //s3 업로드된 파일 삭제
+                    var params = {
+                        Bucket: image_bucket,
+                        Key: `${image_id}.jpg`
+                    };
+
+                    s3.deleteObject(params, function (err, data) {
+                        if (err) {
+                            console.log("s3 file delete error");
+                            //log 기록
+                            log.regist_s3_log(req.method, req.route.path, false, {
+                                bucket: image_bucket,
+                                method: "delete",
+                                filename: `${image_id}.jpg`
+                            });
+                            message.set_result_message(response_body, "ES013");
+                        }
+                        else {
+                            //log 기록
+                            log.regist_s3_log(req.method, req.route.path, true, {
+                                bucket: image_bucket,
+                                method: "delete",
+                                filename: `${image_id}.jpg`
+                            });
+                        }
+
+                        log.regist_response_log(req.method, req.route.path, response_body);
+                        res.json(response_body);
+                    });
+                })
+
+        })
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//스크랩 이미지 분석.
+router.get('/AnalyzeScrapImage', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let scrap_id = req.query.scrap_id;
+
+        mysql_query.get_db_query_results(`select image_url from scrap where scrap_id = ?`, [scrap_id])
+            .then(results => {
+                if (results.length) {
+                    //요청 성공.
+                    let image_url = results[0].image_url;
+
+                    //이미지 분석값 요청
+                    let internal_server_request_form = {
+                        method: 'GET',
+                        uri: `${host.internal_server}/AnalyzeScrapImage`,
+                        qs: {
+                            image_url: image_url
+                        },
+                        json: true
+                    }
+
+                    //도서 정보 요청
+                    request.get(internal_server_request_form, (err, httpResponse, response) => {
+                        if(err){
+                            //내부 서버 오류.
+                            console.log("Internal server error.");
+                            message.set_result_message(response_body, "ES004");        
+                        }
+                        else{
+                            switch(response.Result_Code){
+                                case "RS000":{
+                                    message.set_result_message(response_body, "RS000");
+                                    response_body.Response = response.Response;
+                                    break;
+                                }
+                                case "ES001":{
+                                    console.log("Analysis server error.");
+                                    message.set_result_message(response_body, "ES001");
+                                    break;
+                                }
+                            }
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body)
+                        }
+                    });
+
+                } else {
+                    //해당 scrap존재하지 않음.
+                    console.log("Not Exist scrap_id Info");
+                    message.set_result_message(response_body, "EC005", "Not Exist scrap Info");
+                    log.regist_response_log(req.method, req.route.path, response_body);
+                    res.json(response_body)
+                }
+
+            })
+            .catch(err => {
+                //User DB 서버 오류
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            })
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
 
 module.exports = router;
