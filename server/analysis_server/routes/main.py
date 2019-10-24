@@ -6,9 +6,9 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import bin.message as message
 import bin.es_client as es_client
 
-
 class BookImageAnalyze(Resource):
     def get(self):
+        print(sys.path)
         response_body = {}
 
         req = request.args

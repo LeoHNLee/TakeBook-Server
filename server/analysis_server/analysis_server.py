@@ -22,7 +22,7 @@ file_name = _train_job["paths"]["file"]["model_name"]
 
 # load models
 model = HierarchicalKMeans(parameters = params, logger = logger)
-model.load(dir_path = dir_path, file_name = file_name)
+model.load(dir_path=dir_path, file_name=file_name)
 
 if __name__ == '__main__':
     app.run(debug=True, host = '0.0.0.0', port = 5000)
