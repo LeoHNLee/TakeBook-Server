@@ -73,8 +73,8 @@ let mysql_query = {
                 console.log("update user update_date fail");
             })
     },
-    update_folder_update_date: (user_id, folder_name)=>{
-        mysql_query.get_db_query_results(`update folder set update_date = ? where user_id = ? and name = ?`, [current_time(), user_id, folder_name])
+    update_folder_update_date: (folder_id)=>{
+        mysql_query.get_db_query_results(`update folder set update_date = ? where folder_id = ?`, [current_time(), folder_id])
             .then(results=>{
                 console.log("update folder update_date success!");
             })
