@@ -11,6 +11,11 @@ let message = {
                     response_body.Message = "Response Success";
                     break;
                 }
+                case "RS001": {
+                    //account 서버 오류.
+                    response_body.Message = "Bad Request";
+                    break;
+                }
                 case ("EC001"): {
                     //필수 파라미터 누락
                     response_body.Message = "invalid parameter error";
@@ -70,7 +75,7 @@ let message = {
                     break;
                 }
                 case "ES012": {
-                    response_body.Message = "Elastic Databsae Server Error";
+                    response_body.Message = "Elasticsearch Databsae Server Error";
                     break;
                 }
                 case "ES013": {

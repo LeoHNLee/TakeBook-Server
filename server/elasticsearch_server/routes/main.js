@@ -4,33 +4,89 @@ const request = require('request');
 const router = express.Router();
 
 const message = require('../bin/message');
+const method = require('../bin/Method');
+const es_client = require('../bin/Elasticsearch_Client');
 
-const es_address = 'http://54.180.49.131:9200';
-const es_server_address = 'http://127.0.0.1:5902';
-const book_server_address = 'http://127.0.0.1:5903';
-const analysis_server_address = 'http://127.0.0.1:5901';
+router.get('/Book', (req, res) => {
+    const response_body = {};
 
+    let keyword = req.query.keyword;
+    let category = req.query.category;
 
-router.get('/', (req, res) => {
-    //다른 서버에 요청을 보낼 request form
-    const form = {
-        method: 'GET',
-        uri: `${es_address}/bank`,
-        // json: true
+    if (!category || !keyword) {
+        //파라미터 타입 오류 및 누락
+        message.set_result_message(response_body, "EC001");
+        res.json(response_body);
+        return;
     }
 
-    //도서 분석 요청
-    request.get(form, (err, httpResponse, response) => {
-        if (err) {
-            return console.error('response failed:', err);
-        }
-        // respone 는 string로 옮, json으로 변형시켜줘야함
-        var result = JSON.parse(response)
-        console.log(result)
-        console.log(typeof (result))
-        res.json(result)
-    })
 
+    //파라미터 옮바른 값 확인.
+    let check_list = {
+        category: ["title", "author", "publisher"],
+    }
+
+    let params = { category};
+    let check_result = method.params_check(params, check_list);
+
+    if (check_result) {
+        //파라미터 값 오류
+        message.set_result_message(response_body, "EC001", `${check_result} parameter error`);
+        res.json(response_body);
+        return;
+    }
+    
+    let search_body = {
+        index: "book",
+        body: {
+            from: 0,
+            size: 10,
+            query: {
+                match: {}
+            }
+        }
+    }
+
+    switch(category){
+        case "title":{
+            search_body.body.query.match = {
+                title: keyword
+            }
+            break;
+        }
+        case "author":{
+            search_body.body.query.match = {
+                author: keyword
+            }
+            break;
+        }
+        case "publisher":{
+            search_body.body.query.match = {
+                publisher: keyword
+            }
+            break;
+        }
+    }
+    console.log(search_body)
+
+    es_client.search(search_body, (err, result)=>{
+        if(err){
+            message.set_result_message(response_body, "ES012");
+        }
+        else{
+            message.set_result_message(response_body, "RS000");
+            response_body.Response ={
+                count: result.hits.hits.length,
+                item:[]
+            }
+            for(i in result.hits.hits){
+                let book = result.hits.hits[i]._source;
+                book.isbn = result.hits.hits[i]._id;
+                response_body.Response.item.push(book)
+            }
+        }
+        res.json(response_body)
+    })
 });
 
 router.post('/SaveFeature', (req, res) => {
@@ -449,7 +505,7 @@ router.post('/SeacrhFeature', (req, res) => {
 
         setTimeout(() => {
             message.set_result_message(response_body, "RS000")
-            response_body.Response ={
+            response_body.Response = {
                 isbn: "9788967497385",
                 second_candidate: "9791156931430",
                 third_candidate: "9791157529957",
