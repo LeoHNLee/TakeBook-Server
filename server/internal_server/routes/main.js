@@ -201,34 +201,36 @@ router.get('/AnalyzeScrapImage', [log.regist_request_log], (req, res) => {
             //내부 서버 오류
             console.log(err)
             message.set_result_message(response_body, "ES001");
-            return;
         }
-        switch (response.Result_Code) {
-            case "RS000": {
-                //분석 성공
-                console.log("scrap image analysis success");
-                response_body = response;
-                break;
-            }
-            case "EP000": {
-                //분석 실패
-                console.log("scrap image analysis fail");
-                message.set_result_message(response_body, "ES001");
-                break;
-            }
-            case "EP001": {
-                //분석 실패
-                console.log("scrap image analysis fail");
-                message.set_result_message(response_body, "ES001");
-                break;
-            }
-            default: {
-                //분석 실패
-                console.log("scrap image analysis fail");
-                message.set_result_message(response_body, "ES001");
-                break;
-            }
+        else{
+            switch (response.Result_Code) {
+                case "RS000": {
+                    //분석 성공
+                    console.log("scrap image analysis success");
+                    response_body = response;
+                    break;
+                }
+                case "EP000": {
+                    //분석 실패
+                    console.log("scrap image analysis fail");
+                    message.set_result_message(response_body, "ES001");
+                    break;
+                }
+                case "EP001": {
+                    //분석 실패
+                    console.log("scrap image analysis fail");
+                    message.set_result_message(response_body, "ES001");
+                    break;
+                }
+                default: {
+                    //분석 실패
+                    console.log("scrap image analysis fail");
+                    message.set_result_message(response_body, "ES001");
+                    break;
+                }
+            } 
         }
+
 
         log.regist_response_log(req.method, req.route.path, response_body);
         res.json(response_body);
