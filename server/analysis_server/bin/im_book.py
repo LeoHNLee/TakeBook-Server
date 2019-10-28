@@ -165,14 +165,34 @@ class ImageHandler(object):
         morphology = cv2.erode(src=morphology, kernel=kernel, iterations=mor_args["it_closing"])
 
         cont_args = args["contour"]
-        contours, hierarchy = cv2.findContours(morphology, mode=cont_args["mode"], method=cont_args["method"])
+        _, contours, _ = cv2.findContours(morphology, mode=cont_args["mode"], method=cont_args["method"])
+        
+        mx = 0
+        idx = 0
+        for i, contour in enumerate(contours):
+            length, *_ = contour.shape
+            if mx < length:
+                mx = length
+                idx = i
+        contours = contours[idx]
 
-        len_contours = [contour.shape[0] for contour in contours]
-        main_contour = len_contours.index(max(len_contours))
-        contour = contours[main_contour][:,0]
+        rect = cv2.minAreaRect(contours)
+        rect_origin = []
+        for x, y in rect[:-1]:
+            x *= args["size"]["width_rate"]
+            y *= args["size"]["height_rate"]
+            rect_origin.append((x,y))
+        rect_origin.append(rect[-1])
+        rect_origin = tuple(rect_origin)
 
-        ret=cv2.boundingRect(contour)
-        return ret
+        points = cv2.boxPoints(rect)
+        points_origin = []
+        for point in points:
+            x = point[0]*args["size"]["width_rate"]
+            y = point[1]*args["size"]["height_rate"]
+            points_origin.append((x,y))
+        points_origin = tuple(points_origin)
+        return points_origin, rect_origin
 
     def im_change_type(self, img=None, img_type=cv2.COLOR_BGR2GRAY):
         if img is None:
@@ -229,6 +249,33 @@ class ImageHandler(object):
         if end_y > img.shape[0]: end_y= img.shape[0]
         return (int(start_x), int(end_x), int(start_y), int(end_y))
 
+    def im_get_rectangle_area(self, img=None, rect_info=None):
+        '''
+        - Description: get rotated ractagle area from original image
+        - Input
+            - img: image object
+            - rect_info: ((center), (size), angle) shape rectangle information
+        - Output
+            - 
+        '''
+        # check parameters
+        if img is None:
+            img = self.image
+        if rect_info is None:
+            return img
+
+        # unpack and casting parameters
+        center, size, angle = rect_info
+        center = tuple(map(int, center))
+        size = tuple(map(int, size))
+        height, width, *_ = img.shape
+        
+        # 
+        rot_mat = cv2.getRotationMatrix2D(center, angle, 1)
+        rotated_image = cv2.warpAffine(img, rot_mat, (width, height))
+        cropped_image = cv2.getRectSubPix(rotated_image, size, center)
+        return cropped_image
+
     def im_padding(self, big_size_img, small_size_img=None, value=0, padding=None, borderType=cv2.BORDER_CONSTANT, option=0):
         '''
         - option
@@ -283,9 +330,16 @@ class ImageHandler(object):
         rotated_img = imutils.rotate(padded_img, degree)
         return rotated_img
 
-    def im_crop(self, img=None):
+    def im_crop(self, img=None, area=None):
+        '''
+        - Description: cropping with 
+        - Input
+        - Output
+        '''
         if img is None:
             img = self.image
+        if area is None:
+            return img
 
     def im_flip(self, img=None, option=0):
         '''
@@ -342,7 +396,7 @@ class BookRecognizer(object):
     def train(self):
         pass
 
-    def predict(self, img=None, features=None, text_east=None, text_lang=None, image_options=None):
+    def predict(self, img=None, features=None, text_options=None, image_options=None):
         '''
         - Description:
         - Input
@@ -353,18 +407,18 @@ class BookRecognizer(object):
         if features is None:
             raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict'\nargument:'features'={features}")
 
-        # resize
-        y, x, *_ = img.shape
-        if x != 360 or y != 480:
-            img = cv2.resize(img, dsize=(360,480), interpolation=cv2.INTER_LINEAR)
-
         # extract features
         ret = {}
         for feature in features:
             if feature == "text":
-                extracted = self.predict_text(img=img, east=text_east, lang=text_lang)
+                extracted = self.predict_text(img=img, options=text_options)
             elif feature == "image":
-                extracted = self.predict_image(img=img, options=image_options)
+                # resize the image
+                y, x, *_ = img.shape
+                if x != 360 or y != 480:
+                    resized = cv2.resize(img, dsize=(360,480), interpolation=cv2.INTER_LINEAR)
+                # predict image
+                extracted = self.predict_image(img=resized, options=image_options)
             else:
                 raise ArgumentError(f"Not Found 'predict' Arguemnt 'features': <{feature}>")
             ret[feature] = extracted
@@ -389,19 +443,22 @@ class BookRecognizer(object):
         
         ret = {}
         for option in options:
+            try:
+                option_param = options[option]
+            except KeyError as e:
+                raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_image'\nargument:'options'={options}")
             if option == "SURF":
-                n_features = options[option]
-                feature = self.predict_SURF_features(img=img, n_features=n_features)
+                extracted = self.predict_SURF_features(img=img, options=option_param)
             elif option == "ORB":
-                feature = self.predict_ORB_features(img=img)
+                extracted = self.predict_ORB_features(img=img, options=option_param)
             elif option == "BGR":
-                feature = self.predict_BGR_histogram(img=img)
+                extracted = self.predict_BGR_histogram(img=img, options=option_param)
             else:
                 raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_image'\nargument:'options'={options}")
-            ret[option] = feature
+            ret[option] = extracted
         return ret
 
-    def predict_ORB_features(self, img=None):
+    def predict_ORB_features(self, img=None, options=None):
         '''
         -Description: extract image descriptors using ORB method
         -Input
@@ -411,6 +468,9 @@ class BookRecognizer(object):
         '''
         if img is None:
             raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_ORB_features'\nargument:'img'={img}")
+        if options is None:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_SURF_features'\nargument:'options'={options}")
+        
         # gray scale
         img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 
@@ -423,7 +483,7 @@ class BookRecognizer(object):
         else:
             return list()
 
-    def predict_SURF_features(self, img=None, n_features=500, feature_dims=False):
+    def predict_SURF_features(self, img=None, options=None):
         '''
         -Description: extract image descriptors using SURF method
         -Input
@@ -433,7 +493,16 @@ class BookRecognizer(object):
         '''
         if img is None:
             raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_SURF_features'\nargument:'img'={img}")
-        # Create SURF Algorithm and set to 128-dim
+        if options is None:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_SURF_features'\nargument:'options'={options}")
+        
+        try:
+            n_features=options["n_features"]
+            feature_dims=options["feature_dims"]
+        except KeyError as e:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_SURF_features'\nargument:'options'={options}")
+
+        # Create SURF Algorithm and set to 128-dim?
         SURF = cv2.xfeatures2d.SURF_create(n_features)
         if feature_dims:
             surf.setExtended(feature_dims)
@@ -445,9 +514,12 @@ class BookRecognizer(object):
         else:
             return list()
 
-    def predict_BGR_histogram(self, img=None):
+    def predict_BGR_histogram(self, img=None, options=None):
         if img is None:
             raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_BGR_histogram'\nargument:'img'={img}")
+        if options is None:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_SURF_features'\nargument:'options'={options}")
+        
         ret = {}
         colors = ("blue", "green", "red")
         for i, color in enumerate(colors):
@@ -455,35 +527,50 @@ class BookRecognizer(object):
             ret[color] = color_histogram[:,0].astype("int").tolist()
         return ret
 
-    def predict_text(self, img=None, lang=None, east=None):
+    def predict_text(self, img=None, options=None):
         if img is None:
             raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_test'\nargument:'img'={img}")
-        if lang is None:
-            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_test'\nargument:'lang'={lang}")
-        if east is None:
-            ret = self.ocr(img=img, lang=lang)
+        if options is None:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_test'\nargument:'lang'={options}")
+
+        east_path = options["east_path"]
+        langs = options["langs"]
+
+        # text detection
+        if east_path is not None:
+            text_areas = self.predict_text_detection(img=img, east_path=east_path)
+        # if do not detect, using whole image
         else:
-            ret = []
-            text_areas = self.find_text_area(img=img, east_path=east)
+            x2, y2, *_ = img.shape
+            text_areas = ((0, x2, 0, y2,),)
+
+        # text recognition
+        ret = {}
+        for lang in langs:
+            extracted = []
             for area in text_areas:
                 x1, x2, y1, y2 = area
-                ocr_result = self.ocr(img=img[y1:y2, x1:x2], lang=lang)
-                ret.append(ocr_result)
-            ret = " ".join(ret)
+                ocr_result = self.predict_OCR(img=img[y1:y2, x1:x2], lang=lang)
+                extracted.append(ocr_result)
+            extracted = " ".join(extracted)
+            ret[lang] = extracted
         return ret
 
-    def ocr(self, img=None, lang=None):
+    def predict_OCR(self, img=None, lang=None):
         if img is None:
             raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_test'\nargument:'img'={img}")
         if lang is None:
             raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_test'\nargument:'lang'={lang}")
-        ret = {}
-        for l in lang:
-            text = pytesseract.image_to_string(img, lang=l)
-            ret[l] = TextHandler(text).text_cleaning(lang=l)
+        ret = pytesseract.image_to_string(img, lang=lang)
+        ret = TextHandler(ret).text_cleaning(lang=lang)
         return ret
 
-    def find_text_area(self, img, east_path="models/east.pb", min_confidence=0.5, new_width=320, new_height=320):
+    def predict_text_detection(self, img, east_path="models/east.pb", min_confidence=0.5, new_width=320, new_height=320):
+        if img is None:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_test'\nargument:'img'={img}")
+        if east_path is None:
+            raise ArgumentError(f"Not Found Input Parameter.\nmethod:'predict_test'\nargument:'east_path'={east_path}")
+
         (origin_height, origin_width) = img.shape[:2]
         ratio_width = origin_width / float(new_width)
         ratio_height = origin_height / float(new_height)
@@ -578,7 +665,6 @@ class TextHandler():
     __text_compiler__ = {
             "kor": re.compile("[^ㄱ-ㅣ가-힣,.!?]"),
             "eng": re.compile("[^a-zA-Z,.!?]"),
-            "num": re.compile("[^0-9]"),
         }
 
     def __init__(self, text):

@@ -13,10 +13,10 @@ class BookImageAnalyze(Resource):
     cluster_type = params["cluster_type"]
     pred_params = _pred_job
 
-    model_lists = os.listdir(dir_path)
-    model_lists = [model_list for model_list in model_lists if model_checker(model_list, cluster_type)]
-    for model_list in model_lists:
-        global globals()[model_list[:-4]]
+    # model_lists = os.listdir(dir_path)
+    # model_lists = [model_list for model_list in model_lists if model_checker(model_list, cluster_type)]
+    # for model_list in model_lists:
+    #     global globals()[model_list[:-4]]
     raw_model = BookRecognizer()
 
     def get(self):
@@ -34,11 +34,17 @@ class BookImageAnalyze(Resource):
             result["code"] = 999
             # 이곳에서 특성 추출.
             image = ImageHandler(img_path = image_url, path_type = "url")
-            features = model.predict(img=image.image,
-                                    features=pred_params["features"],
-                                    text_east=pred_params["text_opr"],
-                                    text_lang=None,
-                                    image_options=None)
+            features = raw_model.predict(img=image.image, 
+                                    features=pred_params["features"], 
+                                    text_options=pred_params["text_options"], 
+                                    image_options=pred_params["image_options"],
+                                )
+            surf_feature = features["image"]["SURF"]
+            viz_vocabs = []
+            for feature in surf_feature:
+                viz_vocab = self.predict_viz_vocab(feature)
+                viz_vocabs.append(viz_vocab)
+            viz_vocabs = " ".join(viz_vocabs)
 
             # 특성 검색
             result = es_client.get_result("test0", "test1", "test2")
