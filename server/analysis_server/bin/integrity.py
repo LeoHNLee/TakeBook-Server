@@ -36,3 +36,10 @@ def model_checker(model, cluster_type):
     if model[-4:] != ".pkl":
         return False
     return True
+
+def restful_checker(code):
+    if code < 200:
+        return False
+    if code >= 300:
+        return False
+    return True
