@@ -432,9 +432,7 @@ router.get('/UserBook', [log.regist_request_log], (req, res) => {
         // 미구현
         //
         if (!user_id) {
-            user_id = main_user_id;
-        } else {
-            // 다른 사용자 검색 일 경우.
+            // 자기 자신의 책 검색.
             user_id = main_user_id;
         }
         //
@@ -928,6 +926,60 @@ router.delete('/UserBooks', [log.regist_request_log], (req, res) => {
             })
             .catch(err => {
                 //User DB 서버 오류
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            })
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//같은 책을 읽는 유저 리스트 요청.
+router.get('/UserReadSameBook', [log.regist_request_log], (req, res) => {
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let isbn = req.query.isbn;
+
+        if (!isbn) {
+            //파라미터 값 오류
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        let query = `select f.followee_id, u.name, u.profile_url
+                    from following as f, user as u, registered_book as b
+                    where f.user_id = ?
+                    and f.followee_id = b.user_id
+                    and b.isbn = ?
+                    and f.followee_id = u.user_id
+                    order by followee_id asc`
+
+
+        mysql_query.get_db_query_results(query, [user_id, isbn])
+            .then(results => {
+                //요청 성공.
+                message.set_result_message(response_body, "RS000");
+                response_body.Response = {
+                    count: results.length,
+                    item: results
+                }
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            })
+            .catch(err => {
+                //데이터 베이스 오류.
                 message.set_result_message(response_body, "ES010");
                 log.regist_response_log(req.method, req.route.path, response_body);
                 res.json(response_body);

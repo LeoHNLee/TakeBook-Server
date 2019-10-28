@@ -67,7 +67,6 @@ router.get('/Book', (req, res) => {
             break;
         }
     }
-    console.log(search_body)
 
     es_client.search(search_body, (err, result)=>{
         if(err){
