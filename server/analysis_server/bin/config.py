@@ -63,7 +63,7 @@ _pred_job = {
     },
     "features": (
         "image", 
-        # "text",
+        "text",
         ),
     "text_options": {
         "east_path": None,

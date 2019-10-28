@@ -578,6 +578,7 @@ class TextHandler():
     __text_compiler__ = {
             "kor": re.compile("[^ㄱ-ㅣ가-힣,.!?]"),
             "eng": re.compile("[^a-zA-Z,.!?]"),
+            "num": re.compile("[^0-9]"),
         }
 
     def __init__(self, text):

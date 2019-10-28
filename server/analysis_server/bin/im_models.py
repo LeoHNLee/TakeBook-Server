@@ -1,3 +1,18 @@
+import re
+import numpy as np
+
+def predict_viz_vocab(feature):
+    '''
+    - Input: feature shape
+    '''
+    pred = ""
+    while 1:
+        try:
+            temp = globals()[f"{cluster_type}{pred}"].predict([feature])[0]
+            pred += alphabet_matcher[temp]
+        except KeyError:
+            return pred
+
 class SurfFeature():
     '''
     -Descriptor: numpy 
@@ -64,21 +79,24 @@ class SurfFeature():
         self.capacity = self.shape[0]
         self.now_size = self.capacity
         
-        
-        
 class Logger:
     '''
     -Descriptor:
     -Input:
     -Output:
     '''
-    def __init__(self, verbose=False, debug=False):
+    text_compiler = re.compile("[^0-9]")
+
+    def __init__(self, save_path, limit=10**4, verbose=False, debug=False):
         '''
         -Descriptor:
         -Input:
         -Output:
         '''
         self.log = list()
+        self.size = 0
+        self.output_limit = limit
+        self.output_path = save_path
         self.verbose = verbose
         self.debug = debug
         
@@ -94,7 +112,17 @@ class Logger:
         time_stamp = str(dt.fromtimestamp(time_stamp))
         this_log = f"{time_stamp} {event}"
         self.log.append(this_log)
-            
+        self.size += 1
+
+        # if log size over than output limitation, do output!
+        if  self.size > self.output_limit:
+            time_stamp = self.text_compiler.sub("", time_stamp)
+            with open(f"{self.output_path}{time_stamp}.txt", "w") as fp:
+                outputs = self.output()
+                for output in outputs:
+                    fp.write(output)
+
+        # if verbose option, print write logs
         if self.verbose:
             print(this_log)
                 

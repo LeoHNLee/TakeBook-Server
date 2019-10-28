@@ -28,3 +28,11 @@ def isbn_checker(isbn):
         print(f"{isbn}: {e}")
         return False
     return True
+
+def model_checker(model, cluster_type):
+    prefix = len(cluster_type)
+    if model[:prefix] != cluster_type:
+        return False
+    if model[-4:] != ".pkl":
+        return False
+    return True

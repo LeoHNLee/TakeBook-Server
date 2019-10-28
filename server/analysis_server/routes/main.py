@@ -5,8 +5,20 @@ from flask_restful import Resource, Api
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import bin.message as message
 import bin.es_client as es_client
+from bin.config import _train_job, _pred_job
+from bin.im_book import *
 
 class BookImageAnalyze(Resource):
+    train_params = _train_job["parameters"]
+    cluster_type = params["cluster_type"]
+    pred_params = _pred_job
+
+    model_lists = os.listdir(dir_path)
+    model_lists = [model_list for model_list in model_lists if model_checker(model_list, cluster_type)]
+    for model_list in model_lists:
+        global globals()[model_list[:-4]]
+    raw_model = BookRecognizer()
+
     def get(self):
         print(sys.path)
         response_body = {}
@@ -21,20 +33,31 @@ class BookImageAnalyze(Resource):
             result = {}
             result["code"] = 999
             # 이곳에서 특성 추출.
-            ##################################
-            # feature = get_feature(image_url)
-            ##################################
+            image = ImageHandler(img_path = image_url, path_type = "url")
+            features = model.predict(img=image.image,
+                                    features=pred_params["features"],
+                                    text_east=pred_params["text_opr"],
+                                    text_lang=None,
+                                    image_options=None)
 
             # 특성 검색
             result = es_client.get_result("test0", "test1", "test2")
 
             message.set_result_message(response_body, "RS000")
             response_body["Response"] = result
-        
-
         return jsonify(response_body)
 
-
+    def predict_viz_vocab(feature):
+        '''
+        - Input: feature shape
+        '''
+        pred = ""
+        while 1:
+            try:
+                temp = globals()[f"{cluster_type}{pred}"].predict([feature])[0]
+                pred += alphabet_matcher[temp]
+            except KeyError:
+                return pred
 
 class ScrapImageAnalyze(Resource):
     def get(self):
