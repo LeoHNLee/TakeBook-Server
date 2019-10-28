@@ -104,3 +104,4 @@ server/analysis_server/python_module/models/import_pb_to_tensorboard.py
 
 # url_crowler file
 url_crowler/file/
+server/
