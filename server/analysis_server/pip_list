@@ -1,3 +1,7 @@
 pip3 install Flask;
 pip3 install flask_restful;
 pip3 install elasticsearch;
+pip3 install requests;
+pip3 install opencv-python;
+pip3 install imutils;
+pip3 install pytesseract;
