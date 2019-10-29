@@ -472,7 +472,7 @@ router.get('/UserBook', [log.regist_request_log], (req, res) => {
         }
 
         // query 구문 구성
-        let query = `select book_id, registration_date, bookmark, isbn, second_candidate, third_candidate, fourth_candidate, fifth_candidate from registered_book where user_id = ? `
+        let query = `select book_id, registration_date, isbn, second_candidate, third_candidate, fourth_candidate, fifth_candidate from registered_book where user_id = ? `
 
         // sort_key==="registration_date" 인 경우에만 예외처리. 각 db가 가진 스키마가 다르기 떄문.
         if (sort_key === "registration_date") {
@@ -834,56 +834,7 @@ router.put('/UserBook', [log.regist_request_log], (req, res) => {
 
 //사용자 등록 책 삭제
 router.delete('/UserBook', [log.regist_request_log], (req, res) => {
-
-    const response_body = {};
-
-    let token = req.headers.authorization;
-    let decoded = jwt_token.token_check(token);
-
-    if (decoded) {
-        let user_id = decoded.id;
-        let book_id = req.body.book_id;
-
-        if (!book_id) {
-            //파라미터 타입 오류 및 누락
-            message.set_result_message(response_body, "EC001", `book_id parameter error`);
-            log.regist_response_log(req.method, req.route.path, response_body);
-            res.json(response_body);
-            return;
-        }
-
-        mysql_query.get_db_query_results(`delete from registered_book where user_id = ? and book_id = ?`, [user_id, book_id])
-            .then(results => {
-                if (results.affectedRows) {
-                    //해당 책번호 존재
-                    message.set_result_message(response_body, "RS000");
-                    mysql_query.update_user_update_date(user_id);
-                } else {
-                    //해당 책번호 없음.
-                    result_code = "EC005";
-                    message.set_result_message(response_body, "EC005", "Not Exist book_id Parameter Info");
-                }
-                log.regist_response_log(req.method, req.route.path, response_body);
-                res.json(response_body);
-            })
-            .catch(err => {
-                //User DB 서버 오류
-                message.set_result_message(response_body, "ES010");
-                log.regist_response_log(req.method, req.route.path, response_body);
-                res.json(response_body);
-            })
-
-    } else {
-        //권한 없는 토큰.
-        message.set_result_message(response_body, "EC002");
-        log.regist_response_log(req.method, req.route.path, response_body);
-        res.json(response_body);
-    }
-});
-
-//사용자 등록 책 삭제
-router.delete('/UserBooks', [log.regist_request_log], (req, res) => {
-
+    
     const response_body = {};
 
     let token = req.headers.authorization;
@@ -921,6 +872,107 @@ router.delete('/UserBooks', [log.regist_request_log], (req, res) => {
                     //해당 책번호 없음.
                     result_code = "EC005";
                     message.set_result_message(response_body, "EC005", "Not Exist book_id Parameter Info");
+                }
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            })
+            .catch(err => {
+                //User DB 서버 오류
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            })
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//사용자 등록책 isbn을 통한 삭제
+router.delete('/UserBooks', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let isbn = req.body.isbn;
+
+        if (!isbn) {
+            //파라미터 타입 오류 및 누락
+            message.set_result_message(response_body, "EC001", `isbn parameter error`);
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        let query = `delete from registered_book where user_id = ? and isbn = ?`;
+
+        mysql_query.get_db_query_results(query, [user_id, isbn])
+            .then(results => {
+                if (results.affectedRows) {
+                    //해당 책번호 존재
+                    message.set_result_message(response_body, "RS000");
+                    mysql_query.update_user_update_date(user_id);
+                } else {
+                    //해당 책번호 없음.
+                    result_code = "EC005";
+                    message.set_result_message(response_body, "EC005", "Not Exist isbn Parameter Info");
+                }
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            })
+            .catch(err => {
+                //User DB 서버 오류
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            })
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//해당 isbn의 책을 유저가 가지고 있는지 확인.
+router.get('/CheckUserISBNExists', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let isbn = req.query.isbn;
+
+        if (!isbn) {
+            //파라미터 타입 오류 및 누락
+            message.set_result_message(response_body, "EC001", `isbn parameter error`);
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        let query = `select book_id from registered_book where user_id = ? and isbn = ?`;
+
+        mysql_query.get_db_query_results(query, [user_id, isbn])
+            .then(results => {
+                if(results.length){
+                    // 해당 isbn이 존재하는 경우.
+                    message.set_result_message(response_body, "RS000");
+                }
+                else{
+                    // 해당 isbn이 유저 등록 책에 없는 경우
+                    message.set_result_message(response_body, "RS001", "ISBN does not exist");
                 }
                 log.regist_response_log(req.method, req.route.path, response_body);
                 res.json(response_body);
