@@ -6,9 +6,9 @@ from flask_restful import Api
 from routes.main import *
 from bin.exceptions import * # exception file work like message
 from bin.logger import Logger
-from bin.integrity import *
+from bin.integrity import model_checker
 from bin.config import _train_job # model parameters
-from bin.im_models import HierarchicalKMeans, HKMModels # models
+from bin.im_models import HierarchicalKMeans, HKMModel # models
 
 # def predict_viz_vocab(feature):
 #     '''
@@ -22,29 +22,30 @@ from bin.im_models import HierarchicalKMeans, HKMModels # models
 #         except KeyError:
 #             return pred
 
+# connect Flask
 app = Flask(__name__)
 api = Api(app)
 
+# hooker
 api.add_resource(BookImageAnalyze, '/BookImageAnalyze')
 api.add_resource(ScrapImageAnalyze, '/ScrapImageAnalyze')
 
-# 
-error_returner = ErrorReturner()
-logger = Logger(verbose=True, debug=False)
+# # Global Trackers
+# error_returner = ErrorReturner()
+# logger = Logger(save_path="c:/swm10/p1039_red/server/analysis_server/", verbose=True, debug=False)
 
-# params parsing
-params = _train_job["parameters"]
-cluster_type = params["cluster_type"]
+# # params parsing
+# params = _train_job["parameters"]
+# cluster_type = params["cluster_type"]
 
-dir_path = _train_job["paths"]["dir"]["models"]
-# file_name = _train_job["paths"]["file"]["model_name"]
+# dir_path = _train_job["paths"]["dir"]["models"]
 
-# load models
-model_lists = os.listdir(dir_path)
-model_lists = [model_list for model_list in model_lists if model_checker(model_list, cluster_type)]
-for model_list in model_lists:
-    with open(f"{dir_path}{model_list}", "rb") as fp
-        globals()[model_list[:-4]] = pickle.load(fp)
+# # load models
+# model_lists = os.listdir(dir_path)
+# model_lists = [model_list for model_list in model_lists if model_checker(model_list, cluster_type)]
+# for model_list in model_lists:
+#     with open(f"{dir_path}{model_list}", "rb") as fp:
+#         globals()[model_list[:-4]] = pickle.load(fp)
 
 # # load models
 # model = HierarchicalKMeans(parameters = params, logger = logger)

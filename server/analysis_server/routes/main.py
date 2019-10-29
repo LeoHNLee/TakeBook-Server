@@ -10,7 +10,7 @@ from bin.im_book import *
 
 class BookImageAnalyze(Resource):
     train_params = _train_job["parameters"]
-    cluster_type = params["cluster_type"]
+    cluster_type = train_params["cluster_type"]
     pred_params = _pred_job
 
     # model_lists = os.listdir(dir_path)
@@ -20,7 +20,6 @@ class BookImageAnalyze(Resource):
     raw_model = BookRecognizer()
 
     def get(self):
-        print(sys.path)
         response_body = {}
 
         req = request.args
@@ -32,38 +31,42 @@ class BookImageAnalyze(Resource):
         else:
             result = {}
             result["code"] = 999
-            # 이곳에서 특성 추출.
-            image = ImageHandler(img_path = image_url, path_type = "url")
-            features = raw_model.predict(img=image.image, 
-                                    features=pred_params["features"], 
-                                    text_options=pred_params["text_options"], 
-                                    image_options=pred_params["image_options"],
-                                )
-            surf_feature = features["image"]["SURF"]
-            viz_vocabs = []
-            for feature in surf_feature:
-                viz_vocab = self.predict_viz_vocab(feature)
-                viz_vocabs.append(viz_vocab)
-            viz_vocabs = " ".join(viz_vocabs)
+            # # 이곳에서 특성 추출.
+            # image = ImageHandler(img_path = image_url, path_type = "url")
+            # features = raw_model.predict(img=image.image, 
+            #                         features=pred_params["features"], 
+            #                         text_options=pred_params["text_options"], 
+            #                         image_options=pred_params["image_options"],
+            #                     )
+            # surf_feature = features["image"]["SURF"]
+            # viz_vocabs = []
+            # for feature in surf_feature:
+            #     viz_vocab = self.predict_viz_vocab(feature)
+            #     viz_vocabs.append(viz_vocab)
+            # viz_vocabs = " ".join(viz_vocabs)
 
             # 특성 검색
             result = es_client.get_result("test0", "test1", "test2")
 
             message.set_result_message(response_body, "RS000")
             response_body["Response"] = result
+            response_body["debug"] = {
+                "paths": "\n".join(sys.path),
+                "object": str(self),
+            }
         return jsonify(response_body)
 
-    def predict_viz_vocab(feature):
-        '''
-        - Input: feature shape
-        '''
-        pred = ""
-        while 1:
-            try:
-                temp = globals()[f"{cluster_type}{pred}"].predict([feature])[0]
-                pred += alphabet_matcher[temp]
-            except KeyError:
-                return pred
+    # def predict_viz_vocab(feature):
+    #     '''
+    #     - Input: feature shape
+    #     '''
+    #     pred = ""
+    #     while 1:
+    #         try:
+    #             temp = globals()[f"{cluster_type}{pred}"].predict([feature])[0]
+    #             pred += alphabet_matcher[temp]
+    #         except KeyError:
+    #             return pred
 
 class ScrapImageAnalyze(Resource):
     def get(self):

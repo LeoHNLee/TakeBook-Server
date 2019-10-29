@@ -9,7 +9,7 @@ from imutils.object_detection import non_max_suppression as NMS
 import pytesseract
 import re
 ### own
-from exceptions import *
+from .exceptions import *
 ### 
 import sys
 import os
