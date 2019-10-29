@@ -478,10 +478,7 @@ class BookRecognizer(object):
         ORB = cv2.ORB_create()
         keypoints = ORB.detect(img,None)
         keypoints, descriptors = ORB.compute(img, keypoints)
-        if type(descriptors)==np.ndarray:
-            return descriptors.tolist()
-        else:
-            return list()
+        return descriptors.tolist()
 
     def predict_SURF_features(self, img=None, options=None):
         '''
@@ -509,10 +506,7 @@ class BookRecognizer(object):
 
         # extract descriptor
         _, descriptors = SURF.detectAndCompute(img, None)
-        if type(descriptors)==np.ndarray:
-            return descriptors.tolist()
-        else:
-            return list()
+        return descriptors.tolist()
 
     def predict_BGR_histogram(self, img=None, options=None):
         if img is None:

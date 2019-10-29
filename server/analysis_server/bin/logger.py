@@ -8,7 +8,7 @@ class Logger:
     -Input:
     -Output:
     '''
-    text_compiler = re.compile("[^0-9]")
+    time_stamp_compiler = re.compile("[^0-9]")
 
     def __init__(self, save_path, limit=10**4, verbose=False, debug=False):
         '''
@@ -19,7 +19,7 @@ class Logger:
         self.log = list()
         self.size = 0
         self.output_limit = limit
-        self.output_path = save_path
+        self.save_path = save_path
         self.verbose = verbose
         self.debug = debug
         
@@ -39,11 +39,7 @@ class Logger:
 
         # if log size over than output limitation, do output!
         if  self.size > self.output_limit:
-            time_stamp = self.text_compiler.sub("", time_stamp)
-            with open(f"{self.output_path}{time_stamp}.txt", "w") as fp:
-                outputs = self.output()
-                for output in outputs:
-                    fp.write(output)
+            self.save()
 
         # if verbose option, print write logs
         if self.verbose:
@@ -67,3 +63,12 @@ class Logger:
         del self.log
         self.log = list()
         return ret
+
+    def save(self, save_path=None):
+        if save_path is None:
+            save_path = self.save_path
+        time_stamp = self.time_stamp_compiler.sub("", time_stamp)
+        with open(f"{save_path}{time_stamp}.txt", "w") as fp:
+            outputs = self.output()
+            for output in outputs:
+                fp.write(output)

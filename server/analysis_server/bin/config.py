@@ -7,7 +7,7 @@ _train_job = {
     "paths":{
         "dir":{
             "all_features": "", # .json dir
-            "models": "c:/swm10/dataset/300000/kmeans/",
+            "models": "c:/swm10/dataset/surf3000_kmeans/",
         },
         "file":{
             "surf_total" : "c:/swm10/dataset/300000/surf.npy", # .npy
@@ -15,7 +15,7 @@ _train_job = {
         },
     },
     "parameters":{
-        "cluster_type": "kmeans",
+        "cluster_type": "HKM",
         "K":26,
         "max_leaf_features":260,
         "min_leaf_features":78,
@@ -31,7 +31,7 @@ _es_job = {
             "host":"13.125.115.97",
             "port":9200,
         }],
-    "index":"gt_300000",
+    "index":"takebook-alpha-v1",
 }
 
 _mysql_job = {
@@ -63,7 +63,7 @@ _pred_job = {
     },
     "features": (
         "image", 
-        "text",
+        # "text",
         ),
     "text_options": {
         "east_path": None,
@@ -72,6 +72,7 @@ _pred_job = {
 }
 
 _assets = {
+    "url":"https://takebook-answer-book-image.s3.ap-northeast-2.amazonaws.com/",
     "paths":{
         "dir":{
             "index_image":"c:/swm10/dataset/10000/",
