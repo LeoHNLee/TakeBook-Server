@@ -683,6 +683,9 @@ router.post('/UserBook', [log.regist_request_log], (req, res) => {
                 [book_id, user_id, isbn, method.current_time(), bookmark])
                 .then(results => {
                     message.set_result_message(response_body, "RS000");
+                    response_body.Response = {
+                        book_id: book_id
+                    };
                     mysql_query.update_user_update_date(user_id);
                 })
                 .catch(err => {
@@ -2046,7 +2049,6 @@ router.post('/Comment', [log.regist_request_log], (req, res) => {
                 });
         } else {
             //댓글 등록.
-
             let select_query = 'select comment_id from comment where user_id = ? and isbn = ? and upper_comment is null';
             mysql_query.get_db_query_results(select_query, [user_id, isbn])
                 .then(results => {
