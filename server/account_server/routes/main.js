@@ -617,11 +617,9 @@ router.post('/UserBook', [log.regist_request_log], (req, res) => {
             // 필수 파라미터 누락.
             message.set_result_message(response_body, "EC001");
             log.regist_response_log(req.method, req.route.path, response_body);
-            res.json(response_body);
+            res.json(response_body);    
             return;
         }
-
-        let bookmark = (req.body.bookmark) ? true : false;
 
 
         (async () => {
@@ -679,8 +677,8 @@ router.post('/UserBook', [log.regist_request_log], (req, res) => {
             let book_id = method.create_key(user_id);
 
             //책 저장.
-            await mysql_query.get_db_query_results(`insert into registered_book(book_id ,user_id,isbn, registration_date, bookmark) values(?, ?, ?, ?, ?);`,
-                [book_id, user_id, isbn, method.current_time(), bookmark])
+            await mysql_query.get_db_query_results(`insert into registered_book(book_id ,user_id,isbn, registration_date) values(?, ?, ?, ?);`,
+                [book_id, user_id, isbn, method.current_time()])
                 .then(results => {
                     message.set_result_message(response_body, "RS000");
                     response_body.Response = {
