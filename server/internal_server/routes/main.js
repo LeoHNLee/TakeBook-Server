@@ -27,6 +27,7 @@ router.get('/UserBook', [log.regist_request_log],  (req, res) => {
         sort_key,
         sort_method
     }
+    
     //book 정보 가져오기
     let book_server_request_form = {
         method: 'GET',

@@ -35,7 +35,6 @@ class BookImageAnalyze(Resource):
         return jsonify(response_body)
 
 
-
 class ScrapImageAnalyze(Resource):
     def get(self):
         response_body = {}
