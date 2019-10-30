@@ -19,7 +19,8 @@ import math
 import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
-pytesseract.pytesseract.tesseract_cmd=r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+from .config import _pred_job
+pytesseract.pytesseract.tesseract_cmd=_pred_job["tesseract_path"]
 
 class ImageHandler(object):
     '''

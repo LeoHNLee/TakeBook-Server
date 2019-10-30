@@ -7,7 +7,7 @@ import time
 from flask import request, jsonify
 from flask_restful import Resource, Api
 
-sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+sys.path.append(os.path.abspath("../"))
 import bin.message as message
 import bin.es_client as es_client
 from bin.config import _train_job, _pred_job, _alphabet, _log_job
@@ -17,16 +17,19 @@ from bin.exceptions import *
 from bin.integrity import *
 
 # parsing options
-cluster_type = _train_job["parameters"]["cluster_type"]
-model_path = _train_job["paths"]["dir"]["models"]
 alphabet_matcher = _alphabet["matcher"]
 scrap_job = _pred_job["scrap_analyze"]
 book_image_job = _pred_job["book_image_analyze"]
+cluster_type = _train_job["parameters"]["cluster_type"]
+model_path = _train_job["paths"]["dir"]["models"]
+model_path = os.path.abspath(model_path)
+log_path = _log_job["save_path"]
+log_path = os.path.abspath(log_path)
 
 # Global Trackers
 error_returner = ErrorReturner()
 logger = Logger(
-                save_path = _log_job["save_path"],
+                save_path = log_path,
                 limit = _log_job["limit"],
                 verbose = _log_job["verbose"], 
                 debug = _log_job["debug"],
