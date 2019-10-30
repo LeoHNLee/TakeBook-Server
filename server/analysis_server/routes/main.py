@@ -38,14 +38,12 @@ raw_model = BookRecognizer()
 # load Viz-Vocab models
 logger.logging(f"[start][load][{cluster_type} models]", debug_flag=False)
 start_time = time.time()
-
 model_lists = os.listdir(model_path)
 model_lists = [model_list for model_list in model_lists if model_checker(model_list, cluster_type)]
 for model_list in model_lists:
     with open(f"{model_path}{model_list}", "rb") as fp:
         var_name = model_list[:-4]
         globals()[var_name] = pickle.load(fp)
-
 end_time = f"{(time.time()-start_time)/60}분"
 logger.logging(f"[end][load][{cluster_type} models] loading time {end_time}", debug_flag=False)
 
@@ -78,10 +76,18 @@ class BookImageAnalyze(Resource):
             result["code"] = 999
 
             # get image feature
-            image_feature, kor_feature, eng_feature = self.analyze(image_url)
+            try:
+                image_feature, kor_feature, eng_feature = self.analyze(image_url)
+            except Exception as e:
+                logger.logging(f"[ERROR][BookImageAnalyze][analyze] {e}", debug_flag=False)
+                image_feature = None
 
             # 특성 검색
-            result = es_client.get_result(image_feature, "test1", "test2")
+            try:
+                result = es_client.get_result(image_feature, "test1", "test2")
+            except Exception as e:
+                logger.logging(f"[ERROR][es_client][get_result] {e}", debug_flag=False)
+                result = None
 
             message.set_result_message(response_body, "RS000")
             response_body["Response"] = result
@@ -111,8 +117,11 @@ class BookImageAnalyze(Resource):
         # convert image feature to viz-vocab
         viz_vocabs = []
         for feature in surf_feature:
-            viz_vocab = self.predict_viz_vocab(feature)
-            viz_vocabs.append(viz_vocab)
+            try:
+                viz_vocab = self.predict_viz_vocab(feature)
+                viz_vocabs.append(viz_vocab)
+            except Exception as e:
+                logger.logging(f"[ERROR][BookImageAnalyze][predict_viz_vocab] {e}", debug_flag=False)
         viz_vocabs = " ".join(viz_vocabs)
 
         return viz_vocabs, None, None
@@ -157,7 +166,11 @@ class ScrapImageAnalyze(Resource):
             message.set_result_message(response_body, "EC001")
         else:
             # scrapping
-            scrap_text = self.scrap(image_url=image_url, lange=language)
+            try:
+                scrap_text = self.scrap(image_url=image_url, lange=language)
+            except Exception as e:
+                logger.logging(f"[ERROR][ScrapImageAnalyze][scrap] {e}", debug_flag=False)
+                scrap_text = None
 
             message.set_result_message(response_body, "RS000")
             response_body["Response"] = {
