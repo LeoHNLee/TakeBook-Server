@@ -40,6 +40,7 @@ class Logger:
         # if log size over than output limitation, do output!
         if  self.size > self.output_limit:
             self.save()
+            self.size = 0
 
         # if verbose option, print write logs
         if self.verbose:
@@ -67,8 +68,10 @@ class Logger:
     def save(self, save_path=None):
         if save_path is None:
             save_path = self.save_path
+        time_stamp = int(time.time())
+        time_stamp = str(dt.fromtimestamp(time_stamp))
         time_stamp = self.time_stamp_compiler.sub("", time_stamp)
         with open(f"{save_path}{time_stamp}.txt", "w") as fp:
             outputs = self.output()
             for output in outputs:
-                fp.write(output)
+                fp.write(f"{output}\n")

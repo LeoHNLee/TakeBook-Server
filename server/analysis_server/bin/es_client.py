@@ -16,6 +16,8 @@ book_image_analyze_query = {
         }
     }
 
+response_keys = ("isbn", "second_candidate", "third_candidate", "fourth_candidate", "fifth_candidate",)
+
 def get_result(img_feature, kor_text_feature=None, eng_text_feature=None):
     '''
     -Description:
@@ -29,22 +31,10 @@ def get_result(img_feature, kor_text_feature=None, eng_text_feature=None):
     # book_image_query["query"]["match"]["image"] = eng_text_feature
 
     # 결과값 매칭
-    results = es.search(index=_es_job["index"], body=book_image_analyze_query)
+    es_results = es.search(index=_es_job["index"], body=book_image_analyze_query)["hits"]["hits"]
 
-    results  = {
-        "isbn": results.hits.hits[0]._source.isbn,
-        "second_candidate": results.hits.hits[1]._source.isbn,
-        "third_candidate": results.hits.hits[2]._source.isbn,
-        "fourth_candidate": results.hits.hits[3]._source.isbn,
-        "fifth_candidate": results.hits.hits[4]._source.isbn
-    }
-    
-    # results  = {
-    #     "isbn": "9788927192459",
-    #     "second_candidate": "9788928096435",
-    #     "third_candidate": "9788928096619",
-    #     "fourth_candidate": "9788928096992",
-    #     "fifth_candidate": "9788928645381"
-    # }
+    results_body = {}
+    for key, value in zip(response_keys, es_results):
+        results_body[key] = value["_source"]["isbn"]
 
-    return results
+    return results_body

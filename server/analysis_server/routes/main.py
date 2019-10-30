@@ -84,16 +84,13 @@ class BookImageAnalyze(Resource):
 
             # 특성 검색
             try:
-                result = es_client.get_result(image_feature, "test1", "test2")
+                result = es_client.get_result(image_feature)
             except Exception as e:
                 logger.logging(f"[ERROR][es_client][get_result] {e}", debug_flag=False)
                 result = None
 
             message.set_result_message(response_body, "RS000")
             response_body["Response"] = result
-            # response_body["debug"] = {
-            #     "image_feature": image_feature,
-            # }
 
         return jsonify(response_body)
 
