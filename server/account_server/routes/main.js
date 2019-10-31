@@ -23,6 +23,32 @@ const user_bucket = 'takebook-user-bucket';
 const image_bucket = 'takebook-book-image';
 const user_scrap = 'takebook-user-scrap';
 
+router.post('/Log', (req, res) => {
+
+    response_body = {}
+    let tag = (req.body.tag)? req.body.tag: "none";
+    let content = req.body.content ? req.body.content : "none";
+    let time = method.current_time();
+
+    mysql_query.get_db_query_results(`insert into log (time, tag, content) values (?, ?, ?)`
+        , [time, tag, content])
+        .then(results => {
+            message.set_result_message(response_body, "RS000");
+            response_body.Response = {
+                time: time,
+                tag: tag,
+                content: content
+            }
+            res.json(response_body);
+        })
+        .catch(err => {
+            console.log(err)
+            message.set_result_message(response_body, "ES010");
+            res.json(response_body)
+        })
+
+});
+
 router.post('/CreateUsers', [log.regist_request_log], (req, res) => {
 
     response_body = {}
@@ -617,7 +643,7 @@ router.post('/UserBook', [log.regist_request_log], (req, res) => {
             // 필수 파라미터 누락.
             message.set_result_message(response_body, "EC001");
             log.regist_response_log(req.method, req.route.path, response_body);
-            res.json(response_body);    
+            res.json(response_body);
             return;
         }
 
@@ -834,7 +860,7 @@ router.put('/UserBook', [log.regist_request_log], (req, res) => {
 
 //사용자 등록 책 삭제
 router.delete('/UserBook', [log.regist_request_log], (req, res) => {
-    
+
     const response_body = {};
 
     let token = req.headers.authorization;
@@ -966,11 +992,11 @@ router.get('/CheckUserISBNExists', [log.regist_request_log], (req, res) => {
 
         mysql_query.get_db_query_results(query, [user_id, isbn])
             .then(results => {
-                if(results.length){
+                if (results.length) {
                     // 해당 isbn이 존재하는 경우.
                     message.set_result_message(response_body, "RS000");
                 }
-                else{
+                else {
                     // 해당 isbn이 유저 등록 책에 없는 경우
                     message.set_result_message(response_body, "RS001", "ISBN does not exist");
                 }
