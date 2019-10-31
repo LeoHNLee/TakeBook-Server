@@ -23,10 +23,11 @@ const user_bucket = 'takebook-user-bucket';
 const image_bucket = 'takebook-book-image';
 const user_scrap = 'takebook-user-scrap';
 
+//성재형을 위한 로그기록
 router.post('/Log', (req, res) => {
 
     response_body = {}
-    let tag = (req.body.tag)? req.body.tag: "none";
+    let tag = (req.body.tag) ? req.body.tag : "none";
     let content = req.body.content ? req.body.content : "none";
     let time = method.current_time();
 
@@ -49,6 +50,7 @@ router.post('/Log', (req, res) => {
 
 });
 
+//유저생성
 router.post('/CreateUsers', [log.regist_request_log], (req, res) => {
 
     response_body = {}
@@ -76,8 +78,10 @@ router.post('/CreateUsers', [log.regist_request_log], (req, res) => {
 
             //로그기록
             log.regist_response_log(req.method, req.route.path, response_body);
-
             res.json(response_body);
+
+            mysql_query.get_db_query_results(`insert into folder(folder_id, name, creation_date, update_date, user_id, state) values(?,?,?,?,?,?)`
+                , [method.create_key(user_id, signup_date), "기본폴더", signup_date, signup_date, user_id, 1])
         })
         .catch(err => {
             switch (err.code) {
@@ -1212,12 +1216,13 @@ router.post('/UserScrapFolder', [log.regist_request_log], (req, res) => {
             .then(results => {
                 if (results.length) {
                     //해당 폴더이름이 이미 존재.
+                    console.log("Same folder_name already exists.")
                     message.set_result_message(response_body, "RS001", "Same folder_name already exists");
                     log.regist_response_log(req.method, req.route.path, response_body);
                     res.json(response_body);
                 }
                 else {
-                    mysql_query.get_db_query_results("insert folder values (?, ?, ?, ?, ?)",
+                    mysql_query.get_db_query_results("insert folder(folder_id, name, creation_date, update_date, user_id) values (?, ?, ?, ?, ?)",
                         [method.create_key(user_id, creation_date), folder_name, creation_date, creation_date, user_id])
                         .then(results => {
                             //요청 성공.
@@ -1275,11 +1280,33 @@ router.put('/UserScrapFolder', [log.regist_request_log], (req, res) => {
             return;
         }
 
-        mysql_query.get_db_query_results("select name from folder where name = ? and user_id = ?", [modify_name, user_id])
+        let query = `select state from folder
+                    where ( folder_id = ? and state <> 0)
+                    or ( name = ? and user_id =?)`
+
+        mysql_query.get_db_query_results(query, [folder_id, modify_name, user_id])
             .then(results => {
                 if (results.length) {
-                    //해당 폴더이름이 이미 존재.
-                    message.set_result_message(response_body, "RS001", "Same folder name already exists");
+                    //state 0인경우 폴더 중첩, 1인경우 변경할 수 없는 폴더.
+                    let state = 0;
+                    for (let i in results) {
+                        if (results[i].state === 1) {
+                            state = 1;
+                        }
+                    }
+                    switch (state) {
+                        case 1: {
+                            //해당 폴더의 이름을 바꿀 수 없음.
+                            message.set_result_message(response_body, "RS002", "Can't rename this folder");
+                            break;
+                        }
+                        case 0: {
+                            //해당 폴더이름이 이미 존재.
+                            message.set_result_message(response_body, "RS001", "Same folder name already exists");
+                            break;
+                        }
+                    }
+
                     log.regist_response_log(req.method, req.route.path, response_body);
                     res.json(response_body);
                 }
@@ -1353,6 +1380,8 @@ router.delete('/UserScrapFolder', [log.regist_request_log], (req, res) => {
             }
         }
 
+        query += " and state = 0";
+
         mysql_query.get_db_query_results(query, folder_id)
             .then(results => {
                 //요청 성공.
@@ -1401,7 +1430,8 @@ router.get('/UserScrap', [log.regist_request_log], (req, res) => {
         mysql_query.get_db_query_results('select * from folder where folder_id = ?;', [folder_id])
             .then(results => {
                 if (results.length) {
-                    mysql_query.get_db_query_results('select scrap_id, creation_date, contents, source, folder, image_url from scrap where user_id = ? and folder = ? order by scrap_id desc', [user_id, folder_id])
+                    let query = 'select scrap_id, creation_date, contents, source_isbn, source_title, folder, image_url from scrap where user_id = ? and folder = ? order by scrap_id desc';
+                    mysql_query.get_db_query_results(query, [user_id, folder_id])
                         .then(results => {
                             message.set_result_message(response_body, "RS000");
                             response_body.Response = {
@@ -1501,11 +1531,18 @@ router.post('/UserScrap', [log.regist_request_log], (req, res) => {
                         bucket: user_scrap,
                         method: "upload",
                         filename: `${scrap_id}.jpg`
-                    })
+                    });
 
+                    let insert_query = `insert into scrap(scrap_id, user_id, creation_date, folder, image_url)
+                                        values(?,?,?,
+                                            (
+                                                select folder_id
+                                                from folder
+                                                where user_id = ? and state = 1
+                                            ),?)`;
                     //정보 수정
-                    mysql_query.get_db_query_results(`insert scrap values (?, ?, ?, ?, ?, ?, ?);`,
-                        [scrap_id, user_id, registration_date, null, null, null, req.file.location])
+                    mysql_query.get_db_query_results(insert_query,
+                        [scrap_id, user_id, registration_date, user_id, req.file.location])
                         .then(results => {
                             //요청 성공.
                             message.set_result_message(response_body, "RS000");
@@ -1556,6 +1593,95 @@ router.post('/UserScrap', [log.regist_request_log], (req, res) => {
         });
     } else {
 
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+//사용자 스크랩 수정
+router.put('/UserScrap', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let scrap_id = req.body.scrap_id;
+        let modify_contents = req.body.modify_contents;
+        let modify_source_isbn = req.body.modify_source_isbn;
+        let modify_source_title = req.body.modify_source_title;
+        let modify_folder = req.body.modify_folder;
+
+        if (!scrap_id) {
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        if (modify_contents === undefined && modify_source_isbn === undefined && modify_source_title === undefined && modify_folder === undefined) {
+            //아무런 수정 없음.
+            message.set_result_message(response_body, "RS000");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        let query = `update scrap set `
+        if (modify_contents !== undefined) {
+            query += `contents = '${modify_contents}',`
+        }
+        if (modify_source_isbn !== undefined) {
+            query += `source_isbn = '${modify_source_isbn}',`
+        }
+        if (modify_source_title !== undefined) {
+            query += `source_title = '${modify_source_title}',`
+        }
+        if (modify_folder !== undefined) {
+            query += `folder = '${modify_folder}',`
+        }
+
+        query = query.replace(/,(?=[^,]*$)/, " ");
+        query += `where scrap_id = ?`
+
+        mysql_query.get_db_query_results(query, scrap_id)
+            .then(results => {
+                if (results.affectedRows) {
+                    //요청 성공.
+                    message.set_result_message(response_body, "RS000");
+                    if(modify_folder){
+                        mysql_query.update_folder_update_date(modify_folder)
+                    }
+                }
+                else {
+                    //해당 스크랩 존재하지 않음.
+                    message.set_result_message(response_body, "EC005", "Not Exist scrap_id Info");
+                }
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            })
+            .catch(err => {
+                switch (err.code) {
+                    case "ER_NO_REFERENCED_ROW_2": {
+                        //해당 폴더 존재하지 않음.
+                        message.set_result_message(response_body, "EC005", "Not Exist folder Info");
+                        break;
+                    }
+                    default: {
+                        //User DB 서버 오류
+                        message.set_result_message(response_body, "ES010");
+                    }
+                }
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            })
+
+    } else {
         //권한 없는 토큰.
         message.set_result_message(response_body, "EC002");
         log.regist_response_log(req.method, req.route.path, response_body);
