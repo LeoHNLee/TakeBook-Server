@@ -23,6 +23,28 @@ const user_bucket = 'takebook-user-bucket';
 const image_bucket = 'takebook-book-image';
 const user_scrap = 'takebook-user-scrap';
 
+//성재형을 위한 로그출력
+router.get('/Log', (req, res) => {
+
+    response_body = {}
+
+    mysql_query.get_db_query_results(`select time, tag, content from log order by time desc`)
+        .then(results => {
+            message.set_result_message(response_body, "RS000");
+            response_body.Response = {
+                count: results.length,
+                item: results
+            }
+            res.json(response_body);
+        })
+        .catch(err => {
+            console.log(err)
+            message.set_result_message(response_body, "ES010");
+            res.json(response_body)
+        })
+
+});
+
 //성재형을 위한 로그기록
 router.post('/Log', (req, res) => {
 
