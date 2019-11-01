@@ -34,7 +34,9 @@ def set_result_message(response_body, result_code, message=None):
             response_body["Message"] = "Elastic Databsae Server Error"
         elif result_code == "ES013":
             response_body["Message"] = "S3 Server Error"
-        
+        elif result_code == "ES014":
+            response_body["Message"] = "Book Analysis Data Server Error"
+
         elif result_code == "EP000":
             response_body["Message"] = "Python Moudel Error"
         elif result_code == "EP001":
