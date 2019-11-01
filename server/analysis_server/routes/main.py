@@ -13,7 +13,8 @@ import bin.es_client as es_client
 from bin.config import _train_job, _pred_job, _alphabet, _log_job
 from bin.im_book import *
 from bin.logger import Logger
-from bin.exceptions import *
+# from bin.exceptions import *
+import bin.exceptions as exceptions
 from bin.integrity import *
 
 # parsing options
@@ -22,7 +23,7 @@ scrap_job = _pred_job["scrap_analyze"]
 book_image_job = _pred_job["book_image_analyze"]
 cluster_type = _train_job["parameters"]["cluster_type"]
 model_path = _train_job["paths"]["dir"]["models"]
-model_path = os.path.abspath(model_path)
+model_path = os.path.abspath(model_path)+'/'
 log_path = _log_job["save_path"]
 log_path = os.path.abspath(log_path)
 
@@ -71,29 +72,36 @@ class BookImageAnalyze(Resource):
         req = request.args
         image_url = req.get("image_url")
 
-        if image_url is None:
+        if image_url is None or image_url == '':
             # 필수 파라미터 누락
             message.set_result_message(response_body, "EC001")
         else:
             result = {}
-            result["code"] = 999
 
             # get image feature
             try:
                 image_feature, kor_feature, eng_feature = self.analyze(image_url)
             except Exception as e:
+
+                if type(e) == requests.exceptions.MissingSchema or type(e) == exceptions.ArgumentError:
+                    # Invaild URL
+                    message.set_result_message(response_body, "EC001", "Invalid URL Error")
+                else :
+                    # 모듈 에러
+                    message.set_result_message(response_body, "EP000")
                 logger.logging(f"[ERROR][BookImageAnalyze][analyze] {e}", debug_flag=False)
                 image_feature = None
+            
+            if image_feature:
+                # 특성 검색
+                try:
+                    result = es_client.get_result(image_feature)
+                    message.set_result_message(response_body, "RS000")
+                    response_body["Response"] = result
+                except Exception as e:
+                    message.set_result_message(response_body, "ES014")
+                    logger.logging(f"[ERROR][es_client][get_result] {e}", debug_flag=False)
 
-            # 특성 검색
-            try:
-                result = es_client.get_result(image_feature)
-            except Exception as e:
-                logger.logging(f"[ERROR][es_client][get_result] {e}", debug_flag=False)
-                result = None
-
-            message.set_result_message(response_body, "RS000")
-            response_body["Response"] = result
 
         return jsonify(response_body)
 

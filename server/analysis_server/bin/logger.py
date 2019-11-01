@@ -39,7 +39,7 @@ class Logger:
 
         # if log size over than output limitation, do output!
         if  self.size > self.output_limit:
-            self.save()
+            # self.save()
             self.size = 0
 
         # if verbose option, print write logs
