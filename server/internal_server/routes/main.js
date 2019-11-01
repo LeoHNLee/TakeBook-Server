@@ -148,16 +148,17 @@ router.get('/AnalyzeBookImage', [log.regist_request_log], (req, res) => {
                 response_body = response;
                 break;
             }
+            case "EC001":
             case "EP000": {
                 //분석 실패
                 console.log("book feature analysis fail");
                 message.set_result_message(response_body, "ES001");
                 break;
             }
-            case "EP001": {
+            case "ES014": {
                 //분석 실패
                 console.log("book feature analysis fail");
-                message.set_result_message(response_body, "ES001");
+                message.set_result_message(response_body, "ES014");
                 break;
             }
             default: {

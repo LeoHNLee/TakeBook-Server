@@ -82,6 +82,10 @@ let message = {
                     response_body.Message = "S3 Server Error";
                     break;
                 }
+                case "ES014": {
+                    response_body.Message = "Book Analysis Data Server Error";
+                    break;
+                }
                 default:{
                     response_body.Message = "Undefined Error";
                     break;

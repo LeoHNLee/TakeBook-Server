@@ -3147,8 +3147,12 @@ router.post('/AnalyzeBookImage', [log.regist_request_log], (req, res) => {
                                     result = false;
                                     break;
                                 }
-                                case "ES012": {
+                                case "ES014": {
                                     console.log("regist image fail: Elasticsearch Databsae server error.")
+                                    result = false;
+                                    break;
+                                }
+                                default: {
                                     result = false;
                                     break;
                                 }

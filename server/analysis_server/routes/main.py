@@ -1,5 +1,13 @@
 # python modules
-import os, sys
+from bin.integrity import *
+import bin.exceptions as exceptions
+from bin.logger import Logger
+from bin.im_book import *
+from bin.config import _train_job, _pred_job, _alphabet, _log_job
+import bin.es_client as es_client
+import bin.message as message
+import os
+import sys
 import pickle
 import time
 
@@ -8,14 +16,7 @@ from flask import request, jsonify
 from flask_restful import Resource, Api
 
 sys.path.append(os.path.abspath("../"))
-import bin.message as message
-import bin.es_client as es_client
-from bin.config import _train_job, _pred_job, _alphabet, _log_job
-from bin.im_book import *
-from bin.logger import Logger
 # from bin.exceptions import *
-import bin.exceptions as exceptions
-from bin.integrity import *
 
 # parsing options
 alphabet_matcher = _alphabet["matcher"]
@@ -30,11 +31,11 @@ log_path = os.path.abspath(log_path)
 # Global Trackers
 error_returner = ErrorReturner()
 logger = Logger(
-                save_path = log_path,
-                limit = _log_job["limit"],
-                verbose = _log_job["verbose"], 
-                debug = _log_job["debug"],
-            )
+    save_path=log_path,
+    limit=_log_job["limit"],
+    verbose=_log_job["verbose"],
+    debug=_log_job["debug"],
+)
 
 # load image analyzer
 raw_model = BookRecognizer()
@@ -43,13 +44,16 @@ raw_model = BookRecognizer()
 logger.logging(f"[start][load][{cluster_type} models]", debug_flag=False)
 start_time = time.time()
 model_lists = os.listdir(model_path)
-model_lists = [model_list for model_list in model_lists if model_checker(model_list, cluster_type)]
+model_lists = [model_list for model_list in model_lists if model_checker(
+    model_list, cluster_type)]
 for model_list in model_lists:
     with open(f"{model_path}{model_list}", "rb") as fp:
         var_name = model_list[:-4]
         globals()[var_name] = pickle.load(fp)
 end_time = f"{(time.time()-start_time)/60}분"
-logger.logging(f"[end][load][{cluster_type} models] loading time {end_time}", debug_flag=False)
+logger.logging(
+    f"[end][load][{cluster_type} models] loading time {end_time}", debug_flag=False)
+
 
 class BookImageAnalyze(Resource):
     '''
@@ -57,6 +61,7 @@ class BookImageAnalyze(Resource):
     -Input:
     -Output:
     '''
+
     def get(self):
         '''
         -Description:
@@ -80,18 +85,21 @@ class BookImageAnalyze(Resource):
 
             # get image feature
             try:
-                image_feature, kor_feature, eng_feature = self.analyze(image_url)
+                image_feature, kor_feature, eng_feature = self.analyze(
+                    image_url)
             except Exception as e:
 
                 if type(e) == requests.exceptions.MissingSchema or type(e) == exceptions.ArgumentError:
                     # Invaild URL
-                    message.set_result_message(response_body, "EC001", "Invalid URL Error")
-                else :
+                    message.set_result_message(
+                        response_body, "EC001", "Invalid URL Error")
+                else:
                     # 모듈 에러
                     message.set_result_message(response_body, "EP000")
-                logger.logging(f"[ERROR][BookImageAnalyze][analyze] {e}", debug_flag=False)
+                logger.logging(
+                    f"[ERROR][BookImageAnalyze][analyze] {e}", debug_flag=False)
                 image_feature = None
-            
+
             if image_feature:
                 # 특성 검색
                 try:
@@ -100,8 +108,8 @@ class BookImageAnalyze(Resource):
                     response_body["Response"] = result
                 except Exception as e:
                     message.set_result_message(response_body, "ES014")
-                    logger.logging(f"[ERROR][es_client][get_result] {e}", debug_flag=False)
-
+                    logger.logging(
+                        f"[ERROR][es_client][get_result] {e}", debug_flag=False)
 
         return jsonify(response_body)
 
@@ -112,14 +120,14 @@ class BookImageAnalyze(Resource):
         -Output:
         '''
         # get image from url
-        image = ImageHandler(img_path = image_url, path_type = "url")
+        image = ImageHandler(img_path=image_url, path_type="url")
 
         # extract features from image
         features = raw_model.predict(img=image.image,
-                                    features=book_image_job["features"],
-                                    text_options=book_image_job["text_options"],
-                                    image_options=book_image_job["image_options"],
-                                )
+                                     features=book_image_job["features"],
+                                     text_options=book_image_job["text_options"],
+                                     image_options=book_image_job["image_options"],
+                                     )
         surf_feature = features["image"]["SURF"]
 
         # convert image feature to viz-vocab
@@ -129,15 +137,34 @@ class BookImageAnalyze(Resource):
                 viz_vocab = self.predict_viz_vocab(feature)
                 viz_vocabs.append(viz_vocab)
             except Exception as e:
-                logger.logging(f"[ERROR][BookImageAnalyze][predict_viz_vocab] {e}", debug_flag=False)
+                logger.logging(
+                    f"[ERROR][BookImageAnalyze][predict_viz_vocab] {e}", debug_flag=False)
         viz_vocabs = " ".join(viz_vocabs)
-        
+
+        return viz_vocabs, None, None
+
+    def predict_viz_vocab(self, feature):
+        '''
+        - Input: feature shape
+        '''
+        global alphabet_matcher
+        global cluster_type
+        pred = ""
+        while 1:
+            try:
+                temp = globals()[f"{cluster_type}{pred}"].predict([feature])[0]
+                pred += alphabet_matcher[temp]
+            except KeyError:
+                return pred
+
+
 class ScrapImageAnalyze(Resource):
     '''
     -Description:
     -Input:
     -Output:
     '''
+
     def get(self):
         '''
         -Description:
@@ -161,7 +188,8 @@ class ScrapImageAnalyze(Resource):
             try:
                 scrap_text = self.scrap(image_url=image_url, lange=language)
             except Exception as e:
-                logger.logging(f"[ERROR][ScrapImageAnalyze][scrap] {e}", debug_flag=False)
+                logger.logging(
+                    f"[ERROR][ScrapImageAnalyze][scrap] {e}", debug_flag=False)
                 scrap_text = None
 
             message.set_result_message(response_body, "RS000")
@@ -181,15 +209,15 @@ class ScrapImageAnalyze(Resource):
         global logger
 
         # get image from url
-        image = ImageHandler(img_path = image_url, path_type = "url")
+        image = ImageHandler(img_path=image_url, path_type="url")
 
         # extract text
         scrap_job["text_options"]["langs"] = (language,)
         features = raw_model.predict(img=image.image,
-                                    features=scrap_job["features"],
-                                    text_options=scrap_job["text_options"],
-                                    image_options=scrap_job["image_options"],
-                                )
+                                     features=scrap_job["features"],
+                                     text_options=scrap_job["text_options"],
+                                     image_options=scrap_job["image_options"],
+                                     )
 
         scrap_text = features["text"][language]
         return scrap_text
