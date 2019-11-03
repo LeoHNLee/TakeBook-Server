@@ -1,9 +1,8 @@
-import re
-import numpy as np
-
 def predict_viz_vocab(feature):
     '''
-    - Input: feature shape
+    -Description:
+    -Input: feature shape
+    -Output:
     '''
     pred = ""
     while 1:
@@ -13,72 +12,6 @@ def predict_viz_vocab(feature):
         except KeyError:
             return pred
 
-class SurfFeature():
-    '''
-    -Descriptor: numpy 
-    -Input:
-    -Output:
-    '''
-    def __init__(self, capacity=10**6):
-        if type(capacity) != int:
-            raise ValueError
-        self.capacity = capacity
-        self.shape = (capacity, 64)
-        self.features = np.zeros(self.shape, dtype="float32")
-        self.now_size = 0
-        self.logs = list()
-
-    def add_features(self, rows):
-        _logs = []
-        if rows is None:
-            _status = "Red"
-            _logs.append(f"{_status} {time.time()} None Parameter: add_features(rows={rows})")
-            pass
-        else:
-            _status = "Green"
-            for row in rows:
-                try:
-                    _log = self.add_feature(row)
-                except Exception as e:
-                    _status = "Yellow"
-                    _log = f"{_status} {time.time()} self.add_feature ERROR: {e}"
-                if _log == "":
-                    continue
-                else:
-                    _logs.append(_log)
-        self.logs.append(f"{_status} {time.time()} execute add_features")
-        return _logs
-
-    def add_feature(self, row):
-        _log = ""
-        _status = "Green"
-        if self.now_size == self.capacity:
-            self.capacity *= 2
-            self.shape = (self.capacity, 64)
-            new_features = np.zeros(self.shape, dtype="float32")
-            new_features[:self.now_size] = self.features
-            self.features = new_features
-            _log = f"{_status} {time.time()} extend capacity: new_capacity={self.capacity}, new_shape={self.shape}"
-        self.features[self.now_size] = row
-        self.now_size += 1
-        return _log
-
-    def get(self):
-        ret = self.features[:self.now_size]
-        return ret
-    
-    def save(self, path):
-        ret = self.get()
-        with open(path, "wb") as fp:
-            np.save(fp, ret)
-
-    def load(self, path):
-        with open(path, "rb") as fp:
-            self.features = np.load(fp)
-        self.shape = self.features.shape
-        self.capacity = self.shape[0]
-        self.now_size = self.capacity
-                
 class HKMModel:
     '''
     -Descriptor:
@@ -312,24 +245,24 @@ class HierarchicalKMeans:
                               )
         self.models.train()
         
-    def load(self, dir_path=None, file_name=None,):
-        '''
-        -Descriptor:
-        -Input:
-        -Output:
-        '''
-        self.logger.logging(f"{self} start_classify", debug_flag=debug_flag)
-        start_time = time.time()
+    # def load(self, dir_path=None, file_name=None,):
+    #     '''
+    #     -Descriptor:
+    #     -Input:
+    #     -Output:
+    #     '''
+    #     self.logger.logging(f"{self} start_classify", debug_flag=debug_flag)
+    #     start_time = time.time()
         
-        # check model paths
-        if dir_path is None:
-            dir_path = self.dir_path
-        if file_name is None:
-            file_name = self.file_name
-        if dir_path is None or file_name is None:
-            raise ArgumentError(f"HierarchicalKMeans(dir_path={dir_path}, file_name={file_name})")
+    #     # check model paths
+    #     if dir_path is None:
+    #         dir_path = self.dir_path
+    #     if file_name is None:
+    #         file_name = self.file_name
+    #     if dir_path is None or file_name is None:
+    #         raise ArgumentError(f"HierarchicalKMeans(dir_path={dir_path}, file_name={file_name})")
         
         
         
-        end_time = f"{(time.time()-start_time)/60}분"
-        self.logger.logging(f"{self} finish_save {end_time}", debug_flag=debug_flag)
+    #     end_time = f"{(time.time()-start_time)/60}분"
+    #     self.logger.logging(f"{self} finish_save {end_time}", debug_flag=debug_flag)
