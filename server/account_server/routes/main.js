@@ -1128,7 +1128,7 @@ router.get('/UserScrapFolder', [log.regist_request_log], (req, res) => {
             return;
         }
 
-        let query = `SELECT folder_id, name, scrap_id, image_url, rnum
+        let query = `SELECT folder_id, name, creation_date, update_date, scrap_id, image_url, rnum
                     FROM (
                         SELECT s.*, 
                         (CASE @vfolder WHEN s.folder_id THEN @rownum:=@rownum+1 ELSE @rownum:=1 END) rnum,
@@ -1157,8 +1157,10 @@ router.get('/UserScrapFolder', [log.regist_request_log], (req, res) => {
                     let name = results[i].name;
 
                     let folder_item = {
-                        folder_id: folder_id,
-                        name: name,
+                        folder_id: results[i].folder_id,
+                        name: results[i].name,
+                        creation_date: method.trim_date(results[i].creation_date),
+                        update_date: method.trim_date(results[i].update_date),
                         scrap: {
                             count: 0,
                             item: []
