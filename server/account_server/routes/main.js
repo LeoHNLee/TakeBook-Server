@@ -2435,6 +2435,67 @@ router.delete('/Comment', [log.regist_request_log], (req, res) => {
     }
 });
 
+//내가 등록한 책 댓글 요청
+router.get('/MyComment', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let isbn = req.query.isbn;
+
+        if (!isbn) {
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        let query = `select c.comment_id, c.user_id, c.registration_date,
+                            c.contents, c.good_cnt, c.bad_cnt, c.recomment_cnt, c.vote, c.grade, u.name, u.profile_url
+                     from (
+                        select c.comment_id, c.user_id, c.registration_date, c.contents, c.good_cnt, c.bad_cnt, c.recomment_cnt, v.vote, g.grade
+                        from comment as c
+                        left join comment_vote v
+                        on c.comment_id = v.comment_id
+                        left join grade g
+                        on c.user_id = g.user_id and c.isbn = g.isbn
+                        where c.isbn = ? and c.upper_comment is null
+                        and c.user_id = ?
+                     ) as c, user as u
+                     where c.user_id = u.user_id;`
+
+        mysql_query.get_db_query_results(query, [isbn, user_id])
+            .then(results => {
+                if(results[0]){
+                    //요청 성공.
+                    message.set_result_message(response_body, "RS000");
+                    response_body.Response = results[0]
+                }else{
+                    //해당 댓글 없음.
+                    message.set_result_message(response_body, "RS001", "Not Exist User Comment");
+                }
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            })
+            .catch(err => {
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body)
+            });
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
 //책 대댓글 리스트 요청
 router.get('/ReComment', [log.regist_request_log], (req, res) => {
 
