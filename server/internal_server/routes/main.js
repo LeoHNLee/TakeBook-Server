@@ -153,10 +153,10 @@ router.get('/AnalyzeBookImage', [log.regist_request_log], (req, res) => {
                 message.set_result_message(response_body, "ES001");
                 break;
             }
-            case "EP001": {
-                //분석 실패
-                console.log("book feature analysis fail");
-                message.set_result_message(response_body, "ES001");
+            case "EC004": {
+                //url 이상.
+                console.log("invaild url");
+                message.set_result_message(response_body, "EC004");
                 break;
             }
             default: {
@@ -216,10 +216,10 @@ router.get('/AnalyzeScrapImage', [log.regist_request_log], (req, res) => {
                 message.set_result_message(response_body, "ES001");
                 break;
             }
-            case "EP001": {
+            case "EC004": {
                 //분석 실패
-                console.log("scrap image analysis fail");
-                message.set_result_message(response_body, "ES001");
+                console.log("invaild url");
+                message.set_result_message(response_body, "EC004");
                 break;
             }
             default: {

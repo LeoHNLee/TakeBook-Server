@@ -39,10 +39,11 @@ class Logger:
 
         # if log size over than output limitation, do output!
         if  self.size > self.output_limit:
-            if save_path is None:
+            if self.save_path is None:
                 self.output()
             else:
-                self.save()
+                # self.save()
+                pass
             self.size = 0
 
         # if verbose option, print write logs
@@ -52,7 +53,7 @@ class Logger:
     def get(self):
         '''
         -Descriptor:
-        -Input:
+        -Input: 
         -Output:
         '''
         return self.log

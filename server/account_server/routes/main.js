@@ -2654,6 +2654,10 @@ router.post('/AnalyzeBookImage', [log.regist_request_log], (req, res) => {
                                     console.log("analysis image success!.")
                                     break;
                                 }
+                                case "EC004": {
+                                    console.log("invaild_url.");
+                                    break;
+                                }
                                 case "ES001": {
                                     console.log("regist image fail: Analysis server error.")
                                     result = false;
@@ -2830,7 +2834,17 @@ router.get('/AnalyzeScrapImage', [log.regist_request_log], (req, res) => {
                                     response_body.Response = response.Response;
                                     break;
                                 }
+                                case "EC004": {
+                                    console.log("invaild_url.");
+                                    message.set_result_message(response_body, "RS001", "Analyze Image Fail");
+                                    break;
+                                }
                                 case "ES001": {
+                                    console.log("Analysis server error.");
+                                    message.set_result_message(response_body, "ES001");
+                                    break;
+                                }
+                                default: {
                                     console.log("Analysis server error.");
                                     message.set_result_message(response_body, "ES001");
                                     break;

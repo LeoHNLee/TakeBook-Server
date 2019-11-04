@@ -83,9 +83,9 @@ class BookImageAnalyze(Resource):
                 image_feature, kor_feature, eng_feature = self.analyze(image_url)
             except Exception as e:
 
-                if type(e) == requests.exceptions.MissingSchema or type(e) == exceptions.ArgumentError:
+                if type(e) == requests.exceptions.ConnectionError or type(e) == requests.exceptions.MissingSchema or type(e) == exceptions.ArgumentError:
                     # Invaild URL
-                    message.set_result_message(response_body, "EC001", "Invalid URL Error")
+                    message.set_result_message(response_body, "EC004", "Invalid URL Error")
                 else :
                     # 모듈 에러
                     message.set_result_message(response_body, "EP000")
@@ -101,7 +101,6 @@ class BookImageAnalyze(Resource):
                 except Exception as e:
                     message.set_result_message(response_body, "ES014")
                     logger.logging(f"[ERROR][es_client][get_result] {e}", debug_flag=False)
-
 
         return jsonify(response_body)
 
@@ -175,15 +174,19 @@ class ScrapImageAnalyze(Resource):
         else:
             # scrapping
             try:
-                scrap_text = self.scrap(image_url=image_url, lange=language)
+                scrap_text = self.scrap(image_url=image_url, lang=language)
+                message.set_result_message(response_body, "RS000")
+                response_body["Response"] = {"text": scrap_text}
             except Exception as e:
                 logger.logging(f"[ERROR][ScrapImageAnalyze][scrap] {e}", debug_flag=False)
+                if type(e) == requests.exceptions.ConnectionError or type(e) == requests.exceptions.MissingSchema or type(e) == exceptions.ArgumentError:
+                    # Invaild URL
+                    message.set_result_message(response_body, "EC004", "Invalid URL Error")
+                else :
+                    # 모듈 에러
+                    message.set_result_message(response_body, "EP000")
                 scrap_text = None
-
-            message.set_result_message(response_body, "RS000")
-            response_body["Response"] = {
-                "text": scrap_text,
-            }
+                
         return jsonify(response_body)
 
     def scrap(self, image_url, lang):
@@ -200,12 +203,12 @@ class ScrapImageAnalyze(Resource):
         image = ImageHandler(img_path = image_url, path_type = "url")
 
         # extract text
-        scrap_job["text_options"]["langs"] = (language,)
+        scrap_job["text_options"]["langs"] = (lang,)
         features = raw_model.predict(img=image.image,
                                     features=scrap_job["features"],
                                     text_options=scrap_job["text_options"],
                                     image_options=scrap_job["image_options"],
                                 )
 
-        scrap_text = features["text"][language]
+        scrap_text = features["text"][lang]
         return scrap_text
