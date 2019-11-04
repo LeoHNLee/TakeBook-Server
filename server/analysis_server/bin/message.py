@@ -14,7 +14,7 @@ def set_result_message(response_body, result_code, message=None):
         elif result_code == "EC003":
             response_body["Message"] = "Not Allowed Value"
         elif result_code == "EC004":
-            response_body["Message"] = "This Parms does not exist"
+            response_body["Message"] = "Invalid URL error"
         elif result_code == "EC005":
             response_body["Message"] = "Not Exist Parameter Info"
             

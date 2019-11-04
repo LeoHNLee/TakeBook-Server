@@ -140,33 +140,31 @@ router.get('/AnalyzeBookImage', [log.regist_request_log], (req, res) => {
             console.log(err)
             message.set_result_message(response_body, "ES001");
         }
-        else{
-            switch (response.Result_Code) {
-                case "RS000": {
-                    //분석 성공
-                    console.log("book feature analysis success");
-                    response_body = response;
-                    break;
-                }
-                case "EC001":
-                case "EP000": {
-                    //분석 실패
-                    console.log("book feature analysis fail");
-                    message.set_result_message(response_body, "ES001");
-                    break;
-                }
-                case "ES014": {
-                    //분석 실패
-                    console.log("book feature analysis fail");
-                    message.set_result_message(response_body, "ES014");
-                    break;
-                }
-                default: {
-                    //분석 실패
-                    console.log("book feature analysis fail");
-                    message.set_result_message(response_body, "ES001");
-                    break;
-                }
+
+        switch (response.Result_Code) {
+            case "RS000": {
+                //분석 성공
+                console.log("book feature analysis success");
+                response_body = response;
+                break;
+            }
+            case "EP000": {
+                //분석 실패
+                console.log("book feature analysis fail");
+                message.set_result_message(response_body, "ES001");
+                break;
+            }
+            case "EC004": {
+                //url 이상.
+                console.log("invaild url");
+                message.set_result_message(response_body, "EC004");
+                break;
+            }
+            default: {
+                //분석 실패
+                console.log("book feature analysis fail");
+                message.set_result_message(response_body, "ES001");
+                break;
             }
         }
         log.regist_response_log(req.method, req.route.path, response_body);
@@ -204,33 +202,33 @@ router.get('/AnalyzeScrapImage', [log.regist_request_log], (req, res) => {
             console.log(err)
             message.set_result_message(response_body, "ES001");
         }
-        else{
-            switch (response.Result_Code) {
-                case "RS000": {
-                    //분석 성공
-                    console.log("scrap image analysis success");
-                    response_body = response;
-                    break;
-                }
-                case "EP000": {
-                    //분석 실패
-                    console.log("scrap image analysis fail");
-                    message.set_result_message(response_body, "ES001");
-                    break;
-                }
-                case "EP001": {
-                    //분석 실패
-                    console.log("scrap image analysis fail");
-                    message.set_result_message(response_body, "ES001");
-                    break;
-                }
-                default: {
-                    //분석 실패
-                    console.log("scrap image analysis fail");
-                    message.set_result_message(response_body, "ES001");
-                    break;
-                }
-            } 
+
+        switch (response.Result_Code) {
+            case "RS000": {
+                //분석 성공
+                console.log("scrap image analysis success");
+                response_body = response;
+                break;
+            }
+            case "EP000": {
+                //분석 실패
+                console.log("scrap image analysis fail");
+                message.set_result_message(response_body, "ES001");
+                break;
+            }
+            case "EC004": {
+                //분석 실패
+                console.log("invaild url");
+                message.set_result_message(response_body, "EC004");
+                break;
+            }
+            default: {
+                //분석 실패
+                console.log("scrap image analysis fail");
+                message.set_result_message(response_body, "ES001");
+                break;
+            }
+
         }
 
 

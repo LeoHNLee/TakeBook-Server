@@ -1,0 +1,29 @@
+## 참고문서: https://github.com/tesseract-ocr/tesseract/wiki/Compiling#linux
+## 참고문서: https://jybaek.tistory.com/620
+
+## 아래 명령어를 차례로 실행시키면 됨
+sudo apt install tesseract-ocr libtesseract-dev -y
+sudo apt-get install g++ autoconf automake libtool pkg-config libpng-dev libjpeg8-dev libtiff5-dev zlib1g-dev libleptonica-dev ca-certificates git make -y
+sudo apt-get install --no-install-recommends asciidoc docbook-xsl xsltproc -y
+sudo git clone https://github.com/tesseract-ocr/tesseract.git
+cd tesseract
+./autogen.sh
+./configure
+make
+sudo make install
+sudo ldconfig
+
+## 데이터 넣는법
+# 위치: /usr/local/share/tessdata/
+# 데이터 다운로드: https://github.com/tesseract-ocr/tessdata_best
+## 위 사이트에서 kor, eng, kor-vert 세 종류 다운받아서 [위치]에 넣으면 끝
+
+## shell example
+$ tesseract [image_file_path] [text_save_path] -l kor
+
+## python3 example
+import pytesseract
+from PIL import Image
+image_path = [image_path]
+image = Image.open(image_path)
+pytesseract.image_to_string(image, lang="kor")
