@@ -1141,7 +1141,7 @@ router.get('/UserScrapFolder', [log.regist_request_log], (req, res) => {
                             where f.user_id = ?
                             ) s, (SELECT @vfolder:='', @rownum:=0 FROM DUAL) b
                         ORDER BY s.scrap_date desc) c
-                    where rnum <=6
+                    where rnum <=5
                     order by ${sort_key} ${sort_method}, rnum`
 
         mysql_query.get_db_query_results(query, [user_id])
@@ -1678,7 +1678,7 @@ router.put('/UserScrap', [log.regist_request_log], (req, res) => {
                 if (results.affectedRows) {
                     //요청 성공.
                     message.set_result_message(response_body, "RS000");
-                    if(modify_folder){
+                    if (modify_folder) {
                         mysql_query.update_folder_update_date(modify_folder)
                     }
                 }
@@ -2020,7 +2020,6 @@ router.put('/ChangeScrapFolder', [log.regist_request_log], (req, res) => {
                 res.json(response_body)
             })
             .catch(err => {
-                console.log(err.code)
                 switch (err.code) {
                     case "ER_NO_REFERENCED_ROW_2": {
                         //해당 폴더가 존재하지 않음.
@@ -2111,6 +2110,33 @@ router.delete('/ImageList', [log.regist_request_log], (req, res) => {
         mysql_query.get_db_query_results(query, [user_id, image_id])
             .then(results => {
                 if (results.affectedRows) {
+                    //s3 업로드된 파일 삭제.
+                    var params = {
+                        Bucket: image_bucket,
+                        Key: `${image_id}.jpg`
+                    };
+
+                    s3.deleteObject(params, function (err, data) {
+                        if (err) {
+                            console.log("delete s3 register_image fail");
+                            //log 기록
+                            log.regist_s3_log(req.method, req.route.path, false, {
+                                bucket: image_bucket,
+                                method: "delete",
+                                filename: `${image_id}.jpg`
+                            });
+
+                        } else {
+                            console.log("delete s3 register_image success");
+
+                            //log 기록
+                            log.regist_s3_log(req.method, req.route.path, true, {
+                                bucket: image_bucket,
+                                method: "delete",
+                                filename: `${image_id}.jpg`
+                            });
+                        }
+                    });
                     result_code = "RS000";
                 } else {
                     result_code = "EC005";
@@ -2473,11 +2499,11 @@ router.get('/MyComment', [log.regist_request_log], (req, res) => {
 
         mysql_query.get_db_query_results(query, [isbn, user_id])
             .then(results => {
-                if(results[0]){
+                if (results[0]) {
                     //요청 성공.
                     message.set_result_message(response_body, "RS000");
                     response_body.Response = results[0]
-                }else{
+                } else {
                     //해당 댓글 없음.
                     message.set_result_message(response_body, "RS001", "Not Exist User Comment");
                 }
