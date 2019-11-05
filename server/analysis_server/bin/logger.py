@@ -43,7 +43,7 @@ class Logger:
                 self.output()
             else:
                 # self.save()
-                pass
+                self.output()
             self.size = 0
 
         # if verbose option, print write logs
