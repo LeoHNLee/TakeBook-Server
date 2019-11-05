@@ -172,7 +172,7 @@ class ScrapImageAnalyze(Resource):
 
         req = request.args
         image_url = req.get("image_url")
-        language = scrap_job["text_options"]["langs"]
+        language = scrap_job["text_options"]["langs"][0]
 
         if image_url is None or image_url == '':
             # 필수 파라미터 누락
