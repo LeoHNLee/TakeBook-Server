@@ -2779,8 +2779,7 @@ router.delete('/VoteBook', [log.regist_request_log], (req, res) => {
                         .then(results => {
                             //요청 성공.
                             message.set_result_message(response_body, "RS000");
-
-                            if (vote = 1) {
+                            if (vote === 1) {
                                 //해당 댓글의 good_cnt를 -1
                                 mysql_query.decrement_comment_good_cnt(comment_id);
                             } else {
