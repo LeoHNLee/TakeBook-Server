@@ -2704,10 +2704,10 @@ router.post('/VoteBook', [log.regist_request_log], (req, res) => {
                         [method.create_key(user_id), comment_id, user_id, vote])
                         .then(results => {
                             //요청 성공.
-                            if (vote === 1) {
+                            if (vote === 1 || vote === "1") {
                                 //좋아요 수 증가.
                                 mysql_query.increment_comment_good_cnt(comment_id);
-                            } else if (vote === -1) {
+                            } else if (vote === -1 || vote === "-1") {
                                 //싫어요 수 증가.
                                 mysql_query.increment_comment_bad_cnt(comment_id);
                             }
