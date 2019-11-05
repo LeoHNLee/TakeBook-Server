@@ -3,8 +3,8 @@
 
 ## 아래 명령어를 차례로 실행시키면 됨
 sudo apt install tesseract-ocr libtesseract-dev -y
-sudo apt-get install g++ autoconf automake libtool pkg-config libpng-dev libjpeg8-dev libtiff5-dev zlib1g-dev libleptonica-dev ca-certificates git make -y
-sudo apt-get install --no-install-recommends asciidoc docbook-xsl xsltproc -y
+sudo apt install g++ autoconf automake libtool pkg-config libpng-dev libjpeg8-dev libtiff5-dev zlib1g-dev libleptonica-dev ca-certificates git make -y
+sudo apt install --no-install-recommends asciidoc docbook-xsl xsltproc -y
 sudo git clone https://github.com/tesseract-ocr/tesseract.git
 cd tesseract
 ./autogen.sh
