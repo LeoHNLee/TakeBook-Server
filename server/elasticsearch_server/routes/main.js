@@ -40,7 +40,7 @@ router.get('/Book', (req, res) => {
         index: "book",
         body: {
             from: 0,
-            size: 10,
+            size: 20,
             query: {
                 match: {}
             }

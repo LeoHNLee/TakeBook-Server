@@ -174,6 +174,7 @@ router.get('/SearchInISBN', (req, res) => {
 
     let query = `SELECT title, isbn, author, publisher, image_url FROM book WHERE `;
 
+    
     if (keyword) {
         if (category === 'isbn') {
             query += `${category} = '${keyword}' and `
@@ -191,6 +192,8 @@ router.get('/SearchInISBN', (req, res) => {
     query += `isbn in (${search_isbn_list.join()}) `
 
     query += `order by ${sort_key} ${sort_method} `
+
+    console.log(query)
 
     get_db_query_results(query).then(results =>{
         response_body.Response = {

@@ -994,6 +994,116 @@ router.delete('/UserBooks', [log.regist_request_log], (req, res) => {
     }
 });
 
+//등록된 책 후보 리스트 정보 요청
+router.get('/CandidateBook', [log.regist_request_log], (req, res) => {
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = decoded.id;
+        let book_id = req.query.book_id;
+
+        if (!book_id) {
+            //파라미터 값 오류
+            message.set_result_message(response_body, "EC001");
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body);
+            return;
+        }
+
+        // query 구문 구성
+        let query = `select second_candidate, third_candidate, fourth_candidate, fifth_candidate from registered_book where book_id = ? and user_id =?`
+
+        mysql_query.get_db_query_results(query, [book_id, user_id])
+            .then(results => {
+                if (results.length) {
+                    //책 요청 성공.
+                    let isexist = false;
+                    let isbn_list = [];
+
+                    for (let isbn in results[0]) {
+                        if (results[0][isbn]) {
+                            isexist = true;
+                            isbn_list.push(results[0][isbn]);
+                        }
+                    }
+
+                    if (isexist) {
+                        //후보 책들이 존재하는 경우.
+
+                        //book 정보 가져오기
+                        let internal_server_request_form = {
+                            method: 'GET',
+                            uri: `${host.internal_server}/UserBook`,
+                            qs: {
+                                isbn_list: isbn_list
+                            },
+                            json: true
+                        }
+
+                        //도서 정보 요청
+                        request.get(internal_server_request_form, (err, httpResponse, response) => {
+                            if (err) {
+                                //내부 서버 오류
+                                message.set_result_message(response_body, "ES004");
+                                log.regist_response_log(req.method, req.route.path, response_body);
+                                res.json(response_body);
+                                return;
+                            }
+
+                            switch (response.Result_Code) {
+                                case "RS000": {
+                                    //요청 성공.
+                                    message.set_result_message(response_body, "RS000");
+                                    response_body.Response = response.Response;
+                                    break;
+                                }
+                                case "ES002":
+                                case "ES011": {
+                                    message.set_result_message(response_body, response.Result_Code);
+                                    break;
+                                }
+                            }
+
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body);
+                        })
+
+                    } else {
+                        //후보 책들이 존재하지 않음.
+                        message.set_result_message(response_body, "RS001", "Not Exist Candidate List");
+                        log.regist_response_log(req.method, req.route.path, response_body);
+                        res.json(response_body);
+                        return;
+                    }
+                } else {
+                    //해당 책이 존재하지 않음.
+                    message.set_result_message(response_body, "EC005");
+                    log.regist_response_log(req.method, req.route.path, response_body);
+                    res.json(response_body);
+                    return;
+                }
+            })
+            .catch(err => {
+                console.log(err);
+                //데이터 베이스 오류
+                message.set_result_message(response_body, "ES010");
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+                return;
+            })
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+});
+
+
 //해당 isbn의 책을 유저가 가지고 있는지 확인.
 router.get('/CheckUserISBNExists', [log.regist_request_log], (req, res) => {
 
@@ -1636,7 +1746,6 @@ router.put('/UserScrap', [log.regist_request_log], (req, res) => {
         let user_id = decoded.id;
         let scrap_id = req.body.scrap_id;
         let modify_contents = req.body.modify_contents;
-        let modify_source_isbn = req.body.modify_source_isbn;
         let modify_source_title = req.body.modify_source_title;
         let modify_folder = req.body.modify_folder;
 
@@ -1648,7 +1757,7 @@ router.put('/UserScrap', [log.regist_request_log], (req, res) => {
             return;
         }
 
-        if (modify_contents === undefined && modify_source_isbn === undefined && modify_source_title === undefined && modify_folder === undefined) {
+        if (modify_contents === undefined && modify_source_title === undefined && modify_folder === undefined) {
             //아무런 수정 없음.
             message.set_result_message(response_body, "RS000");
             log.regist_response_log(req.method, req.route.path, response_body);
@@ -1659,9 +1768,6 @@ router.put('/UserScrap', [log.regist_request_log], (req, res) => {
         let query = `update scrap set `
         if (modify_contents !== undefined) {
             query += `contents = '${modify_contents}',`
-        }
-        if (modify_source_isbn !== undefined) {
-            query += `source_isbn = '${modify_source_isbn}',`
         }
         if (modify_source_title !== undefined) {
             query += `source_title = '${modify_source_title}',`
@@ -2486,14 +2592,17 @@ router.get('/Grade', [log.regist_request_log], (req, res) => {
             return;
         }
 
-        let query = `select round(sum(grade) / count(*),1) as grade, count(*) as count from grade where isbn = ?;`
-        mysql_query.get_db_query_results(query, [isbn])
+        let query = `select round(sum(grade) / count(*),1) as grade, count(*) as count, (
+            select grade
+            from grade
+            where user_id = ? and isbn = ?
+        ) as user_grade 
+        from grade where isbn = ?;`
+
+        mysql_query.get_db_query_results(query, [user_id, isbn, isbn])
             .then(results => {
                 message.set_result_message(response_body, "RS000");
-                response_body.Response = {
-                    count: results[0].count,
-                    grade: results[0].grade
-                }
+                response_body.Response = results[0]
                 log.regist_response_log(req.method, req.route.path, response_body);
                 res.json(response_body)
             })
@@ -2663,7 +2772,7 @@ router.delete('/Grade', [log.regist_request_log], (req, res) => {
 });
 
 //댓글 좋아요/싫어요 등록.
-router.post('/VoteBook', [log.regist_request_log], (req, res) => {
+router.post('/VoteComment', [log.regist_request_log], (req, res) => {
 
     const response_body = {};
 
@@ -2751,7 +2860,7 @@ router.post('/VoteBook', [log.regist_request_log], (req, res) => {
 });
 
 //댓글 좋아요/싫어요 취소.
-router.delete('/VoteBook', [log.regist_request_log], (req, res) => {
+router.delete('/VoteComment', [log.regist_request_log], (req, res) => {
 
     const response_body = {};
 
