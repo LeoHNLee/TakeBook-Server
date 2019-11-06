@@ -1,6 +1,7 @@
 ### url
 import urllib
 import requests
+from requests.exceptions import *
 ### image
 import cv2
 import imutils
@@ -32,10 +33,10 @@ class ImageHandler(object):
         self.path_type = path_type
         self.img_path = img_path
         if (img_path is None)^(path_type is None):
-            raise ImageError('You have to input both img_path and path_type')
+            raise ArgumentError(f"[ArguementError][ImageHandler][__init__] You have to input both img_path and path_type: img_path={img_path}, path_type={path_type}")
         if img is None:
             if img_path is None:
-                raise ImageError("You do not input any args. You have to input at least one arg. 'img' or 'img_path'")
+                raise ArgumentError(f"[ArguementError][ImageHandler][__init__] You do not input any args. You have to input at least one arg. 'img' or 'img_path'")
             else:
                 self.image = self.get_image()
         else:
@@ -47,20 +48,30 @@ class ImageHandler(object):
         elif self.path_type=='local':
             ret = self.get_image_from_local(self.img_path)
         else:
-            raise ImageError("Is it proper img_path?")
+            raise ArgumentError(f"[ArgumentError][ImageHandler][get_image] path_type is not proper: {self.img_path}")
         return ret
 
     def get_image_from_url(self, img_path):
-        img_from_url = requests.get(img_path)
+        try:
+            img_from_url = requests.get(img_path)
+        except MissingSchema as e:
+            raise URLError(f"[URLError][ImageHandler][get_image_from_url] url({img_path}) is not proper: {e}")
+        except ConnectionError as e:
+            raise URLError(f"[URLError][ImageHandler][get_image_from_url] url({img_path}) is not proper: {e}")
         status = img_from_url.status_code
         if status > 299 and status < 200:
-            raise URLError(f"Not Found Proper URL.\nmethod:{get_image_from_url}\nurl={img_path}")
+            raise URLError(f"[URLError][ImageHandler][get_image_from_url] url({img_path}) is not proper: status_code = {status}.")
         img = np.asarray(bytearray(img_from_url.content), dtype="uint8")
         img = cv2.imdecode(img, cv2.IMREAD_COLOR)
+        if img is None:
+            raise ImageError(f"[ImageError][ImageHandelr][get_image_from_url] image object is None: {img_path}")
         return img
 
     def get_image_from_local(self, img_path):
-        return cv2.imread(img_path)
+        image = cv2.imread(img_path)
+        if image is None:
+            raise ImageError(f"[ImageError][ImageHandelr][get_image_from_url] image object is None: {img_path}")
+        return 
 
     def save_image(self, save_path):
         '''

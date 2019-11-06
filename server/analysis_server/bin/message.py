@@ -1,4 +1,12 @@
+# result_message = {
+#     "RS000":"Response Success"
+# }
 
+# response_body = {
+#     "Result_Code": None,
+#     "Message": None,
+# }
+# response_body["Message"] = result_message[result_code]
 
 def set_result_message(response_body, result_code, message=None):
     response_body["Result_Code"] = result_code

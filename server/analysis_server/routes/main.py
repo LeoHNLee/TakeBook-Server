@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # python modules
 from bin.integrity import *
 import bin.exceptions as exceptions
@@ -8,15 +9,34 @@ import bin.es_client as es_client
 import bin.message as message
 import os
 import sys
+=======
+# standard modules
+import os, sys
+>>>>>>> flask
 import pickle
 import time
+sys.path.append(os.path.abspath("../"))
 
 # flask modules
 from flask import request, jsonify
 from flask_restful import Resource, Api
 
+<<<<<<< HEAD
 sys.path.append(os.path.abspath("../"))
 # from bin.exceptions import *
+=======
+# OpenSource modules
+
+# Own modules
+import bin.message as message
+import bin.es_client as es_client
+from bin.config import _train_job, _pred_job, _alphabet, _log_job
+from bin.im_book import *
+from bin.logger import Logger
+import bin.exceptions as exceptions
+from bin.exceptions import *
+from bin.integrity import *
+>>>>>>> flask
 
 # parsing options
 alphabet_matcher = _alphabet["matcher"]
@@ -26,7 +46,7 @@ cluster_type = _train_job["parameters"]["cluster_type"]
 model_path = _train_job["paths"]["dir"]["models"]
 model_path = os.path.abspath(model_path)+'/'
 log_path = _log_job["save_path"]
-log_path = os.path.abspath(log_path)
+log_path = os.path.abspath(log_path)+'/'
 
 # Global Trackers
 error_returner = ErrorReturner()
@@ -80,34 +100,35 @@ class BookImageAnalyze(Resource):
         if image_url is None or image_url == '':
             # 필수 파라미터 누락
             message.set_result_message(response_body, "EC001")
+            return jsonify(response_body)
+
+        result = {}
+        # get image feature
+        try:
+            image_feature, kor_feature, eng_feature = self.analyze(image_url)
+        except URLError as e:
+            # Invaild URL
+            message.set_result_message(response_body, "EC004", "Invalid URL Error")
+            return jsonify(response_body)
+        except ImageError as e:
+            # 이미지 에러: image is null
+            message.set_result_message(response_body, "EC004", "Invalid URL Image Error")
+            return jsonify(response_body)
+
+        if image_feature is None:
+            # 이미지 에러: image is null
+            message.set_result_message(response_body, "EP000")
+            return jsonify(response_body)
+
+        # 특성 검색
+        try:
+            result = es_client.get_result(image_feature)
+        except Exception as e: # have to check Exception
+            message.set_result_message(response_body, "ES014")
+            logger.logging(f"[ERROR][es_client][get_result] {e}", debug_flag=False)
         else:
-            result = {}
-
-            # get image feature
-            try:
-                image_feature, kor_feature, eng_feature = self.analyze(
-                    image_url)
-            except Exception as e:
-
-                if type(e) == requests.exceptions.ConnectionError or type(e) == requests.exceptions.MissingSchema or type(e) == exceptions.ArgumentError:
-                    # Invaild URL
-                    message.set_result_message(response_body, "EC004", "Invalid URL Error")
-                else :
-                    # 모듈 에러
-                    message.set_result_message(response_body, "EP000")
-                logger.logging(
-                    f"[ERROR][BookImageAnalyze][analyze] {e}", debug_flag=False)
-                image_feature = None
-
-            if image_feature:
-                # 특성 검색
-                try:
-                    result = es_client.get_result(image_feature)
-                    message.set_result_message(response_body, "RS000")
-                    response_body["Response"] = result
-                except Exception as e:
-                    message.set_result_message(response_body, "ES014")
-                    logger.logging(f"[ERROR][es_client][get_result] {e}", debug_flag=False)
+            message.set_result_message(response_body, "RS000")
+            response_body["Response"] = result
 
         return jsonify(response_body)
 
@@ -133,10 +154,10 @@ class BookImageAnalyze(Resource):
         for feature in surf_feature:
             try:
                 viz_vocab = self.predict_viz_vocab(feature)
-                viz_vocabs.append(viz_vocab)
             except Exception as e:
-                logger.logging(
-                    f"[ERROR][BookImageAnalyze][predict_viz_vocab] {e}", debug_flag=False)
+                logger.logging(f"[ERROR][BookImageAnalyze][predict_viz_vocab] {e}", debug_flag=False)
+            else:
+                viz_vocabs.append(viz_vocab)
         viz_vocabs = " ".join(viz_vocabs)
 
         return viz_vocabs, None, None
@@ -175,27 +196,24 @@ class ScrapImageAnalyze(Resource):
 
         req = request.args
         image_url = req.get("image_url")
-        # language = req.get("lang")
-        language = "kor"
+        language = scrap_job["text_options"]["langs"][0]
 
-        if image_url is None:
+        if image_url is None or image_url == '':
             # 필수 파라미터 누락
             message.set_result_message(response_body, "EC001")
+            return jsonify(response_body)
+
+        try:
+            scrap_text = self.scrap(image_url=image_url, lang=language)
+        except URLError as e:
+            # Invaild URL
+            message.set_result_message(response_body, "EC004", "Invalid URL Error")
+        except ImageError as e:
+            # 이미지 에러: image is null
+            message.set_result_message(response_body, "EP000")
         else:
-            # scrapping
-            try:
-                scrap_text = self.scrap(image_url=image_url, lang=language)
-                message.set_result_message(response_body, "RS000")
-                response_body["Response"] = {"text": scrap_text}
-            except Exception as e:
-                logger.logging(f"[ERROR][ScrapImageAnalyze][scrap] {e}", debug_flag=False)
-                if type(e) == requests.exceptions.ConnectionError or type(e) == requests.exceptions.MissingSchema or type(e) == exceptions.ArgumentError:
-                    # Invaild URL
-                    message.set_result_message(response_body, "EC004", "Invalid URL Error")
-                else :
-                    # 모듈 에러
-                    message.set_result_message(response_body, "EP000")
-                scrap_text = None
+            message.set_result_message(response_body, "RS000")
+            response_body["Response"] = {"text": scrap_text}
                 
         return jsonify(response_body)
 
@@ -213,7 +231,6 @@ class ScrapImageAnalyze(Resource):
         image = ImageHandler(img_path=image_url, path_type="url")
 
         # extract text
-        scrap_job["text_options"]["langs"] = (lang,)
         features = raw_model.predict(img=image.image,
                                      features=scrap_job["features"],
                                      text_options=scrap_job["text_options"],
