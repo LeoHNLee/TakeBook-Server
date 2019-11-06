@@ -90,7 +90,7 @@ class BookImageAnalyze(Resource):
             return jsonify(response_body)
         except ImageError as e:
             # 이미지 에러: image is null
-            message.set_result_message(response_body, "EP000")
+            message.set_result_message(response_body, "EC004", "Invalid URL Image Error")
             return jsonify(response_body)
 
         if image_feature is None:
