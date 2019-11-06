@@ -1564,7 +1564,7 @@ router.get('/UserScrap', [log.regist_request_log], (req, res) => {
         mysql_query.get_db_query_results('select * from folder where folder_id = ?;', [folder_id])
             .then(results => {
                 if (results.length) {
-                    let query = 'select scrap_id, creation_date, contents, source_isbn, source_title, folder, image_url from scrap where user_id = ? and folder = ? order by scrap_id desc';
+                    let query = 'select scrap_id, creation_date, contents, source_title, folder, image_url from scrap where user_id = ? and folder = ? order by scrap_id desc';
                     mysql_query.get_db_query_results(query, [user_id, folder_id])
                         .then(results => {
                             message.set_result_message(response_body, "RS000");
