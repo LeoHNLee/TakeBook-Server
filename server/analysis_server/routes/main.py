@@ -1,18 +1,3 @@
-<<<<<<< HEAD
-# python modules
-from bin.integrity import *
-import bin.exceptions as exceptions
-from bin.logger import Logger
-from bin.im_book import *
-from bin.config import _train_job, _pred_job, _alphabet, _log_job
-import bin.es_client as es_client
-import bin.message as message
-import os
-import sys
-=======
-# standard modules
-import os, sys
->>>>>>> flask
 import pickle
 import time
 sys.path.append(os.path.abspath("../"))
@@ -20,11 +5,6 @@ sys.path.append(os.path.abspath("../"))
 # flask modules
 from flask import request, jsonify
 from flask_restful import Resource, Api
-
-<<<<<<< HEAD
-sys.path.append(os.path.abspath("../"))
-# from bin.exceptions import *
-=======
 # OpenSource modules
 
 # Own modules
@@ -36,7 +16,6 @@ from bin.logger import Logger
 import bin.exceptions as exceptions
 from bin.exceptions import *
 from bin.integrity import *
->>>>>>> flask
 
 # parsing options
 alphabet_matcher = _alphabet["matcher"]
