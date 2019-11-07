@@ -340,7 +340,7 @@ router.get('/OtherUserInfo', [log.regist_request_log], (req, res) => {
             return;
         }
 
-        let query = `select user_id, name, profile_url, (
+        let query = `select user_id, name, state_message, profile_url, (
             select count(*)
             from following
             where user_id = ?
