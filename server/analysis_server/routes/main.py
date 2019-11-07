@@ -1,13 +1,15 @@
 # standard modules
-import os, sys
+import os
+import sys
 import pickle
 import time
 sys.path.append(os.path.abspath("../"))
 
+# OpenSource modules
+
 # flask modules
 from flask import request, jsonify
 from flask_restful import Resource, Api
-# OpenSource modules
 
 # Own modules
 import bin.message as message
@@ -98,7 +100,7 @@ class BookImageAnalyze(Resource):
 
         if image_feature is None:
             # 이미지 에러: image is null
-            message.set_result_message(response_body, "EP000")
+            message.set_result_message(response_body, "EC004", "Invalid URL Image Error")
             return jsonify(response_body)
 
         # 특성 검색
@@ -191,7 +193,7 @@ class ScrapImageAnalyze(Resource):
             message.set_result_message(response_body, "EC004", "Invalid URL Error")
         except ImageError as e:
             # 이미지 에러: image is null
-            message.set_result_message(response_body, "EP000")
+            message.set_result_message(response_body, "EC004", "Invalid URL Image Error")
         else:
             message.set_result_message(response_body, "RS000")
             response_body["Response"] = {"text": scrap_text}

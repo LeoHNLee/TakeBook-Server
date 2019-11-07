@@ -21,7 +21,7 @@ import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
 from .config import _pred_job
-pytesseract.pytesseract.tesseract_cmd=_pred_job["tesseract_path"]
+# pytesseract.pytesseract.tesseract_cmd=_pred_job["tesseract_path"]
 
 class ImageHandler(object):
     '''
