@@ -321,6 +321,72 @@ router.put('/UserInfo', [log.regist_request_log], (req, res) => {
     }
 });
 
+//다른 유저 정보 불러오기
+router.get('/OtherUserInfo', [log.regist_request_log], (req, res) => {
+
+    const response_body = {};
+
+    let token = req.headers.authorization;
+    let decoded = jwt_token.token_check(token);
+
+    if (decoded) {
+        let user_id = req.query.user_id;
+
+        if (!user_id) {
+            //필수 파라미터 누락
+            message.set_result_message(response_body, "EC001")
+            log.regist_response_log(req.method, req.route.path, response_body);
+            res.json(response_body)
+            return;
+        }
+
+        let query = `select user_id, name, profile_url, (
+            select count(*)
+            from following
+            where user_id = ?
+        )  as followed_cnt,
+        (
+            select count(*)
+            from following
+            where followee_id = ?
+        ) as follower_cnt
+        from user
+        where user_id = ?`
+
+        mysql_query.get_db_query_results(query, [user_id, user_id, user_id])
+            .then(results => {
+                if (results.length) {
+                    //사용자 정보 요청 성공
+                    message.set_result_message(response_body, "RS000")
+                    response_body.Response = results[0];
+                } else {
+                    //일치하는 사용자 정보 없음.
+                    message.set_result_message(response_body, "EC005")
+                }
+
+                //log 기록
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            })
+            .catch(err => {
+                console.log(err)
+                message.set_result_message(response_body, "ES010")
+                //log 기록
+                log.regist_response_log(req.method, req.route.path, response_body);
+                res.json(response_body);
+            })
+
+    } else {
+        //권한 없는 토큰.
+        message.set_result_message(response_body, "EC002");
+        //log 기록
+        log.regist_response_log(req.method, req.route.path, response_body);
+        res.json(response_body);
+    }
+
+});
+
+
 //회원 프로필 수정
 router.put('/UserProfile', [log.regist_request_log], (req, res) => {
     const response_body = {};
