@@ -31,7 +31,7 @@ def get_result(img_feature, kor_text_feature=None, eng_text_feature=None):
     # book_image_query["query"]["match"]["image"] = eng_text_feature
 
     # 결과값 매칭
-    es_results = es.search(index=_es_job["index"], body=book_image_analyze_query)["hits"]["hits"]
+    es_results = es.search(index=_es_job["index"], body=book_image_analyze_query, request_timeout=50)["hits"]["hits"]
 
     results_body = {}
     for key, value in zip(response_keys, es_results):
