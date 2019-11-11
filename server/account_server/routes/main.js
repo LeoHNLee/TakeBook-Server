@@ -330,7 +330,8 @@ router.get('/OtherUserInfo', [log.regist_request_log], (req, res) => {
     let decoded = jwt_token.token_check(token);
 
     if (decoded) {
-        let user_id = req.query.user_id;
+        let user_id = decoded.id;
+        let other_user_id = req.query.user_id;
 
         if (!user_id) {
             //필수 파라미터 누락
@@ -349,11 +350,16 @@ router.get('/OtherUserInfo', [log.regist_request_log], (req, res) => {
             select count(*)
             from following
             where followee_id = ?
-        ) as follower_cnt
+        ) as follower_cnt,
+        (
+			select count(*)
+            from following
+            where user_id = ? and followee_id = ?
+        ) as isfollow
         from user
         where user_id = ?`
 
-        mysql_query.get_db_query_results(query, [user_id, user_id, user_id])
+        mysql_query.get_db_query_results(query, [other_user_id, other_user_id, user_id ,other_user_id, other_user_id])
             .then(results => {
                 if (results.length) {
                     //사용자 정보 요청 성공
