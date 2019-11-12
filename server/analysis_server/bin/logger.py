@@ -10,7 +10,7 @@ class Logger:
     '''
     time_stamp_compiler = re.compile("[^0-9]")
 
-    def __init__(self, save_path, limit=10**4, verbose=False, debug=False):
+    def __init__(self, save_path=None, limit=10**4, verbose=False, debug=False):
         '''
         -Descriptor:
         -Input:
@@ -42,8 +42,7 @@ class Logger:
             if self.save_path is None:
                 self.output()
             else:
-                # self.save()
-                self.output()
+                self.save()
             self.size = 0
 
         # if verbose option, print write logs
@@ -53,7 +52,7 @@ class Logger:
     def get(self):
         '''
         -Descriptor:
-        -Input: 
+        -Input:
         -Output:
         '''
         return self.log
