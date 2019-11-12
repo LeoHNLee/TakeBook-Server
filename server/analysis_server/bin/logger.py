@@ -42,7 +42,8 @@ class Logger:
             if self.save_path is None:
                 self.output()
             else:
-                self.save()
+                self.output()
+                # self.save()
             self.size = 0
 
         # if verbose option, print write logs
