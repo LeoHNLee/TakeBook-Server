@@ -4,6 +4,7 @@ const request = require('request');
 const multer = require('multer');
 const multers3 = require('multer-s3');
 const aws = require('aws-sdk');
+const url = require('url');
 
 const log_register = require("../bin/log_register");
 const mysql_query = require('../bin/mysql_query');
@@ -359,7 +360,7 @@ router.get('/OtherUserInfo', [log.regist_request_log], (req, res) => {
         from user
         where user_id = ?`
 
-        mysql_query.get_db_query_results(query, [other_user_id, other_user_id, user_id ,other_user_id, other_user_id])
+        mysql_query.get_db_query_results(query, [other_user_id, other_user_id, user_id, other_user_id, other_user_id])
             .then(results => {
                 if (results.length) {
                     //사용자 정보 요청 성공
@@ -402,16 +403,18 @@ router.put('/UserProfile', [log.regist_request_log], (req, res) => {
 
     if (decoded) {
         let user_id = decoded.id;
+        let registration_date = method.current_time();
+        let image_key = method.create_key(user_id, registration_date);
 
         let user_file_upload = multer({
             storage: multers3({
                 s3: s3,
                 bucket: user_bucket,
                 metadata: function (req, file, cb) {
-                    cb(null, { fieldName: `${method.email_parser(user_id)}-profile.jpg` });
+                    cb(null, { fieldName: `${image_key}.jpg` });
                 },
                 key: function (req, file, cb) {
-                    cb(null, `${method.email_parser(user_id)}-profile.jpg`);
+                    cb(null, `${image_key}.jpg`);
                 }
             })
         }).single('profile_image');
@@ -429,7 +432,7 @@ router.put('/UserProfile', [log.regist_request_log], (req, res) => {
                         log.regist_s3_log(req.method, req.route.path, false, {
                             bucket: user_bucket,
                             method: "upload",
-                            filename: `${method.email_parser(user_id)}-profile.jpg`
+                            filename: `${image_key}.jpg`
                         })
                         message.set_result_message(response_body, "EC001");
                     }
@@ -444,26 +447,61 @@ router.put('/UserProfile', [log.regist_request_log], (req, res) => {
                     log.regist_s3_log(req.method, req.route.path, true, {
                         bucket: user_bucket,
                         method: "upload",
-                        filename: `${method.email_parser(user_id)}-profile.jpg`
+                        filename: `${image_key}.jpg`
                     })
 
-                    //정보 수정
-                    mysql_query.get_db_query_results(`update user set profile_url = ? where user_id = ?;`, [req.file.location, user_id])
+                    mysql_query.get_db_query_results(`select profile_url from user where user_id = ?`, [user_id])
                         .then(results => {
-                            //요청 성공.
-                            message.set_result_message(response_body, "RS000");
-                            response_body.Response = {};
-                            response_body.Response.profile_url = req.file.location;
+                            if (results[0].profile_url) {
 
-                            log.regist_response_log(req.method, req.route.path, response_body);
-                            res.json(response_body);
-                        })
-                        .catch(err => {
-                            console.log(err)
-                            //데이터 베이스 오류
-                            message.set_result_message(response_body, "ES010");
-                            log.regist_response_log(req.method, req.route.path, response_body);
-                            res.json(response_body);
+                                let fileurl = new URL(results[0].profile_url)
+                                let filename = fileurl.pathname.replace('/','');
+
+                                //기존 등록된 url이 있는 경우.
+                                var params = {
+                                    Bucket: user_bucket,
+                                    Key: `${filename}`
+                                };
+
+                                let s3_log_data = {
+                                    bucket: user_bucket,
+                                    method: "delete",
+                                    filename: `${filename}`
+                                };
+
+                                s3.deleteObject(params, function (err, data) {
+                                    if (err) {
+                                        //S3 서버 오류
+                                        console.log(err)
+                                        console.log("delete profile error");
+                                        log.regist_s3_log(req.method, req.route.path, false, s3_log_data);
+                                    } else {
+                                        console.log("success profile error");
+                                        log.regist_s3_log(req.method, req.route.path, true, s3_log_data);
+                                    }
+                                });
+
+                            }
+
+                            //정보 수정
+                            mysql_query.get_db_query_results(`update user set profile_url = ? where user_id = ?;`, [req.file.location, user_id])
+                                .then(results => {
+                                    //요청 성공.
+                                    message.set_result_message(response_body, "RS000");
+                                    response_body.Response = {};
+                                    response_body.Response.profile_url = req.file.location;
+
+                                    log.regist_response_log(req.method, req.route.path, response_body);
+                                    res.json(response_body);
+                                })
+                                .catch(err => {
+                                    console.log(err)
+                                    //데이터 베이스 오류
+                                    message.set_result_message(response_body, "ES010");
+                                    log.regist_response_log(req.method, req.route.path, response_body);
+                                    res.json(response_body);
+                                })
+
                         })
                 }
                 else {
@@ -495,44 +533,57 @@ router.delete('/UserProfile', [log.regist_request_log], (req, res) => {
     if (decoded) {
         let user_id = decoded.id;
 
-        var params = {
-            Bucket: user_bucket,
-            Key: `${method.email_parser(user_id)}-profile.jpg`
-        };
+        mysql_query.get_db_query_results(`select profile_url from user where user_id = ?`, [user_id])
+            .then(results => {
 
-        let s3_log_data = {
-            bucket: user_bucket,
-            method: "delete",
-            filename: `${method.email_parser(user_id)}-profile.jpg`
-        };
+                if (results[0].profile_url) {
+                    let fileurl = new URL(results[0].profile_url)
+                    let filename = fileurl.pathname.replace('/','');
 
-        s3.deleteObject(params, function (err, data) {
-            if (err) {
-                console.log(err)
-                log.regist_s3_log(req.method, req.route.path, false, s3_log_data);
-                //S3 서버 오류
-                message.set_result_message(response_body, "ES013");
-                log.regist_response_log(req.method, req.route.path, response_body);
-                res.json(response_body);
-            } else {
-                log.regist_s3_log(req.method, req.route.path, true, s3_log_data);
-
-                mysql_query.get_db_query_results(`update user set profile_url = null where user_id = ?;`, [user_id])
-                    .then(results => {
-                        //요청 성공.
-                        message.set_result_message(response_body, "RS000");
-                        log.regist_response_log(req.method, req.route.path, response_body);
-                        res.json(response_body);
-                    })
-                    .catch(err => {
-                        console.log(err)
-                        //데이터 베이스 오류
-                        message.set_result_message(response_body, "ES010");
-                        log.regist_response_log(req.method, req.route.path, response_body);
-                        res.json(response_body);
+                    var params = {
+                        Bucket: user_bucket,
+                        Key: `${filename}`
+                    };
+            
+                    let s3_log_data = {
+                        bucket: user_bucket,
+                        method: "delete",
+                        filename: `${filename}`
+                    };
+            
+                    s3.deleteObject(params, function (err, data) {
+                        if (err) {
+                            console.log(err)
+                            log.regist_s3_log(req.method, req.route.path, false, s3_log_data);
+                            //S3 서버 오류
+                            message.set_result_message(response_body, "ES013");
+                            log.regist_response_log(req.method, req.route.path, response_body);
+                            res.json(response_body);
+                        } else {
+                            log.regist_s3_log(req.method, req.route.path, true, s3_log_data);
+            
+                            mysql_query.get_db_query_results(`update user set profile_url = null where user_id = ?;`, [user_id])
+                                .then(results => {
+                                    //요청 성공.
+                                    message.set_result_message(response_body, "RS000");
+                                    log.regist_response_log(req.method, req.route.path, response_body);
+                                    res.json(response_body);
+                                })
+                                .catch(err => {
+                                    console.log(err)
+                                    //데이터 베이스 오류
+                                    message.set_result_message(response_body, "ES010");
+                                    log.regist_response_log(req.method, req.route.path, response_body);
+                                    res.json(response_body);
+                                });
+                        }
                     });
-            }
-        });
+
+                }
+
+            })
+
+        
     } else {
         //권한 없는 토큰.
         message.set_result_message(response_body, "EC002");
