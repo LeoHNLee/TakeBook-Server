@@ -4,17 +4,19 @@ const request = require('request');
 const multer = require('multer');
 const multers3 = require('multer-s3');
 const aws = require('aws-sdk');
-const url = require('url');
+const URL = require('url').URL;
 
 const log_register = require("../bin/log_register");
 const mysql_query = require('../bin/mysql_query');
 const method = require('../bin/Method');
 const jwt_token = require("../bin/jwt_token");
 const message = require("../bin/message");
+const Amplitude = require("../bin/Amplitude");
 const host = require('../config/host')
 
 const router = express.Router();
 let log = new log_register();
+let amplitude = new Amplitude();
 
 //aws region 설정, s3설정
 aws.config.region = 'ap-northeast-2';
@@ -199,6 +201,7 @@ router.post('/UserLogin', [log.regist_request_log], (req, res) => {
 
                     //로그인 성공.
                     message.set_result_message(response_body, "RS000")
+                    amplitude.regist_log(user_id, "Start_App", null, null);
                     response_body.Response = {};
 
                     //유저 토큰
@@ -476,7 +479,7 @@ router.put('/UserProfile', [log.regist_request_log], (req, res) => {
                                         console.log("delete profile error");
                                         log.regist_s3_log(req.method, req.route.path, false, s3_log_data);
                                     } else {
-                                        console.log("success profile error");
+                                        console.log("delete profile success");
                                         log.regist_s3_log(req.method, req.route.path, true, s3_log_data);
                                     }
                                 });
@@ -905,12 +908,17 @@ router.put('/UserBook', [log.regist_request_log], (req, res) => {
         (async () => {
 
             let book_id_check_result = null;
+            let isbn_list = [];
 
-            await mysql_query.get_db_query_results(`select book_id from registered_book where user_id = ? and book_id = ?`, [user_id, book_id])
+            await mysql_query.get_db_query_results(`select book_id, isbn, second_candidate, third_candidate, fourth_candidate, fifth_candidate
+            from registered_book where user_id = ? and book_id = ?`, [user_id, book_id])
                 .then(results => {
                     if (results.length) {
                         //해당 책번호 존제
                         book_id_check_result = true;
+                        for(var i in results[0]){
+                            isbn_list.push(results[0][i])
+                        }
                     } else {
                         //일치하는 책 없음.
                         message.set_result_message(response_body, "EC005");
@@ -983,8 +991,12 @@ router.put('/UserBook', [log.regist_request_log], (req, res) => {
                 return;
             }
 
-
-
+            if(isbn_list.includes(modify_isbn)){
+                amplitude.regist_log(user_id, "Function", "Top5", "Success");
+            }else{
+                amplitude.regist_log(user_id, "Function", "Top5", "Fail");
+            }
+            
             //책 정보 수정
             let query = `update registered_book set isbn = ?, second_candidate = null, third_candidate = null, fourth_candidate = null, fifth_candidate = null where user_id = ? and book_id = ? `
             await mysql_query.get_db_query_results(query, [modify_isbn, user_id, book_id])
@@ -3294,6 +3306,8 @@ router.post('/AnalyzeBookImage', [log.regist_request_log], (req, res) => {
         let registration_date = method.current_time();
         let image_id = method.create_key(user_id, registration_date);
 
+        amplitude.regist_log(user_id, "Request_API", "Take_Book_Picture", null);
+
         let user_file_upload = multer({
             storage: multers3({
                 s3: s3,
@@ -3327,6 +3341,7 @@ router.post('/AnalyzeBookImage', [log.regist_request_log], (req, res) => {
                     filename: `${image_id}.jpg`
                 });
                 log.regist_response_log(req.method, req.route.path, response_body);
+                amplitude.regist_log(user_id, "Request_API", "Take_Book_Picture", "Fail")
                 res.json(response_body);
                 return;
             }
@@ -3345,8 +3360,8 @@ router.post('/AnalyzeBookImage', [log.regist_request_log], (req, res) => {
             mysql_query.get_db_query_results(query, [image_id, user_id, registration_date, image_url, 0])
                 .then(results => {
                     message.set_result_message(response_body, "RS000");
-
                     log.regist_response_log(req.method, req.route.path, response_body);
+
                     res.json(response_body);
 
                     //이미지 분석 요청.
@@ -3380,7 +3395,7 @@ router.post('/AnalyzeBookImage', [log.regist_request_log], (req, res) => {
                                     break;
                                 }
                                 case "ES014": {
-                                    console.log("regist image fail: Elasticsearch Databsae server error.")
+                                    amplitude.regist_log(user_id, "Request_API", "Take_Book_Picture", "Fail")
                                     result = false;
                                     break;
                                 }
@@ -3523,6 +3538,7 @@ router.get('/AnalyzeScrapImage', [log.regist_request_log], (req, res) => {
     if (decoded) {
         let user_id = decoded.id;
         let scrap_id = req.query.scrap_id;
+        amplitude.regist_log(user_id, "Request_API", "Take_Book_Picture", null);
 
         mysql_query.get_db_query_results(`select image_url from scrap where scrap_id = ?`, [scrap_id])
             .then(results => {

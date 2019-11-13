@@ -8,6 +8,9 @@ const moment = require('moment-timezone');
 const mysql_pool = require('../bin/mysql_pool');
 const message = require('../bin/message');
 const host = require('../config/host');
+const Amplitude = require("../bin/Amplitude");
+
+let amplitude = new Amplitude();
 
 const router = express.Router();
 
@@ -76,8 +79,9 @@ function get_db_query_results(query, values){
 router.get('/Detail', (req, res) => {
 
     let response_body = {}
-
     let isbn = req.query.isbn;
+
+    amplitude.regist_log("Anyone", "Start_App", null, null);
 
     if (!isbn) {
         //필수 파라미터 누락
