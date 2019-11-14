@@ -908,7 +908,8 @@ router.put('/UserBook', [log.regist_request_log], (req, res) => {
         (async () => {
 
             let book_id_check_result = null;
-            let isbn_list = [];
+            let top1_isbn = null;
+            let top5_isbn_list = [];
 
             await mysql_query.get_db_query_results(`select book_id, isbn, second_candidate, third_candidate, fourth_candidate, fifth_candidate
             from registered_book where user_id = ? and book_id = ?`, [user_id, book_id])
@@ -916,8 +917,9 @@ router.put('/UserBook', [log.regist_request_log], (req, res) => {
                     if (results.length) {
                         //해당 책번호 존제
                         book_id_check_result = true;
+                        top1_isbn = results[0].isbn
                         for(var i in results[0]){
-                            isbn_list.push(results[0][i])
+                            top5_isbn_list.push(results[0][i])
                         }
                     } else {
                         //일치하는 책 없음.
@@ -991,10 +993,12 @@ router.put('/UserBook', [log.regist_request_log], (req, res) => {
                 return;
             }
 
-            if(isbn_list.includes(modify_isbn)){
-                amplitude.regist_log(user_id, "Function", "Top5", "Success");
+            if(modify_isbn === top1_isbn){
+                amplitude.regist_log(user_id, "Function", "Top5", "Is Top1");
+            }else if(top5_isbn_list.includes(modify_isbn)){
+                amplitude.regist_log(user_id, "Function", "Top5", "In Top5");
             }else{
-                amplitude.regist_log(user_id, "Function", "Top5", "Fail");
+                amplitude.regist_log(user_id, "Function", "Top5", "Fail In THe Top5");
             }
             
             //책 정보 수정
@@ -1900,21 +1904,28 @@ router.put('/UserScrap', [log.regist_request_log], (req, res) => {
             return;
         }
 
+        let query_parms_list = []
+        
         let query = `update scrap set `
         if (modify_contents !== undefined) {
-            query += `contents = '${modify_contents}',`
+            query += `contents = ? ,`
+            query_parms_list.push(modify_contents)
         }
         if (modify_source_title !== undefined) {
-            query += `source_title = '${modify_source_title}',`
+            query += `source_title = ?,`
+            query_parms_list.push(modify_source_title)
         }
         if (modify_folder !== undefined) {
-            query += `folder = '${modify_folder}',`
+            query += `folder = ?,`
+            query_parms_list.push(modify_folder)
         }
 
         query = query.replace(/,(?=[^,]*$)/, " ");
-        query += `where scrap_id = ?`
-
-        mysql_query.get_db_query_results(query, scrap_id)
+        query += `where user_id = ? and scrap_id = ?`
+        query_parms_list.push(user_id)
+        query_parms_list.push(scrap_id)
+        
+        mysql_query.get_db_query_results(query, query_parms_list)
             .then(results => {
                 if (results.affectedRows) {
                     //요청 성공.
@@ -3538,7 +3549,7 @@ router.get('/AnalyzeScrapImage', [log.regist_request_log], (req, res) => {
     if (decoded) {
         let user_id = decoded.id;
         let scrap_id = req.query.scrap_id;
-        amplitude.regist_log(user_id, "Request_API", "Take_Book_Picture", null);
+        amplitude.regist_log(user_id, "Request_API", "Take_Scrap_Picture", null);
 
         mysql_query.get_db_query_results(`select image_url from scrap where scrap_id = ?`, [scrap_id])
             .then(results => {

@@ -21,10 +21,9 @@ let mysql_query = {
 
             mysql_pool.getConnection((err, conn) => {
                 if (err) {
-                    //db 오류
-                    conn.release();
                     log.regist_database_log(null);
                     reject(err)
+                    //db 오류
                     return;
                 }
 
