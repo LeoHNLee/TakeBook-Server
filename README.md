@@ -7,27 +7,34 @@
 
 ## 프로젝트 구성
 
+### log collector
+
+- log collector
+  - redis에 저장된 로그기록을 파일로 저장하여 s3로 저장하는 서버
+
 ### server
 
-- api_server
-  - 사용자로부터 직접 request를 받는 api서버
-  - es_server, analysis_server 와 요청을 주고받는다.
+- account server
+  - 사용자 관련 정보를 관리하는 api서버
 
-- analysis_server
-  - python_module를 실행시키고 결과값을 보내주는 서버
+- analysis server
+  - python mudule를 사용해 책이미지의 특성을 분석하고 검색해주는 api서버
 
   - python_module
     - /models: 학습된 딥러닝 모델들 저장소
     - im_book.py: 영상 처리, 다특성 추출 등에 관련한 분석 서비스, 트레이닝 서비스에 이용되는 모듈들 선언
     - node_book_predict.py: node.js로 구현되어 있는 서버에서 실행하는 예측 기능
 
-- es_server
-  - elasticsearch에 데이터를 저장하고 쿼리를 보내는 서버
+- book server
+  - 책정보를 관리하고 요청받는 api서버
 
+- elasticsearch server
+  - 책정보 검색을 관리하고 요청받는 api서버
 
-- client
-  - 클라이언트 프로젝트
-  - Flutter 프로젝트이기 때문에 Android Studio에 Flutter 설치 필요
+- internal server
+  - 각 서버를 열결시켜주는 server discovery api서버
+
+### crawler
 
 - crawler
   - 도서정보를 크롤링 해오는 프로그램
