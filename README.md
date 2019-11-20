@@ -51,13 +51,13 @@ MSA(Microservice Architecture)적용하여 기능별 단위로 서비스를 나�
 
 기술 스택: Node.js, AWS RDS, AWS S3
 
-#####Elasticsearch Server
+##### Elasticsearch Server
 
 수집된 책 정보를 사용자의 요청에따라 검색 해주는 API서버
 
 기술 스택: Node.js, Elasticsaerch
 
-#####Internal Server
+##### Internal Server
 
 각 서버간 요청을 담당하는 Internal API서버
 
