@@ -33,27 +33,28 @@
 MSA(Microservice Architecture)적용하여 기능별 단위로 서비스를 나누어 총 4가지의 서버와 서버간 통신을 담당하는 Internal 서버로 구성되어 있음.
 기술 스택: Node.js, Flask AWS RDS, AWS S3, Redis, Elasticsaerch, Tesseract
 
-##### Account Server
+#####   Account Server
 
 사용자 정보를 관리하는 API서버
 
-##### Analysis Server
+#####   Analysis Server
 
 이미지를 분석하여 결과값을 전송하는 API서버
 
-##### Book Server
+#####   Book Server
 
 수집된 책 정보를 보여주는 API서버
 
-##### Elasticsearch Server
+#####   Elasticsearch Server
 
 수집된 책 정보를 사용자의 요청에따라 검색 해주는 API서버
 
-##### Internal Server
+#####   Internal Server
 
 각 서버간 요청을 담당하는 Internal API서버
 
-### Client
+
+### Client or Screenshots
 
 <https://git.swmgit.org/root/p1039_red-1>
 
@@ -74,8 +75,5 @@ MSA(Microservice Architecture)적용하여 기능별 단위로 서비스를 나�
 tessteract 설정을 위한 파일들의 집합
 
 
-## Screenshots
-
-여기 메인화면 하나 깔끔한 화면 하나 넣기
 
 
