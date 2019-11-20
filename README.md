@@ -28,7 +28,6 @@
 국립 중앙도서관, 알라딘 API, 교보문고 웹 크롤링을 통한 도서 데이터를 AWS RDS로 수집.
 
 
-
 ### Server
 
 MSA(Microservice Architecture)적용하여 기능별 단위로 서비스를 나누어 총 4가지의 서버와 서버간 통신을 담당하는 Internal 서버로 구성되어 있음.
@@ -54,11 +53,13 @@ MSA(Microservice Architecture)적용하여 기능별 단위로 서비스를 나�
 
 각 서버간 요청을 담당하는 Internal API서버
 
+### Client
+
+<https://git.swmgit.org/root/p1039_red-1>
+
 
 
 ### 그외 디렉토리
-
-
 
 **log_collector**
 
@@ -72,5 +73,9 @@ MSA(Microservice Architecture)적용하여 기능별 단위로 서비스를 나�
 
 tessteract 설정을 위한 파일들의 집합
 
+
+## Screenshots
+
+여기 메인화면 하나 깔끔한 화면 하나 넣기
 
 
